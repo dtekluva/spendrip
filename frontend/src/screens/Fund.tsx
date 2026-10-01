@@ -2,6 +2,7 @@ import { api } from '../lib/api';
 import { lagos, MONL, N } from '../lib/format';
 import { useStore } from '../lib/store';
 import { useAction } from '../components/ui';
+import { CardPanel } from './CardTopUp';
 
 export default function Fund() {
   const { summary, plans, me, reload, confetti, koboSay, toast } = useStore();
@@ -40,11 +41,12 @@ export default function Fund() {
             <span style={{ fontWeight: 700 }}>{fa.bank_name} · {fa.account_name}</span>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={copy}>Copy number</button>
-              <button className="btn btn-soft" onClick={() => toast('Card top-ups (Paystack) come in a later phase.')}>Pay with card</button>
+              <button className="btn btn-soft" onClick={() => document.getElementById('card-panel')?.scrollIntoView({ behavior: 'smooth' })}>Pay with card</button>
             </div>
             <span className="small muted">Transfers usually land in under a minute. We'll notify you.</span>
           </div>
         ) : <div className="card">Your account number appears here once you're verified.</div>}
+        <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>
         {me?.dev_tools && (
           <div className="demo">
             <div className="eyebrow">Test mode</div>

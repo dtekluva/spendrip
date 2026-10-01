@@ -89,3 +89,46 @@ class Inflow(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["provider", "reference"], name="inflow_unique_provider_ref")]
+
+
+class SavedCard(models.Model):
+    """A card saved through Paystack. We keep only Paystack's reusable token (encrypted) and display details."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cards")
+    provider = models.CharField(max_length=20, default="paystack")
+    authorization_code_enc = models.TextField()  # encrypted; never sent to the browser
+    signature = models.CharField(max_length=120)  # Paystack's id for the physical card, to avoid saving it twice
+    brand = models.CharField(max_length=20, blank=True)
+    last4 = models.CharField(max_length=4)
+    bank = models.CharField(max_length=80, blank=True)
+    exp_month = models.CharField(max_length=2, blank=True)
+    exp_year = models.CharField(max_length=4, blank=True)
+    email = models.CharField(max_length=120)  # Paystack ties the token to the email it was charged with
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "signature"], name="card_unique_per_user")]
+
+
+class CardCharge(models.Model):
+    """One card top-up attempt. `net_kobo` is what lands in the wallet; `gross_kobo` is what the card is charged."""
+
+    class Status(models.TextChoices):
+        STARTED = "started"
+        SUCCESS = "success"
+        FAILED = "failed"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="card_charges")
+    reference = models.CharField(max_length=64, unique=True)
+    net_kobo = models.BigIntegerField()
+    fee_kobo = models.BigIntegerField()
+    gross_kobo = models.BigIntegerField()
+    save_card = models.BooleanField(default=True)
+    card = models.ForeignKey(SavedCard, null=True, blank=True, on_delete=models.SET_NULL, related_name="charges")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.STARTED)
+    message = models.CharField(max_length=200, blank=True)
+    inflow = models.OneToOneField(Inflow, null=True, blank=True, on_delete=models.PROTECT, related_name="card_charge")
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)

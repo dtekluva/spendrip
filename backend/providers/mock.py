@@ -141,3 +141,42 @@ class DbMockPaymentProvider(MockPaymentProvider):
         status = TransferStatus(t.status)
         session = f"0000{t.pk:026d}" if status == TransferStatus.SUCCESSFUL else ""
         return TransferResult(status, provider_ref=f"MOCK-{t.reference[:8]}", session_id=session)
+
+
+class MockCardGateway:
+    """
+    Test-mode card checkout (used when no Paystack key is set and dev tools are on). "Checkout" sends
+    you straight back to the app; every charge succeeds with a reusable test Visa ••4081, except
+    amounts ending in 13 kobo, which are declined so the failure path can be tried.
+    """
+
+    name = "mock-card"
+    test_mode = True
+
+    def __init__(self, return_url: str):
+        self.return_url = return_url.rstrip("/")
+
+    def _auth(self):
+        return {"authorization_code": "AUTH_test_4081", "reusable": True, "last4": "4081", "brand": "visa", "bank": "TEST BANK",
+                "exp_month": "12", "exp_year": "2030", "signature": "SIG_test_4081"}
+
+    def initialize(self, *, email, amount_kobo, reference, callback_url, metadata):
+        sep = "&" if "?" in callback_url else "?"
+        return {"authorization_url": f"{callback_url}{sep}reference={reference}&test=1", "access_code": f"test_{reference[:10]}"}
+
+    def verify(self, reference):
+        from ledger.models import CardCharge
+        c = CardCharge.objects.filter(reference=reference).first()
+        if not c:
+            return {"status": "failed", "amount_kobo": 0, "currency": "NGN", "reference": reference, "message": "Unknown payment", "authorization": None}
+        ok = c.gross_kobo % 100 != 13
+        return {"status": "success" if ok else "failed", "amount_kobo": c.gross_kobo, "currency": "NGN", "reference": reference,
+                "message": "Approved" if ok else "Declined by the test bank", "authorization": self._auth() if ok else None}
+
+    def charge_authorization(self, *, email, amount_kobo, authorization_code, reference, metadata):
+        ok = amount_kobo % 100 != 13
+        return {"status": "success" if ok else "failed", "amount_kobo": amount_kobo, "currency": "NGN", "reference": reference,
+                "message": "Approved" if ok else "Declined by the test bank", "authorization": self._auth() if ok else None}
+
+    def deactivate(self, authorization_code):
+        return None

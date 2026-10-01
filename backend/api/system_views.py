@@ -1,4 +1,5 @@
 import hmac
+import json
 import logging
 import uuid
 
@@ -112,3 +113,47 @@ class DevTick(APIView):
         if not dev_tools():
             return Response(status=404)
         return Response(Worker().tick())
+
+
+# ------------------------------------------------------------------ Paystack webhook
+
+from django.http import HttpResponse, JsonResponse  # noqa: E402
+from django.views.decorators.csrf import csrf_exempt  # noqa: E402
+from django.views.decorators.http import require_POST  # noqa: E402
+
+from drips.models import Run  # noqa: E402
+from ledger import cards  # noqa: E402
+from ledger.models import CardCharge  # noqa: E402
+from providers.paystack import verify_webhook  # noqa: E402
+
+
+@csrf_exempt
+@require_POST
+def paystack_webhook(request):
+    """
+    Paystack events. Only accepted with a valid signature, and never trusted on their own: card
+    payments are re-checked with Paystack, and transfers are handed to the worker's status check.
+    """
+    secret = settings.PAYSTACK["SECRET_KEY"]
+    if not secret or not verify_webhook(secret, request.body, request.headers.get("X-Paystack-Signature", "")):
+        return HttpResponse(status=401)
+    try:
+        event = json.loads(request.body)
+    except ValueError:
+        return HttpResponse(status=400)
+    kind, data = event.get("event", ""), event.get("data") or {}
+    ref = str(data.get("reference", ""))
+    if kind == "charge.success" and CardCharge.objects.filter(reference=ref).exists():
+        cards.complete(ref)  # verifies with Paystack before crediting, once
+    elif kind.startswith("transfer.") and ref:
+        # Ask the worker to check this transfer with Paystack on its next tick.
+        Run.objects.filter(pk=ref if _is_uuid(ref) else None, status__in=Run.IN_FLIGHT).update(next_check_at=timezone.now())
+    return JsonResponse({"ok": True})
+
+
+def _is_uuid(s: str) -> bool:
+    try:
+        uuid.UUID(s)
+        return True
+    except ValueError:
+        return False

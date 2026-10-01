@@ -14,6 +14,7 @@ class Recipient(models.Model):
     bank_name = models.CharField(max_length=80)
     nip_bank_code = models.CharField(max_length=10)  # Liberty/NIP code, e.g. 000013 GTBank
     cbn_bank_code = models.CharField(max_length=10, blank=True)  # Paystack uses CBN codes
+    paystack_recipient_code = models.CharField(max_length=40, blank=True)  # registered once, reused for every payout
     account_number = models.CharField(max_length=10)
     verified_account_name = models.CharField(max_length=120)  # from name enquiry
     whatsapp = models.CharField(max_length=20, blank=True)

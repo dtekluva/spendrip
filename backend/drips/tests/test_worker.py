@@ -150,3 +150,34 @@ def test_materialising_twice_creates_nothing_new(user, recipients, make_plan):
     first = materialise_runs(lagos("2026-11-01T00:00"))
     assert first > 30
     assert materialise_runs(lagos("2026-11-01T00:00")) == 0
+
+
+def test_payout_through_paystack_registers_recipient_once_and_settles_from_paystack(user, top_up, recipients, make_plan):
+    from drips.worker import Worker
+    from providers.base import TransferResult, TransferStatus
+
+    class FakePaystack:
+        name = "paystack"
+
+        def __init__(self):
+            self.sent = []
+
+        def transfer(self, req):
+            self.sent.append(req)
+            return TransferResult(TransferStatus.PENDING, recipient_code=req.recipient_code or "RCP_new")
+
+        def query_transfer(self, ref):
+            return TransferResult(TransferStatus.SUCCESSFUL)
+
+    top_up(50_000)
+    plan = make_plan("Mum", 10_000, recipients["mum"], frequency="weekly", weekday=1)
+    ps = FakePaystack()
+    w = Worker(provider=ps, messenger=MockMessenger())
+    w.tick(lagos("2026-11-02T09:00"))  # a Monday
+    w.tick(lagos("2026-11-02T09:01"))
+    w.tick(lagos("2026-11-09T09:00"))
+    recipients["mum"].refresh_from_db()
+    assert recipients["mum"].paystack_recipient_code == "RCP_new"
+    assert [r.recipient_code for r in ps.sent] == ["", "RCP_new"]  # registered once, reused after
+    assert ledger.account_balance(ledger.PAYSTACK) == naira(10_000)
+    assert ledger.account_balance(ledger.LIBERTY_POOL) == -naira(50_000)  # the top-up came through Liberty

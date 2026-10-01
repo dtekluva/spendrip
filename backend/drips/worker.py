@@ -24,7 +24,7 @@ from engine import compare_key, decide
 from ledger import services as ledger
 from notifications.models import OutboxMessage
 from notifications.services import notify
-from providers import ProviderError, TransferRequest, TransferStatus, get_messenger, get_payment_provider
+from providers import ProviderError, TransferRequest, TransferStatus, get_messenger, get_payout_provider
 from providers import messages as copy
 
 from .models import Plan, Run
@@ -42,7 +42,7 @@ NOT_FOUND_GIVE_UP_AFTER = 3
 
 class Worker:
     def __init__(self, provider=None, messenger=None):
-        self.provider = provider or get_payment_provider()
+        self.provider = provider or get_payout_provider()
         self.messenger = messenger or get_messenger()
         self.cfg = settings.SPENDRIP
 
@@ -111,13 +111,17 @@ class Worker:
         r = run.plan.recipient
         req = TransferRequest(reference=str(run.pk), amount_kobo=run.amount_kobo, bank_code=r.nip_bank_code,
                               account_number=r.account_number, account_name=r.verified_account_name,
-                              narration=f"SpenDrip {run.plan.label}")
+                              narration=f"SpenDrip {run.plan.label}", cbn_bank_code=r.cbn_bank_code,
+                              recipient_code=r.paystack_recipient_code if self.provider.name == "paystack" else "")
         try:
             result = self.provider.transfer(req)
         except ProviderError as e:
             log.warning("transfer %s outcome unknown: %s", run.pk, e)
             self._set(run, Run.Status.UNKNOWN, last_error=str(e)[:500], sent_at=now, next_check_at=now + self._backoff(0))
             return
+        if result.recipient_code and result.recipient_code != r.paystack_recipient_code:
+            r.paystack_recipient_code = result.recipient_code  # register once, reuse for every later payout
+            r.save(update_fields=["paystack_recipient_code"])
         self._apply(run, result, now, first=True)
 
     # ----------------------------------------------------------- in flight

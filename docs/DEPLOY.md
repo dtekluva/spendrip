@@ -77,6 +77,16 @@ The payment provider, SMS, WhatsApp and KYC are still **mocked**, so no real mon
 
 Before real money, wire Liberty (`PAYMENT_PROVIDER=liberty` plus the `LIBERTY_*` variables), an SMS provider and a KYC provider, then set `SPENDRIP_DEV_TOOLS=false`.
 
+## Paystack
+
+1. In the Paystack dashboard (**Settings → API Keys & Webhooks**), copy your **secret key** into the API's `PAYSTACK_SECRET_KEY` env var. Start with `sk_test_…`, and switch to `sk_live_…` only after testing.
+2. Set the **webhook URL** to `https://<api-domain>/api/webhooks/paystack`. Card payments and transfers are confirmed through it, and every event is checked against its Paystack signature.
+3. Set `PUBLIC_APP_URL` on the API to your web address (e.g. `https://spendrip.com`). After paying, Paystack sends people back to `/fund/card` there.
+4. Set `FIELD_ENCRYPTION_KEY` to a long random string, and never change it. Saved-card tokens are encrypted with it.
+5. **Payouts:** to send through Paystack, set `PAYOUT_PROVIDER=paystack`, then:
+   - **Fund your Paystack balance.** Transfers come out of it.
+   - **Turn off transfer OTP** (**Settings → Preferences**). Otherwise Paystack asks for a code on every transfer, and scheduled payouts can't go out.
+
 ## Liberty webhook
 
 When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks/liberty`. Optionally set `LIBERTY_WEBHOOK_SECRET` and have Liberty send it as `X-SpenDrip-Secret`. Every inflow is checked with Liberty (`verify_event`) before it's credited, and each one is credited only once.

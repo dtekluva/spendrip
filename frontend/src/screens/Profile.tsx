@@ -8,6 +8,8 @@ import type { Me } from '../lib/types';
 import { PinDots, PinPad, Switch, useAction } from '../components/ui';
 import { openAppearance } from './Appearance';
 import { AddRecipient } from './NewPlan';
+import { cardLabel, type SavedCard } from './CardTopUp';
+import { useEffect } from 'react';
 
 type Row = { icon: string; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
@@ -87,6 +89,7 @@ export default function Profile() {
           <SetRow icon="⏸" title="Pause everything" sub={u.paused_all ? 'No drips will go out until you turn this off' : 'Stop all drips at once. Nothing is deleted.'} on={u.paused_all}
             onClick={() => save({ paused_all: !u.paused_all }, u.paused_all ? 'All drips are back on' : 'All drips paused')} />
           <SetRow icon="👥" title="People" sub={people.map((r) => r.label).join(', ') || 'No one yet'} val={String(people.length)} onClick={peopleSheet} />
+          <SetRow icon="💳" title="Saved cards" sub="For one-tap top-ups" onClick={() => openSheet(<CardsSheet />)} />
           <SetRow icon="🧾" title="Transfer fee" sub="₦50 per drip, always included in your totals" />
         </div>
         <div className="group-h">Notifications</div>
@@ -156,6 +159,29 @@ function PeopleSheet() {
         ))}
       </div>
       <button className="btn btn-soft btn-block" style={{ marginTop: 12 }} onClick={() => setAdding(true)}>＋ Add someone</button>
+    </>
+  );
+}
+
+function CardsSheet() {
+  const { toast } = useStore();
+  const [cards, setCards] = useState<SavedCard[] | null>(null);
+  const load = () => api.get<SavedCard[]>('/cards').then(setCards);
+  useEffect(() => { load(); }, []);
+  const remove = async (c: SavedCard) => { await api.del(`/cards/${c.id}`); toast(`${cardLabel(c)} removed`); load(); };
+  return (
+    <>
+      <h3>Saved cards</h3>
+      {!cards ? <p className="muted">Loading…</p> : !cards.length ? (
+        <p className="muted">No saved cards yet. Tick “Save this card” when you top up with a card on Add money.</p>
+      ) : (
+        <div className="list">{cards.map((c) => (
+          <div key={c.id} className="set-row no-arrow"><span className="si">💳</span>
+            <span><b>{cardLabel(c)}</b><span className="sub">{[c.bank, c.exp && `Expires ${c.exp}`].filter(Boolean).join(' · ')}</span></span>
+            <button className="link small" style={{ color: 'var(--red)' }} onClick={() => remove(c)}>Remove</button></div>
+        ))}</div>
+      )}
+      <p className="small muted">Paystack keeps your card details. SpenDrip stores only a token for it, encrypted.</p>
     </>
   );
 }

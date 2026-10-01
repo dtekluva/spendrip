@@ -10,3 +10,4 @@ whitenoise>=6.8,<7
 webauthn>=2.2,<3
 pytest>=8.3,<9
 pytest-django>=4.9,<5
+cryptography>=43,<46

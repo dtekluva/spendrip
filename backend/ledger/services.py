@@ -142,9 +142,10 @@ def settle(user, run) -> bool:
         raise LedgerError(f"run {run.pk} was never reserved")
     if LedgerTransaction.objects.filter(idempotency_key=f"release:{run.pk}").exists():
         raise LedgerError(f"run {run.pk} was already released")
-    account(LIBERTY_POOL)
+    pool = PAYSTACK if run.provider == "paystack" else LIBERTY_POOL
+    account(pool)
     account(FEES)
-    lines = [(held_code(user.pk), -run.cost_kobo), (LIBERTY_POOL, run.amount_kobo)]
+    lines = [(held_code(user.pk), -run.cost_kobo), (pool, run.amount_kobo)]
     if run.fee_kobo:
         lines.append((FEES, run.fee_kobo))
     _, created = post(f"settle:{run.pk}", "settle", lines, run=run, memo=f"{run.plan.label} sent")

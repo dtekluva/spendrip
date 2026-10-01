@@ -9,6 +9,7 @@ urlpatterns = [
     path("health", system.Health.as_view()),
     path("cron/tick", system.CronTick.as_view()),
     path("webhooks/liberty", system.LibertyWebhook.as_view()),
+    path("webhooks/paystack", system.paystack_webhook),
     path("dev/top-up", system.DevTopUp.as_view()),
     path("dev/tick", system.DevTick.as_view()),
     # who am I
@@ -44,5 +45,11 @@ urlpatterns = [
     path("plans/preview", app.PlanPreview.as_view()),
     path("plans/<int:pk>", app.PlanDetail.as_view()),
     path("calendar", app.Calendar.as_view()),
+    path("funding/card/quote", app.CardQuote.as_view()),
+    path("funding/card/start", app.CardStart.as_view()),
+    path("funding/card/verify", app.CardVerify.as_view()),
+    path("funding/card/charge", app.SavedCardTopUp.as_view()),
+    path("cards", app.Cards.as_view()),
+    path("cards/<int:pk>", app.CardDetail.as_view()),
     path("activity", app.Activity.as_view()),
 ]

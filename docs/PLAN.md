@@ -320,6 +320,7 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 | Paystack | Optional: card-debit funding and/or an outward transfer rail. |
 | Runtime | Docker for everything (Node 22 in containers). |
 | WhatsApp | Mocked (outbox and an in-app preview). |
+| Paystack | Card top-ups on Paystack's checkout, with saved cards (token stored encrypted) for one-tap top-ups. The card fee is passed on and shown first (switchable). Payouts and name checks can run through Paystack (`PAYOUT_PROVIDER=paystack`). Webhooks are signature-checked, and every event is re-verified with Paystack. |
 | Sign-up | NIN → ID photo → selfie, then OTP to the NIN phone, then a PIN, then Face ID (optional). |
 | Sign-in | Face ID or PIN on a known device. New device: OTP, then PIN. |
 | Payout to "me" | To your own bank account, saved as a verified recipient. |

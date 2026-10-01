@@ -17,9 +17,9 @@ from engine import PlanLike, Schedule, forecast, next_occurrences, occurrences, 
 from ledger import services as ledger
 from ledger.models import Inflow
 from notifications.models import OutboxMessage
-from providers import get_payment_provider
+from providers import get_payout_provider
 
-from .banks import BANKS, BY_NIP
+from providers.banks import BANKS, BY_NIP
 
 TINTS = {"cobalt", "sun", "hibiscus", "mint"}
 MIN_AMOUNT_KOBO, MAX_AMOUNT_KOBO = 10_000, 1_000_000_000  # ₦100 – ₦10m
@@ -164,7 +164,7 @@ class RecipientLookup(APIView):
         if not (len(number) == 10 and number.isdigit()):
             raise FlowError("Account numbers have 10 digits.")
         try:
-            r = get_payment_provider().name_enquiry(code, number)
+            r = get_payout_provider().name_enquiry(code, number)
         except ValueError as e:
             raise FlowError(str(e), code="lookup_failed")
         return Response({"account_name": r.account_name, "bank_name": BY_NIP[code][0]})
@@ -184,7 +184,7 @@ class Recipients(APIView):
             raise FlowError("Choose a bank and enter a 10-digit account number.")
         if request.user.recipients.filter(nip_bank_code=code, account_number=number).exists():
             raise FlowError("You've already saved this account.", code="duplicate", status=409)
-        name = get_payment_provider().name_enquiry(code, number).account_name  # always check server-side
+        name = get_payout_provider().name_enquiry(code, number).account_name  # always check server-side
         r = Recipient.objects.create(
             user=request.user, label=label[:60], is_self=bool(d.get("is_self", False)), bank_name=BY_NIP[code][0], nip_bank_code=code,
             cbn_bank_code=BY_NIP[code][1], account_number=number, verified_account_name=name,
@@ -370,3 +370,81 @@ class Activity(APIView):
                           "sender": i.sender_name})
         items.sort(key=lambda x: x["at"], reverse=True)
         return Response(items[:100])
+
+
+# ------------------------------------------------------------------ card top-ups and saved cards
+
+from ledger import cards  # noqa: E402
+from ledger.models import CardCharge, SavedCard  # noqa: E402
+from providers import get_card_gateway  # noqa: E402
+
+
+def card_json(c: SavedCard) -> dict:
+    return {"id": c.id, "brand": c.brand or "card", "last4": c.last4, "bank": c.bank, "exp": f"{c.exp_month}/{c.exp_year[-2:]}" if c.exp_month else "",
+            "last_used_at": c.last_used_at}
+
+
+def charge_json(c: CardCharge, user) -> dict:
+    return {"reference": c.reference, "status": c.status, "message": c.message, "net_kobo": c.net_kobo, "fee_kobo": c.fee_kobo,
+            "gross_kobo": c.gross_kobo, "card": card_json(c.card) if c.card_id and c.card.active else None,
+            "available_kobo": ledger.balance(user).available_kobo}
+
+
+def _amount(request) -> int:
+    try:
+        return int(request.data.get("amount_kobo") if request.method != "GET" else request.query_params.get("amount_kobo"))
+    except (TypeError, ValueError):
+        raise FlowError("Enter an amount.")
+
+
+class CardQuote(APIView):
+    """What a card top-up of this amount costs, before paying."""
+
+    def get(self, request):
+        g = get_card_gateway()
+        q = cards.quote(_amount(request))
+        return Response({"available": g is not None, "test_mode": bool(g and g.test_mode), "net_kobo": q.net_kobo,
+                         "fee_kobo": q.fee_kobo, "gross_kobo": q.gross_kobo, "payer_covers_fee": q.payer_covers_fee})
+
+
+class CardStart(APIView):
+    def post(self, request):
+        return Response(cards.start(request.user, _amount(request), save_card=bool(request.data.get("save_card", True))))
+
+
+class CardVerify(APIView):
+    """The app calls this when Paystack sends the person back with ?reference=."""
+
+    def post(self, request):
+        ref = str(request.data.get("reference", ""))
+        charge = CardCharge.objects.filter(reference=ref, user=request.user).first()
+        if not charge:
+            raise FlowError("We couldn't find that payment.", status=404)
+        if charge.status == CardCharge.Status.STARTED:
+            charge = cards.complete(ref)
+        return Response(charge_json(charge, request.user))
+
+
+class SavedCardTopUp(APIView):
+    """One-tap top-up with a saved card."""
+
+    def post(self, request):
+        card = request.user.cards.filter(pk=request.data.get("card_id"), active=True).first()
+        if not card:
+            raise FlowError("That card isn't saved any more.", status=404)
+        charge = cards.charge_saved_card(request.user, card, _amount(request))
+        return Response(charge_json(charge, request.user))
+
+
+class Cards(APIView):
+    def get(self, request):
+        return Response([card_json(c) for c in request.user.cards.filter(active=True).order_by("-last_used_at", "-created_at")])
+
+
+class CardDetail(APIView):
+    def delete(self, request, pk):
+        card = request.user.cards.filter(pk=pk, active=True).first()
+        if not card:
+            raise FlowError("That card isn't saved any more.", status=404)
+        cards.remove_card(card)
+        return Response(status=204)

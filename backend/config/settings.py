@@ -115,7 +115,10 @@ SPENDRIP = {
     "WORKER_TICK_SECONDS": int(env("WORKER_TICK_SECONDS", "30")),
     # TSQ retry schedule for transfers still pending, in seconds. After the last one the run is flagged for review.
     "TSQ_BACKOFF_SECONDS": [30, 120, 600, 3600],
-    "PAYMENT_PROVIDER": env("PAYMENT_PROVIDER", "mock"),
+    "PAYMENT_PROVIDER": env("PAYMENT_PROVIDER", "mock"),  # accounts: account numbers + incoming transfers
+    "PAYOUT_PROVIDER": env("PAYOUT_PROVIDER", ""),  # sending money + name checks; empty = same as PAYMENT_PROVIDER
+    # Where the React app lives, for links back into it (e.g. after card checkout).
+    "PUBLIC_APP_URL": env("PUBLIC_APP_URL", "http://localhost:5173"),
     "MESSENGER": env("MESSENGER", "mock"),
     "KYC_PROVIDER": env("KYC_PROVIDER", "mock"),
     # Dev-only helpers (simulate top-up, demo user) are on only when this is true.
@@ -136,6 +139,17 @@ WEBAUTHN = {
     "RP_NAME": "SpenDrip",
     "ORIGIN": env("WEBAUTHN_ORIGIN", "http://localhost:5173"),
 }
+
+PAYSTACK = {
+    "SECRET_KEY": env("PAYSTACK_SECRET_KEY", ""),  # sk_test_… or sk_live_…; never sent to the browser
+    "BASE_URL": env("PAYSTACK_BASE_URL", "https://api.paystack.co"),
+    # True: the payer covers Paystack's card fee (shown before paying). False: SpenDrip absorbs it.
+    "PASS_CARD_FEES": env_bool("PAYSTACK_PASS_CARD_FEES", True),
+    "TIMEOUT_SECONDS": 20,
+}
+
+# Encrypts saved-card tokens at rest. Set its own value in production (any long random string).
+FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY", SECRET_KEY)
 
 LIBERTY = {
     "BASE_URL": env("LIBERTY_BASE_URL", "https://banking.libertypayng.com"),

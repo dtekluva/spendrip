@@ -24,6 +24,8 @@ class TransferRequest:
     account_number: str
     account_name: str
     narration: str
+    cbn_bank_code: str = ""  # Paystack identifies banks by CBN code
+    recipient_code: str = ""  # Paystack recipient, if we registered this person before
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,7 @@ class TransferResult:
     session_id: str = ""
     message: str = ""
     raw: dict = field(default_factory=dict)
+    recipient_code: str = ""  # Paystack: the recipient used, so we can remember it
 
 
 @dataclass(frozen=True)
