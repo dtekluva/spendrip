@@ -176,10 +176,10 @@ def _charge(data: dict) -> dict:
 
 class PaystackCardGateway:
     name = "paystack"
-    test_mode = False
 
     def __init__(self, client: PaystackClient):
         self.client = client
+        self.test_mode = client.secret_key.startswith("sk_test_")  # Paystack's test environment: no real money
 
     def initialize(self, *, email, amount_kobo, reference, callback_url, metadata):
         status, body = self.client.call("POST", "/transaction/initialize", json={

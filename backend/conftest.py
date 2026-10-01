@@ -12,6 +12,20 @@ def lagos(iso: str) -> datetime:
     return datetime.fromisoformat(iso).replace(tzinfo=LAGOS)
 
 
+@pytest.fixture(autouse=True)
+def offline_providers(settings):
+    """Tests never call real Paystack or Liberty, whatever is in .env."""
+    from providers import registry
+
+    settings.SPENDRIP = {**settings.SPENDRIP, "PAYMENT_PROVIDER": "mock", "PAYOUT_PROVIDER": ""}
+    settings.PAYSTACK = {**settings.PAYSTACK, "SECRET_KEY": "", "PUBLIC_KEY": ""}
+    for f in (registry.get_payment_provider, registry.get_payout_provider, registry.get_card_gateway):
+        f.cache_clear()
+    yield
+    for f in (registry.get_payment_provider, registry.get_payout_provider, registry.get_card_gateway):
+        f.cache_clear()
+
+
 @pytest.fixture
 def user(db):
     from accounts.models import User

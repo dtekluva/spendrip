@@ -79,7 +79,11 @@ Before real money, wire Liberty (`PAYMENT_PROVIDER=liberty` plus the `LIBERTY_*`
 
 ## Paystack
 
-1. In the Paystack dashboard (**Settings → API Keys & Webhooks**), copy your **secret key** into the API's `PAYSTACK_SECRET_KEY` env var. Start with `sk_test_…`, and switch to `sk_live_…` only after testing.
+1. In the Paystack dashboard (**Settings → API Keys & Webhooks**), copy your keys into the API's env vars:
+   - **To test:** set `PAYSTACK_MODE=test` with `TEST_PAYSTACK_SECRET_KEY` and `TEST_PAYSTACK_PUBLIC_KEY`.
+   - **To go live:** set `PAYSTACK_MODE=live` with `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`.
+   - **Safety:** live keys are refused while `SPENDRIP_DEV_TOOLS=true`. Dev tools show sign-in codes on screen, so they must be off in production.
+   - **Name checks in test mode:** Paystack allows only 3 real-bank name checks a day. Live mode has no such limit.
 2. Set the **webhook URL** to `https://<api-domain>/api/webhooks/paystack`. Card payments and transfers are confirmed through it, and every event is checked against its Paystack signature.
 3. Set `PUBLIC_APP_URL` on the API to your web address (e.g. `https://spendrip.com`). After paying, Paystack sends people back to `/fund/card` there.
 4. Set `FIELD_ENCRYPTION_KEY` to a long random string, and never change it. Saved-card tokens are encrypted with it.

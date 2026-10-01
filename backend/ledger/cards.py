@@ -53,7 +53,12 @@ def quote(net_kobo: int) -> Quote:
 
 
 def customer_email(user) -> str:
-    return user.email or f"{user.phone or user.pk}@users.spendrip.com"
+    """Paystack needs a real-looking email. We don't ask for one at sign-up, so fall back to a SpenDrip address."""
+    email = (user.email or "").strip().lower()
+    domain = email.rsplit("@", 1)[-1] if "@" in email else ""
+    if domain and "." in domain and not domain.endswith((".local", ".test", ".localhost", ".invalid")):
+        return email
+    return f"{user.phone or user.pk}@users.spendrip.com"
 
 
 def _new_charge(user, q: Quote, *, save_card: bool, card: SavedCard | None = None) -> CardCharge:

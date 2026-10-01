@@ -140,8 +140,23 @@ WEBAUTHN = {
     "ORIGIN": env("WEBAUTHN_ORIGIN", "http://localhost:5173"),
 }
 
+# Paystack keys. Test keys (TEST_PAYSTACK_*) are used unless PAYSTACK_MODE=live, and live keys are
+# refused while dev tools are on, so a laptop can never move real money by accident.
+PAYSTACK_MODE = env("PAYSTACK_MODE", "test" if DEBUG else "live")
+if PAYSTACK_MODE == "live":
+    _ps_secret, _ps_public = env("PAYSTACK_SECRET_KEY", ""), env("PAYSTACK_PUBLIC_KEY", "")
+    if _ps_secret and SPENDRIP["DEV_TOOLS"]:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("Live Paystack keys can't be used while SPENDRIP_DEV_TOOLS is on (it shows sign-in codes on screen). Turn dev tools off, or use PAYSTACK_MODE=test.")
+else:
+    _ps_secret, _ps_public = env("TEST_PAYSTACK_SECRET_KEY", ""), env("TEST_PAYSTACK_PUBLIC_KEY", "")
+    if _ps_secret.startswith("sk_live_"):
+        _ps_secret = ""  # a live key put under the TEST_ name is ignored, never used
+
 PAYSTACK = {
-    "SECRET_KEY": env("PAYSTACK_SECRET_KEY", ""),  # sk_test_… or sk_live_…; never sent to the browser
+    "MODE": PAYSTACK_MODE,
+    "SECRET_KEY": _ps_secret,  # never sent to the browser
+    "PUBLIC_KEY": _ps_public,
     "BASE_URL": env("PAYSTACK_BASE_URL", "https://api.paystack.co"),
     # True: the payer covers Paystack's card fee (shown before paying). False: SpenDrip absorbs it.
     "PASS_CARD_FEES": env_bool("PAYSTACK_PASS_CARD_FEES", True),
