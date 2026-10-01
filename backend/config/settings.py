@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "accounts",
+    "providers",
     "ledger",
     "drips",
     "notifications",
@@ -35,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -60,7 +62,10 @@ TEMPLATES = [{
 
 DATABASES = {
     "default": dj_database_url.parse(
-        env("DATABASE_URL", "postgresql://spendrip:spendrip@localhost:5434/spendrip"), conn_max_age=60,
+        env("DATABASE_URL", "postgresql://spendrip:spendrip@localhost:5434/spendrip"),
+        # Serverless (Vercel) opens a connection per invocation: use the provider's pooled URL and 0 here.
+        conn_max_age=int(env("DB_CONN_MAX_AGE", "60")),
+        conn_health_checks=True,
     )
 }
 
@@ -76,14 +81,31 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+WHITENOISE_USE_FINDERS = True  # serve admin assets without a collectstatic step (serverless-friendly)
+try:
+    STATIC_ROOT.mkdir(exist_ok=True)
+except OSError:
+    pass  # read-only filesystem (serverless); finders serve the files instead
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_PERMISSION_CLASSES": ["api.permissions.Unlocked"],
+    "EXCEPTION_HANDLER": "api.errors.handle",
+    "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
 }
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 CORS_ALLOW_CREDENTIALS = True
+
+# The React app calls the API through a same-origin /api proxy (Vite in dev, a Vercel rewrite in
+# production), so session cookies and CSRF work like a normal same-site app.
+CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS", "http://localhost:5173").split(",")
+CSRF_COOKIE_HTTPONLY = False  # the SPA reads it to send X-CSRFToken
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 90  # stay signed in on a device for 90 days; the app locks after idle time
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 # ---- SpenDrip ----
 SPENDRIP = {
@@ -98,6 +120,21 @@ SPENDRIP = {
     "KYC_PROVIDER": env("KYC_PROVIDER", "mock"),
     # Dev-only helpers (simulate top-up, demo user) are on only when this is true.
     "DEV_TOOLS": env_bool("SPENDRIP_DEV_TOOLS", DEBUG),
+    # Lock the app after this much idle time; unlocking needs Face ID or the PIN.
+    "IDLE_LOCK_SECONDS": int(env("IDLE_LOCK_SECONDS", "600")),
+    "OTP_TTL_SECONDS": 600,
+    "OTP_RESEND_SECONDS": 30,
+    "OTP_MAX_ATTEMPTS": 5,
+    # Shared secret for the scheduled tick (Vercel Cron sends "Authorization: Bearer <CRON_SECRET>").
+    "CRON_SECRET": env("CRON_SECRET", ""),
+    # Lets the Liberty webhook be authenticated with a shared secret header, on top of verifying each event with Liberty.
+    "WEBHOOK_SECRET": env("LIBERTY_WEBHOOK_SECRET", ""),
+}
+
+WEBAUTHN = {
+    "RP_ID": env("WEBAUTHN_RP_ID", "localhost"),
+    "RP_NAME": "SpenDrip",
+    "ORIGIN": env("WEBAUTHN_ORIGIN", "http://localhost:5173"),
 }
 
 LIBERTY = {

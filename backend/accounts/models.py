@@ -32,6 +32,10 @@ class User(AbstractUser):
     daily_cap_kobo = models.BigIntegerField(null=True, blank=True)
     paused_all = models.BooleanField(default=False)
     look = models.CharField(max_length=10, default="themed")  # themed | light | dark
+    notify_push = models.BooleanField(default=True)
+    notify_whatsapp_recipients = models.BooleanField(default=True)
+    notify_daily_summary = models.BooleanField(default=True)
+    notify_low_balance = models.BooleanField(default=True)
 
     @property
     def is_verified(self) -> bool:
@@ -76,3 +80,31 @@ class KycCheck(models.Model):
     provider_ref = models.CharField(max_length=120, blank=True)
     raw = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PhoneOtp(models.Model):
+    """A one-time code texted to a phone. Only a hash is stored."""
+
+    class Purpose(models.TextChoices):
+        SIGNUP = "signup"
+        SIGNIN = "signin"
+
+    phone = models.CharField(max_length=20, db_index=True)
+    purpose = models.CharField(max_length=10, choices=Purpose.choices)
+    code_hash = models.CharField(max_length=256)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class WebAuthnCredential(models.Model):
+    """A passkey (Face ID / fingerprint) registered on one of the user's devices."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="passkeys")
+    credential_id = models.CharField(max_length=512, unique=True)  # base64url
+    public_key = models.TextField()  # base64url COSE key
+    sign_count = models.PositiveBigIntegerField(default=0)
+    device_label = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)

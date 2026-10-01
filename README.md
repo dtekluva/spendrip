@@ -3,6 +3,7 @@
 Money that shows up on time. Schedule payouts to yourself and the people you look after, such as fuel every Friday at 2 PM, upkeep every morning, or Mum at month-end. You top up once, and SpenDrip sends each "drip" on time, protecting your priorities first.
 
 - **Plan and decisions:** [docs/PLAN.md](docs/PLAN.md)
+- **Deploying to Vercel:** [docs/DEPLOY.md](docs/DEPLOY.md)
 - **Clickable UI mock:** [docs/mock/spendrip-mock.html](docs/mock/spendrip-mock.html) (open it in a browser)
 
 ## Run it
@@ -17,7 +18,7 @@ docker compose exec backend python manage.py seed_demo
 
 | What | Where |
 |---|---|
-| React app | http://localhost:5173 |
+| React app | http://localhost:5173 (sign in with the demo phone **0803 123 4417**, PIN **2580**; the SMS code shows on screen in test mode) |
 | API | http://localhost:8010/api/health · `/api/summary` · `/api/plans` · `/api/activity` |
 | Django admin | http://localhost:8010/admin (demo / demo) |
 | Postgres | localhost:5434 (spendrip / spendrip) |
@@ -48,7 +49,7 @@ backend/
   notifications/   outbox (WhatsApp is mocked; messages land here)
   providers/       Liberty adapter, mocks, message copy
   api/             REST endpoints
-frontend/          React + TypeScript (Vite)
+frontend/          React + TypeScript (Vite) PWA: sign-up, lock, Home, Plans, plan builder, Calendar, Add money, Activity, Profile
 docs/              plan and UI mock
 ```
 

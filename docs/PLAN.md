@@ -301,7 +301,7 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 |---|---|---|
 | **0. Setup** ✅ | Django + DRF backend, React (Vite) frontend, Docker Compose (Postgres, API, worker, frontend), pytest, env config | `docker compose up` runs everything |
 | **1. Core engine** ✅ | Data model, schedule maths, run materialiser, **double-entry ledger with reserve/settle/release**, ₦50 fee logic, **protection engine (priority floor + allocations)**, funding calculator, worker loop, **MockPaymentProvider** (transfers, TSQ, inflow webhooks, with a dev "simulate a top-up" button), **MockMessenger**; heavy unit tests (especially ledger and idempotency) | Plans fire on time against fake money |
-| **2. App UI** | All screens above, auth (passkey or email magic link, plus PIN), PWA install, web push | You can use it end-to-end with the mock |
+| **2. App UI** ✅ | All screens above in React; sign-up (NIN → ID → selfie → SMS code → PIN → Face ID), sign-in, app lock; installable PWA; Vercel-ready (docs/DEPLOY.md). Web push still to come. | You can use it end-to-end with the mock |
 | **3. Liberty for real** | LibertyProvider: token refresh, name enquiry, `transfer_money` from the pool NUBAN, TSQ, virtual accounts, inflow webhook and verify. Liberty's payloads get mapped onto our normalised events once we have samples. | Real API calls, tested with tiny amounts |
 | **4. Live pilot (you only)** | Deploy (the same Docker images), live keys in a secret manager, caps set low (e.g. ₦5k/day), one plan to your own account | First real drops 🎉 |
 | **5. Scale up personal use** | Fuel, upkeep, Mum, cousin; monitoring and alerts (Sentry), daily ledger reconciliation | Daily driver |

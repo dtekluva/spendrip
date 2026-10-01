@@ -93,10 +93,51 @@ class MockKycProvider:
     def lookup_nin(self, nin: str) -> dict | None:
         if len(nin) != 11 or not nin.isdigit() or nin == "00000000000":
             return None
-        return {"first_name": "ADAEZE", "last_name": "OKONKWO", "date_of_birth": "1994-03-14", "phone": "08031234417"}
+        # A different phone per NIN, so several test sign-ups don't collide.
+        return {"first_name": "ADAEZE", "last_name": "OKONKWO", "date_of_birth": "1994-03-14", "phone": "080" + nin[-8:]}
 
     def check_document(self, image_bytes: bytes, *, id_type: str, expected_name: str) -> dict:
         return {"passed": len(image_bytes) > 0, "checks": ["corners_visible", "text_readable", "name_matches"]}
 
     def match_selfie(self, image_bytes: bytes) -> dict:
         return {"passed": len(image_bytes) > 0, "liveness": True, "score": 0.97}
+
+
+class DbMockPaymentProvider(MockPaymentProvider):
+    """The same mock, with its state in the database so it survives across processes (serverless, worker vs web)."""
+
+    def transfer(self, req: TransferRequest) -> TransferResult:
+        from django.db import IntegrityError, transaction
+
+        from .models import MockTransfer
+
+        self.transfer_calls += 1
+        status = TransferStatus.FAILED if req.account_number.endswith("0000") else TransferStatus.PENDING
+        try:
+            with transaction.atomic():
+                t = MockTransfer.objects.create(reference=req.reference, account_number=req.account_number,
+                                                amount_kobo=req.amount_kobo, status=status.value)
+        except IntegrityError:
+            t = MockTransfer.objects.get(reference=req.reference)
+        if self.crash_next:
+            self.crash_next = False
+            raise ProviderError("connection reset after sending")
+        return self._db_result(t)
+
+    def query_transfer(self, reference):
+        from .models import MockTransfer
+
+        t = MockTransfer.objects.filter(reference=reference).first()
+        if not t:
+            return TransferResult(TransferStatus.NOT_FOUND)
+        t.checks += 1
+        if t.status == TransferStatus.PENDING.value:
+            t.status = TransferStatus.SUCCESSFUL.value
+        t.save(update_fields=["checks", "status"])
+        return self._db_result(t)
+
+    @staticmethod
+    def _db_result(t):
+        status = TransferStatus(t.status)
+        session = f"0000{t.pk:026d}" if status == TransferStatus.SUCCESSFUL else ""
+        return TransferResult(status, provider_ref=f"MOCK-{t.reference[:8]}", session_id=session)

@@ -12,8 +12,8 @@ def get_payment_provider():
         c = settings.LIBERTY
         return LibertyProvider(base_url=c["BASE_URL"], email=c["EMAIL"], password=c["PASSWORD"], api_key=c["API_KEY"],
                                source_account=c["SOURCE_ACCOUNT"], mode=c["MODE"], timeout=c["TIMEOUT_SECONDS"])
-    from .mock import MockPaymentProvider
-    return MockPaymentProvider()
+    from .mock import DbMockPaymentProvider
+    return DbMockPaymentProvider()
 
 
 @lru_cache(maxsize=1)
