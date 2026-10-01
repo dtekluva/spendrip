@@ -8,7 +8,8 @@ import Kobo from '../components/Kobo';
 
 /** Returning on the same device: Face ID, or the PIN. */
 export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => void; onForgot: () => void }) {
-  const { me } = useStore();
+  const { me, refreshMe } = useStore();
+  const signOut = async () => { await api.post('/auth/signout'); await refreshMe(); };
   const canFace = !!me?.user?.has_face_id && passkeysSupported();
   const [mode, setMode] = useState<'face' | 'pin'>(canFace ? 'face' : 'pin');
   const [pin, setPin] = useState('');
@@ -38,6 +39,7 @@ export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => 
       <Wordmark style={{ marginBottom: 6 }} />
       <Kobo mood={error ? 'puddle' : 'peek'} size={64} follow />
       <h2>Welcome back{me?.user?.first_name ? `, ${me.user.first_name}` : ''} 👋</h2>
+      {me?.user?.phone_masked && <p className="small muted" style={{ margin: '-6px 0 0' }}>{me.user.phone_masked}</p>}
       {mode === 'face' ? (
         <>
           <div className={`face-ic ${scanning ? 'scan' : ''}`}>{Icon.face}</div>
@@ -57,6 +59,7 @@ export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => 
           <button className="link small" style={{ marginTop: 6 }} onClick={onForgot}>Forgot PIN?</button>
         </>
       )}
+      <button className="link small" style={{ marginTop: 'auto', color: 'var(--muted)' }} onClick={signOut}>Not you? Sign out</button>
     </div>
   );
 }
