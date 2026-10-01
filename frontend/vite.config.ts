@@ -26,8 +26,8 @@ export default defineConfig({
           { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
-      // Never cache API responses: balances must always be live.
-      workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [] },
+      // Never cache API responses: balances must always be live. Do precache Kobo (kobo.riv + the Rive engine) for offline use.
+      workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [], globPatterns: ['**/*.{js,css,html,svg,png,riv,wasm}'], maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 },
     }),
   ],
   server: { port: 5173, proxy: { '/api': { target, changeOrigin: false }, '/admin': { target, changeOrigin: false }, '/static': { target, changeOrigin: false } } },

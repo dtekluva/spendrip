@@ -1,4 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+
+// The Rive version loads lazily (its engine is ~2 MB); the SVG Kobo shows instantly and stays as the fallback.
+const RiveKobo = lazy(() => import('./RiveKobo'));
+const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let riveBroken = false;
 
 /**
  * Kobo, the SpenDrip drop. Pure SVG + CSS, so it costs nothing to load.
@@ -32,6 +37,36 @@ export const KOBO_MOODS: { mood: KoboMood; label: string; when: string }[] = [
 const BODY = 'M50 6C50 6 13 55 13 79a37 37 0 0 0 74 0C87 55 50 6 50 6Z';
 
 export default function Kobo({ mood = 'idle', size = 72, follow = false, title }: {
+  mood?: KoboMood; size?: number; follow?: boolean; title?: string;
+}) {
+  const [riveReady, setRiveReady] = useState(false);
+  // Eyes that follow your finger exist only in the SVG version, so Kobos with `follow` stay SVG.
+  const showRive = !follow && !riveBroken && !reducedMotion();
+  if (showRive) {
+    return (
+      <span className="kobo kobo-rive" style={{ width: size, height: size * 1.2, position: 'relative' }} role="img" aria-label={title ?? `Kobo, ${mood}`}>
+        {!riveReady && <SvgKobo mood={mood} size={size} />}
+        <Suspense fallback={null}>
+          <RiveBoundary onFail={() => { riveBroken = true; }}>
+            <span style={{ position: riveReady ? 'static' : 'absolute', inset: 0, opacity: riveReady ? 1 : 0 }}>
+              <RiveKobo mood={mood} size={size} onReady={() => setRiveReady(true)} />
+            </span>
+          </RiveBoundary>
+        </Suspense>
+      </span>
+    );
+  }
+  return <SvgKobo mood={mood} size={size} follow={follow} title={title} />;
+}
+
+class RiveBoundary extends Component<{ onFail: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { this.props.onFail(); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+function SvgKobo({ mood = 'idle', size = 72, follow = false, title }: {
   mood?: KoboMood; size?: number; follow?: boolean; title?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null);

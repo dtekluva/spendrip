@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rive-app/react-canvas": "^4.36.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.0"
+    "react-router-dom": "^7.1.0",
+    "@rive-app/canvas": "^2.44.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
