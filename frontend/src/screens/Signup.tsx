@@ -228,7 +228,7 @@ export function OtpBoxes({ value, onChange, ok }: { value: string; onChange: (v:
 export function useResend(seconds = 30) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => { if (left <= 0) return; const t = window.setTimeout(() => setLeft(left - 1), 1000); return () => window.clearTimeout(t); }, [left]);
-  return { left, restart: () => setLeft(seconds) };
+  return { left, restart: (n: number = seconds) => setLeft(n) };
 }
 
 function OtpStep({ header, phoneMasked, devCode, setDevCode, onNext }: {

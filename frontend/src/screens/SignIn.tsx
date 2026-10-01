@@ -19,9 +19,19 @@ export default function SignIn({ forgot: startForgot = false, onBack, onDone }: 
   const { busy, error, setError, run } = useAction();
   const resend = useResend();
 
+  const [note, setNote] = useState('');
   const start = () => run(async () => {
-    const r = await api.post<any>('/auth/signin/start', { phone });
-    setMasked(r.phone_masked); setDevCode(r.dev_code ?? ''); if (r.pin_locked) setForgot(true); setStep('code'); resend.restart();
+    try {
+      const r = await api.post<any>('/auth/signin/start', { phone });
+      setMasked(r.phone_masked); setDevCode(r.dev_code ?? ''); setNote(''); if (r.pin_locked) setForgot(true); setStep('code'); resend.restart();
+    } catch (e: any) {
+      if (e.code !== 'otp_wait') throw e;
+      // A code went out moments ago and is still valid: go to the code screen instead of blocking.
+      const digits = phone.replace(/\D/g, '').replace(/^234/, '0');
+      setMasked(`${digits.slice(0, 4)} ••• ${digits.slice(-4)}`);
+      setNote('We sent you a code a moment ago. Use that one, or wait to get a new one.');
+      setStep('code'); resend.restart(Number(e.message.match(/\d+/)?.[0] ?? 30));
+    }
   });
   const finish = (p: string) => run(async () => {
     try { onDone(await api.post<Me>('/auth/signin/verify', forgot ? { phone, code, new_pin: p } : { phone, code, pin: p })); }
@@ -61,6 +71,7 @@ export default function SignIn({ forgot: startForgot = false, onBack, onDone }: 
           <>
             <h2>Enter the code we texted you</h2>
             <p className="lead">We sent a 6-digit code to <b style={{ color: 'var(--ink)' }}>{masked}</b>.</p>
+            {note && <p className="small muted" style={{ margin: 0 }}>{note}</p>}
             <OtpBoxes value={code} onChange={(v) => { setCode(v); setError(''); if (v.length === 6) setStep('pin'); }} />
             <p className="err">{error}</p>
             <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>
