@@ -696,3 +696,6 @@ a{color:inherit}
 .kobo-tile b{font-size:15px}
 .kobo-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
 .kobo-side{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:8px 0}
+
+/* Column headings that sit on one line across a two-column screen */
+.col-head{margin:0;min-height:24px;line-height:24px}

@@ -57,8 +57,8 @@ export default function Plans() {
         <button className="btn btn-soft" style={{ height: 44, padding: '0 14px' }} onClick={() => nav('/calendar')}>
           <span style={{ width: 18, height: 18, display: 'inline-grid' }}>{Icon.calendar}</span>Calendar</button>
       </div>
-      <p className="muted" style={{ margin: '-6px 0 0' }}>Rest of this month: <b className="num" style={{ color: 'var(--ink)' }}>{N(total)}</b> including {N(fees)} in fees.</p>
       <div className="cols cols-plans"><div className="col stack">
+        <p className="muted col-head">Rest of this month: <b className="num" style={{ color: 'var(--ink)' }}>{N(total)}</b> including {N(fees)} in fees.</p>
         <div className="card prio-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><span className="eyebrow">🛡 Priority order</span><span className="small muted">{prio.length}/3</span></div>
           {[0, 1, 2].map((i) => {
@@ -78,7 +78,7 @@ export default function Plans() {
           <p className="small muted" style={{ margin: '2px 0 0' }}>1 gets paid first. A lower priority never spends money a higher one still needs this month. Other plans only use what's left after all three.</p>
         </div>
       </div><div className="col stack">
-        <div className="eyebrow" style={{ marginTop: 4 }}>All plans</div>
+        <div className="eyebrow col-head">All plans</div>
         <div className="plan-list">
           {plans.map((p) => (
             <button key={p.id} className={`plan-card ${p.status === 'paused' ? 'paused' : ''}`} onClick={() => openSheet(<PlanSheet plan={p} />)}>
