@@ -1,0 +1,31 @@
+# Netlify: set Base directory = frontend in the site settings (this file lives there).
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The API is on the droplet. Proxying keeps everything on app.spendrip.com, so sign-in
+# cookies, CSRF and Face ID work like a single site.
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.spendrip.com/api/:splat"
+  status = 200
+  force = true
+
+# Single-page app: every other path is the React app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

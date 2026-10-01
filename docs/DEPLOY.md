@@ -1,4 +1,13 @@
-# Deploying SpenDrip to Vercel
+> **Current setup:** the API and worker run in Docker on the GIFTORIA droplet (`deploy/`, `api.spendrip.com`), and the web app runs on **Netlify** at `app.spendrip.com` (`frontend/netlify.toml`). `spendrip.com` is kept free for a landing page. The Vercel notes below are kept for reference.
+>
+> **Web app on Netlify:**
+> 1. **Add new site → Import from Git**, choose `dtekluva/spendrip` on branch `phase-2`, and set **Base directory** to `frontend`. Build and publish settings come from `netlify.toml`.
+> 2. Under **Domain management**, add `app.spendrip.com`, then add the DNS record Netlify shows you (CNAME `app` → `<your-site>.netlify.app`).
+> 3. Netlify proxies `/api/*` to `https://api.spendrip.com`.
+>
+> **API updates:** `ssh root@209.38.72.142 /opt/spendrip/deploy/deploy.sh`
+
+# Deploying SpenDrip
 
 SpenDrip deploys as **two Vercel projects from this one repo**, plus a Postgres database:
 
