@@ -1,0 +1,22 @@
+# Netlify site for spendrip.com. Base directory = landing. No build step: plain HTML/CSS/JS.
+[build]
+  publish = "."
+
+# The waitlist form posts to /api/waitlist; proxy it to the API so it's same-site.
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.spendrip.com/api/:splat"
+  status = 200
+  force = true
+
+# The app lives on its own subdomain.
+[[redirects]]
+  from = "/app"
+  to = "https://app.spendrip.com"
+  status = 302
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

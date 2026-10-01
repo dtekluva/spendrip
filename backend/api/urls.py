@@ -10,6 +10,7 @@ urlpatterns = [
     path("cron/tick", system.CronTick.as_view()),
     path("webhooks/liberty", system.LibertyWebhook.as_view()),
     path("webhooks/paystack", system.paystack_webhook),
+    path("waitlist", system.Waitlist.as_view()),
     path("dev/top-up", system.DevTopUp.as_view()),
     path("dev/tick", system.DevTick.as_view()),
     # who am I

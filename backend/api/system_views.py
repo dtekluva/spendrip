@@ -157,3 +157,51 @@ def _is_uuid(s: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+# ------------------------------------------------------------------ waitlist (landing page)
+
+import re  # noqa: E402
+
+from django.core.cache import cache  # noqa: E402
+from django.core.validators import validate_email  # noqa: E402
+from django.core.exceptions import ValidationError  # noqa: E402
+
+from accounts.models import WaitlistEntry  # noqa: E402
+from accounts.services import normalise_phone  # noqa: E402
+
+WAITLIST_PER_IP_PER_HOUR = 10
+
+
+class Waitlist(APIView):
+    """Public: join the waitlist with a phone number or an email. No sign-in, no cookies."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "?"))
+        key = f"waitlist:{ip}"
+        hits = cache.get(key, 0)
+        if hits >= WAITLIST_PER_IP_PER_HOUR:
+            raise FlowError("That's a lot of sign-ups from one place. Try again in an hour.", code="rate_limited", status=429)
+        cache.set(key, hits + 1, 3600)
+
+        raw = str(request.data.get("contact", "")).strip()
+        name = str(request.data.get("name", "")).strip()[:80]
+        if "@" in raw:
+            contact, kind = raw.lower(), "email"
+            try:
+                validate_email(contact)
+            except ValidationError:
+                raise FlowError("That email doesn't look right.")
+        else:
+            try:
+                contact, kind = normalise_phone(raw), "phone"
+            except FlowError:
+                raise FlowError("Enter a Nigerian phone number (like 0803 123 4567) or an email.")
+        entry, created = WaitlistEntry.objects.get_or_create(contact=contact, defaults={"kind": kind, "name": name,
+                                                                                        "source": str(request.data.get("source", "landing"))[:40]})
+        return Response({"ok": True, "already": not created,
+                         "message": "You're already on the list. We'll be in touch." if not created else "You're on the list! We'll invite you soon."},
+                        status=200 if not created else 201)

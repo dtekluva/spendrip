@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpenDrip · Money that shows up on time</title>
+<meta name="description" content="Schedule money to yourself and the people you look after: fuel every Friday, upkeep every morning, Mum at month-end. Top up once and SpenDrip sends every drip on time.">
+<meta name="theme-color" content="#0B1040">
+<meta property="og:title" content="SpenDrip · Money that shows up on time">
+<meta property="og:description" content="Schedule money to yourself and the people you look after. Top up once; SpenDrip sends every drip on time and pays your priorities first.">
+<meta property="og:image" content="https://spendrip.com/icon-512.png">
+<meta property="og:url" content="https://spendrip.com">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one long page, max 1180px wide, sections alternate light (#F4F5FB) and deep navy, like a playful fintech landing. */
+:root{
+  --navy:#0B1040; --navy-2:#141B5C; --cobalt:#2436F2; --sun:#FFD23F; --sun-deep:#F2B400; --hibiscus:#FF4F8B; --mint:#12B283; --sky:#9FD8FF;
+  --bg:#F4F5FB; --card:#FFFFFF; --ink:#0E1233; --muted:#5D6390; --line:#E1E4F1;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif; --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --radius:28px; --shadow:0 1px 2px rgba(14,18,51,.05),0 18px 40px -18px rgba(14,18,51,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img,svg{max-width:100%}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 24px;border-radius:16px;font-weight:800;font-size:16px;text-decoration:none;border:0;cursor:pointer;font-family:var(--body);transition:transform .15s ease, box-shadow .2s}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.btn-dark{background:var(--navy);color:#fff}
+.btn-dark:hover{box-shadow:0 10px 24px -10px rgba(11,16,64,.6)}
+.btn-sun{background:var(--sun);color:var(--navy)}
+.btn-ghost{background:transparent;color:var(--ink);border:2px solid var(--line)}
+.btn-ghost:hover{border-color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-weight:800;font-size:13px;letter-spacing:.02em}
+.eyebrow{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.03em;line-height:1.05;margin:0;text-wrap:balance}
+h2{font-size:clamp(32px,5vw,56px)}
+h3{font-size:22px;letter-spacing:-.02em;line-height:1.2}
+p{margin:0}
+.lead{font-size:clamp(17px,1.6vw,20px);color:var(--muted);max-width:52ch}
+
+/* wordmark: the dot on the i is a drop */
+.wm{font-family:var(--display);font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.wm .i{position:relative;display:inline-block}
+.wm .i svg{position:absolute;left:50%;top:-.24em;width:.34em;height:.44em;translate:-50% 0;fill:var(--sun)}
+
+/* nav */
+nav.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
+nav.top.scrolled{border-bottom-color:var(--line)}
+nav .bar{display:flex;align-items:center;justify-content:space-between;height:76px;gap:16px}
+nav .logo{font-size:26px;text-decoration:none;color:var(--ink)}
+nav .links{display:flex;gap:28px;font-weight:700;font-size:15px}
+nav .links a{text-decoration:none;color:var(--muted)}
+nav .links a:hover{color:var(--ink)}
+nav .ctas{display:flex;gap:10px}
+nav .ctas .btn{height:44px;padding:0 18px;font-size:15px}
+@media (max-width:880px){nav .links{display:none}}
+@media (max-width:520px){nav .ctas .btn-ghost{display:none}}
+
+/* hero */
+.hero{padding:56px 0 24px}
+.hero-top{display:grid;grid-template-columns:1.25fr 1fr;gap:40px;align-items:end}
+.hero h1{font-size:clamp(42px,7.4vw,92px)}
+.hero h1 .drop{display:inline-block;width:.66em;height:.92em;vertical-align:-.1em;margin:0 .06em 0 0}
+h1 .drop,h2 .drop{overflow:visible;transform-origin:50% 100%;animation:k-hop 2.8s cubic-bezier(.3,0,.3,1) infinite}
+@keyframes k-hop{0%,60%,100%{transform:none}70%{transform:scale(1.08,.92)}80%{transform:translateY(-14%) scale(.95,1.05)}90%{transform:scale(1.04,.96)}}
+.hero-side{display:flex;flex-direction:column;gap:22px;padding-bottom:10px}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap}
+.hero-note{font-size:14px;color:var(--muted);font-weight:600;display:flex;gap:14px;flex-wrap:wrap}
+.hero-note span::before{content:"✓ ";color:var(--mint);font-weight:800}
+@media (max-width:860px){.hero-top{grid-template-columns:1fr;align-items:start}}
+
+.stage{position:relative;margin-top:44px;border-radius:36px;background:radial-gradient(70% 90% at 85% 10%,#2436F2 0%,transparent 60%),radial-gradient(60% 70% at 0% 100%,#3a1a6e 0%,transparent 60%),linear-gradient(160deg,#141B5C,#0B1040 70%);min-height:520px;overflow:hidden;display:grid;place-items:center;padding:48px 20px 0}
+.stage .shape{position:absolute;border-radius:50%}
+.stage .s1{width:180px;height:180px;background:var(--sun);top:-60px;left:8%;opacity:.95}
+.stage .s2{width:120px;height:120px;background:var(--hibiscus);bottom:40px;left:-40px}
+.stage .s3{width:70px;height:70px;background:var(--mint);top:80px;right:12%}
+.phone{position:relative;z-index:2;width:300px;height:500px;border-radius:44px 44px 0 0;background:#0E1233;border:10px solid #050824;border-bottom:0;padding:22px 14px 0;box-shadow:0 40px 80px -20px rgba(0,0,0,.5);overflow:hidden;color:#fff}
+.phone .notch{position:absolute;top:8px;left:50%;translate:-50% 0;width:90px;height:22px;border-radius:12px;background:#050824}
+.ph-top{display:flex;justify-content:space-between;align-items:center;margin:14px 4px 10px;font-size:15px}
+.ph-hello{font-size:12px;color:#A9AFDB;margin:0 4px}
+.ph-h{font-family:var(--display);font-size:17px;font-weight:700;margin:2px 4px 12px;letter-spacing:-.02em}
+.ph-bal{background:var(--sun);color:var(--navy);border-radius:22px;padding:14px 16px}
+.ph-bal small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;opacity:.7}
+.ph-bal b{display:block;font-family:var(--display);font-size:28px;letter-spacing:-.03em;margin:2px 0 10px}
+.ph-bar{display:flex;gap:3px;height:9px;border-radius:9px;background:rgba(14,18,51,.13);overflow:hidden}
+.ph-bar i{border-radius:9px}
+.ph-legend{display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-top:8px}
+.ph-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:#172066;border-radius:16px;padding:10px 12px;margin-top:9px;font-size:13px}
+.ph-row .t{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;font-size:16px;background:#232c78}
+.ph-row small{display:block;color:#A9AFDB;font-size:11px}
+.ph-row .amt{font-weight:800}
+.chip-float{position:absolute;z-index:3;display:flex;align-items:center;gap:10px;background:#fff;color:var(--ink);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow);font-size:14px;animation:floaty 6s ease-in-out infinite}
+.chip-float .t{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+.chip-float b{display:block;font-size:14px}
+.chip-float small{color:var(--muted);font-size:12px}
+.chip-float .amt{font-weight:800;margin-left:8px}
+.cf1{left:4%;top:120px}
+.cf2{right:4%;top:210px;animation-delay:-2s}
+.cf3{left:8%;bottom:70px;animation-delay:-4s}
+@keyframes floaty{50%{transform:translateY(-10px)}}
+.stage .kobo-peek{position:absolute;z-index:4;right:9%;bottom:-6px}
+@media (max-width:760px){.cf1{left:10px;top:24px}.cf2{right:10px;top:auto;bottom:150px}.cf3{display:none}.stage{min-height:600px;padding-top:120px}.stage .kobo-peek{right:4%}}
+
+/* sections */
+section{padding:96px 0}
+.sec-head{display:flex;flex-direction:column;gap:14px;max-width:760px;margin-bottom:48px}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.step{background:var(--card);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;border:1px solid var(--line)}
+.step .num{width:40px;height:40px;border-radius:13px;background:var(--navy);color:var(--sun);display:grid;place-items:center;font-family:var(--display);font-weight:800}
+.step p{color:var(--muted)}
+.sentence{font-family:var(--display);font-weight:600;font-size:18px;line-height:2.05;letter-spacing:-.01em}
+.chip{display:inline-block;padding:0 12px;border-radius:999px;background:#E9EBFE;color:var(--cobalt);border:2px solid #C9CEFC;font-family:var(--body);font-weight:800;font-size:15px;line-height:1.7}
+@media (max-width:900px){.steps{grid-template-columns:1fr}}
+
+/* feature cards */
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feature{border-radius:var(--radius);padding:28px 28px 0;display:flex;flex-direction:column;gap:10px;overflow:hidden;min-height:360px;border:1px solid var(--line)}
+.feature .ic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:22px;background:#fff}
+.feature p{color:var(--muted);font-size:16px}
+.feature .mock{margin-top:auto;background:#fff;border-radius:22px 22px 0 0;padding:16px;box-shadow:0 -1px 0 var(--line),0 20px 40px -20px rgba(14,18,51,.25);font-size:13px}
+.f-sun{background:#FFF6D6}.f-blue{background:#E9EBFE}.f-pink{background:#FFE5EF}.f-mint{background:#DDF5EC}.f-sky{background:#E2F2FF}.f-lilac{background:#EEE6FF}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-weight:600}
+.mrow:first-child{border-top:0}
+.tag{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+.tag.p{background:#E9EBFE;color:var(--cobalt)}.tag.s{background:#DDF5EC;color:#0b8a65}.tag.w{background:#FFF0C7;color:#9a6a00}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal i{aspect-ratio:1;border-radius:8px;background:#F4F5FB;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;color:var(--muted);position:relative}
+.cal i.d::after{content:"";position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:var(--sun)}
+.cal i.d2::after{background:var(--hibiscus)}
+.cal i.on{background:var(--navy);color:#fff}
+.wa{background:#DDF5EC;border-radius:4px 16px 16px 16px;padding:10px 12px;font-size:13px}
+.wa b{display:block;font-size:11px;color:#0b8a65;margin-bottom:3px}
+@media (max-width:980px){.features{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.features{grid-template-columns:1fr}}
+
+/* dark priorities section */
+.dark{background:var(--navy);color:#fff;border-radius:48px 48px 0 0;position:relative;overflow:hidden}
+.dark .lead{color:#B6BCEB}
+.dark .pill{background:var(--sun);color:var(--navy)}
+.pri{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.pri h2 .drop{display:inline-block;width:.66em;height:.92em;vertical-align:-.1em}
+.pcard{background:#141B5C;border:1px solid #232c78;border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:14px}
+.porder{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #232c78}
+.porder:first-of-type{border-top:0}
+.porder .rank{width:32px;height:32px;border-radius:10px;background:var(--sun);color:var(--navy);display:grid;place-items:center;font-family:var(--display);font-weight:800}
+.porder small{display:block;color:#A9AFDB}
+.porder.no .rank{background:transparent;border:2px dashed #3a4390;color:#A9AFDB}
+.bigbar{display:flex;height:16px;border-radius:99px;overflow:hidden;gap:3px;background:#232c78}
+.bigbar i{border-radius:99px}
+.legend{display:flex;justify-content:space-between;font-size:14px;font-weight:700;flex-wrap:wrap;gap:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend em{width:10px;height:10px;border-radius:3px;display:inline-block}
+.note{background:#232c78;border-radius:16px;padding:12px 14px;font-size:14px;color:#D9DCF7}
+@media (max-width:900px){.pri{grid-template-columns:1fr}}
+
+/* Kobo section */
+.kobo-sec{background:var(--navy);color:#fff;padding-top:24px}
+.kobo-stage{position:relative;border-radius:36px;background:#FFF6D6;color:var(--ink);padding:56px 28px;display:grid;grid-template-columns:1fr 1.2fr;gap:28px;align-items:center;overflow:hidden}
+.kobo-stage .blob{position:absolute;border-radius:50%}
+.kobo-stage .b1{width:240px;height:240px;background:var(--hibiscus);opacity:.18;right:-60px;top:-60px}
+.kobo-stage .b2{width:160px;height:160px;background:var(--cobalt);opacity:.12;left:30%;bottom:-70px}
+.moods{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;position:relative}
+.mood{background:#fff;border-radius:22px;padding:18px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:800;font-size:14px;box-shadow:var(--shadow)}
+.mood small{font-weight:600;color:var(--muted);font-size:12px;text-align:center}
+@media (max-width:900px){.kobo-stage{grid-template-columns:1fr}.moods{grid-template-columns:repeat(2,1fr)}}
+
+/* safety */
+.safety{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.sitem{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:10px}
+.sitem .ic{width:44px;height:44px;border-radius:14px;background:var(--navy);color:var(--sun);display:grid;place-items:center;font-size:20px}
+.sitem p{color:var(--muted);font-size:16px}
+@media (max-width:900px){.safety{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.safety{grid-template-columns:1fr}}
+
+/* faq */
+.faq{display:grid;gap:12px;max-width:860px}
+details{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:0 22px}
+summary{cursor:pointer;list-style:none;font-weight:800;font-size:18px;padding:20px 0;display:flex;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--display);font-size:22px;line-height:1;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--muted);padding:0 0 20px;max-width:68ch}
+
+/* waitlist */
+.join{background:var(--cobalt);color:#fff;border-radius:40px;padding:64px 28px;display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:center;position:relative;overflow:hidden}
+.join .lead{color:#DDE0FF}
+.join .s{position:absolute;border-radius:50%;background:var(--sun);width:220px;height:220px;right:-70px;bottom:-90px;opacity:.9}
+form.wl{position:relative;z-index:2;background:#fff;color:var(--ink);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:14px;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;font-weight:700;color:var(--muted)}
+.field input{height:54px;border-radius:16px;border:2px solid var(--line);background:var(--bg);color:var(--ink);padding:0 16px;font:inherit;font-size:17px;font-weight:600}
+.field input:focus{outline:none;border-color:var(--cobalt)}
+.form-msg{font-weight:700;font-size:15px;min-height:22px}
+.form-msg.ok{color:#0b8a65}.form-msg.err{color:#d6334a}
+.small{font-size:13px;color:var(--muted)}
+@media (max-width:860px){.join{grid-template-columns:1fr}}
+
+footer{padding:56px 0 40px;color:var(--muted);font-size:15px}
+footer .fbar{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:flex-start}
+footer .wm{font-size:28px;color:var(--ink)}
+footer .cols{display:flex;gap:48px;flex-wrap:wrap}
+footer .cols div{display:flex;flex-direction:column;gap:8px}
+footer .cols b{color:var(--ink)}
+footer a{text-decoration:none}
+footer a:hover{color:var(--ink)}
+footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+/* Kobo (same drawing and moods as the app) */
+.kobo{display:inline-block;line-height:0}
+.kobo svg{overflow:visible}
+.kobo .skin{stroke:#E0A400;stroke-width:1.5}
+.kobo .shine{fill:#fff;opacity:.55}
+.kobo .cheek{fill:#FF4F8B;opacity:.35}
+.kobo .eye{fill:#0E1233}
+.kobo .glint{fill:#fff}
+.kobo .line{fill:none;stroke:#0E1233;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.kobo .fillm{fill:#0E1233}
+.kobo .body{transform-box:view-box;transform-origin:50px 116px}
+.kobo .eyes{transform-box:view-box;transform-origin:50px 77px}
+.kobo .shadow{fill:#0E1233;opacity:.12;transform-box:view-box;transform-origin:50px 116px}
+.k-idle .body{animation:k-bob 2.6s ease-in-out infinite}
+.k-idle .eyes,.k-wait .eyes{animation:k-blink 4.2s infinite}
+.k-happy .body{animation:k-bounce 1.1s cubic-bezier(.3,0,.3,1) infinite}
+.k-cele .body{animation:k-jump 1.3s cubic-bezier(.3,0,.25,1) infinite}
+.k-wait .body{animation:k-sway 1.8s ease-in-out infinite}
+.k-sleep .body{animation:k-breathe 3.2s ease-in-out infinite}
+@keyframes k-bob{50%{transform:translateY(-4px)}}
+@keyframes k-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes k-bounce{0%,100%{transform:scale(1.08,.92)}30%{transform:translateY(-16px) scale(.95,1.06)}55%{transform:translateY(-18px)}80%{transform:scale(1.05,.95)}}
+@keyframes k-jump{0%,100%{transform:scale(1.12,.88)}25%{transform:translateY(-30px) scale(.92,1.1) rotate(-6deg)}50%{transform:translateY(-36px) rotate(6deg)}78%{transform:scale(1.1,.9)}}
+@keyframes k-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes k-breathe{50%{transform:scale(1.04,.97)}}
+
+.reveal{opacity:1;transform:none;transition:opacity .6s ease, transform .6s ease}
+.js .reveal{opacity:0;transform:translateY(24px)}
+.js .reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- one Kobo drawing, reused everywhere with <use> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="kShade" cx="38%" cy="42%" r="70%"><stop offset="0" stop-color="#FFE47A"/><stop offset=".55" stop-color="#FFD23F"/><stop offset="1" stop-color="#F2B400"/></radialGradient>
+    <path id="kDrop" d="M50 6C50 6 13 55 13 79a37 37 0 0 0 74 0C87 55 50 6 50 6Z"/>
+    <!-- Kobo, happy, for inline use inside headlines -->
+    <symbol id="drop" viewBox="10 4 80 116" overflow="visible">
+      <use href="#kDrop" fill="url(#kShade)" stroke="#E0A400" stroke-width="1.5"/>
+      <ellipse cx="34" cy="58" rx="6" ry="10" fill="#fff" opacity=".55" transform="rotate(25 34 58)"/>
+      <ellipse cx="29" cy="92" rx="6" ry="3.6" fill="#FF4F8B" opacity=".35"/><ellipse cx="71" cy="92" rx="6" ry="3.6" fill="#FF4F8B" opacity=".35"/>
+      <ellipse cx="38" cy="77" rx="5" ry="7" fill="#0E1233"/><ellipse cx="62" cy="77" rx="5" ry="7" fill="#0E1233"/>
+      <circle cx="39.6" cy="74" r="1.8" fill="#fff"/><circle cx="63.6" cy="74" r="1.8" fill="#fff"/>
+      <path d="M40 88q10 11 20 0Z" fill="#0E1233"/>
+    </symbol>
+  </defs>
+</svg>
+
+<nav class="top" id="nav">
+  <div class="wrap bar">
+    <a class="logo wm" href="#top" aria-label="SpenDrip home">spendr<span class="i">ı<svg viewBox="0 0 40 52"><path d="M20 0S0 24 0 33a20 20 0 0 0 40 0C40 24 20 0 20 0z"/></svg></span>p</a>
+    <div class="links"><a href="#how">How it works</a><a href="#priorities">Priorities</a><a href="#safety">Safety</a><a href="#faq">FAQ</a></div>
+    <div class="ctas"><a class="btn btn-ghost" href="https://app.spendrip.com">Open the app</a><a class="btn btn-dark" href="#join">Join the waitlist</a></div>
+  </div>
+</nav>
+
+<main id="top">
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <div class="hero-top">
+        <h1>Money that shows up <svg class="drop" aria-hidden="true"><use href="#drop"/></svg> on time.</h1>
+        <div class="hero-side">
+          <p class="lead">Schedule money to yourself and the people you look after: fuel every Friday, upkeep every morning, Mum at month-end. Top up once, and SpenDrip sends every drip on time.</p>
+          <div class="hero-ctas"><a class="btn btn-dark" href="#join">Join the waitlist</a><a class="btn btn-ghost" href="https://app.spendrip.com">Open the app</a></div>
+          <div class="hero-note"><span>Built for Nigeria</span><span>₦50 per drip</span><span>Priorities paid first</span></div>
+        </div>
+      </div>
+
+      <div class="stage reveal">
+        <span class="shape s1"></span><span class="shape s2"></span><span class="shape s3"></span>
+        <div class="chip-float cf1"><span class="t" style="background:#E9EBFE">⛽</span><span><b>Fuel</b><small>Every Friday · 2:00 PM</small></span><span class="amt">₦40,000</span></div>
+        <div class="chip-float cf2"><span class="t" style="background:#FFE5EF">💛</span><span><b>Mum · Priority 2</b><small>Sent to OPay ••6357 ✓</small></span><span class="amt">₦30,000</span></div>
+        <div class="chip-float cf3"><span class="t" style="background:#FFF6D6">🍲</span><span><b>Upkeep</b><small>Every day · 6:00 AM</small></span><span class="amt">₦5,000</span></div>
+
+        <div class="phone" aria-label="The SpenDrip app home screen">
+          <span class="notch"></span>
+          <div class="ph-top"><span class="wm" style="font-size:16px">spendr<span class="i">ı<svg viewBox="0 0 40 52"><path d="M20 0S0 24 0 33a20 20 0 0 0 40 0C40 24 20 0 20 0z"/></svg></span>p</span><span>🔔</span></div>
+          <p class="ph-hello">Good morning, Adaeze 👋</p>
+          <p class="ph-h">Your money is on schedule.</p>
+          <div class="ph-bal"><small>Your balance</small><b>₦250,000</b>
+            <div class="ph-bar"><i style="width:72%;background:var(--navy)"></i><i style="flex:1;background:#fff"></i></div>
+            <div class="ph-legend"><span>Protected ₦181,550</span><span>Free ₦68,450</span></div>
+          </div>
+          <div class="ph-row"><span class="t">🍲</span><span>Upkeep<small>Tomorrow · 6:00 AM</small></span><span class="amt">₦5,000</span></div>
+          <div class="ph-row"><span class="t">⛽</span><span>Fuel<small>Fri · 2:00 PM</small></span><span class="amt">₦40,000</span></div>
+          <div class="ph-row"><span class="t">💛</span><span>Mum<small>30 Oct · 10:00 AM</small></span><span class="amt">₦30,000</span></div>
+        </div>
+
+        <span class="kobo kobo-peek k-idle" aria-hidden="true"><svg viewBox="0 0 100 120" width="96" height="115"><ellipse class="shadow" cx="50" cy="116" rx="26" ry="4"/><g class="body"><use href="#kDrop" fill="url(#kShade)" class="skin"/><ellipse class="shine" cx="34" cy="58" rx="6" ry="10" transform="rotate(25 34 58)"/><ellipse class="cheek" cx="29" cy="92" rx="6" ry="3.6"/><ellipse class="cheek" cx="71" cy="92" rx="6" ry="3.6"/><g class="eyes"><ellipse class="eye" cx="38" cy="77" rx="5" ry="7"/><ellipse class="eye" cx="62" cy="77" rx="5" ry="7"/><circle class="glint" cx="39.6" cy="74" r="1.8"/><circle class="glint" cx="63.6" cy="74" r="1.8"/></g><path class="line" d="M42 89q8 9 16 0"/></g></svg></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="eyebrow">How it works</span><h2>Three taps. Then it just happens.</h2>
+        <p class="lead">No spreadsheets, no reminders, no "abeg I forgot". Say what you want once and SpenDrip handles every payment after that.</p></div>
+      <div class="steps">
+        <div class="step reveal"><span class="num">1</span><h3>Say it the way you'd say it</h3>
+          <p class="sentence">Send <span class="chip">₦40,000</span> for <span class="chip">⛽ Fuel</span> every <span class="chip">Friday</span> at <span class="chip">2:00 PM</span></p>
+          <p>A plan is one sentence. Tap any word to change it: amount, who gets it, how often, what time.</p></div>
+        <div class="step reveal"><span class="num">2</span><h3>Protect what matters most</h3>
+          <p>Make Upkeep priority 1 and Mum priority 2. If money gets tight, they get paid in that order and the other plans wait.</p>
+          <div class="mock" style="background:#F4F5FB;border-radius:18px;padding:12px 14px;font-size:14px;font-weight:700;display:grid;gap:6px">
+            <span>🛡 1 · 🍲 Upkeep</span><span>🛡 2 · 💛 Mum</span><span style="color:var(--muted)">＋ Add priority 3</span></div></div>
+        <div class="step reveal"><span class="num">3</span><h3>Top up once. Relax.</h3>
+          <p>We add up what your month needs, fees included, and tell you the exact amount. Send it to your own SpenDrip account number or pay by card.</p>
+          <div class="mock" style="background:#F4F5FB;border-radius:18px;padding:12px 14px;font-size:14px"><b style="font-family:var(--display);font-size:18px">Top up ₦156,850</b><br><span style="color:var(--muted)">to cover everything in October</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="features">
+        <div class="feature f-sun reveal"><span class="ic">🗓</span><h3>A calendar of every drip</h3><p>See what goes out each day, what's protected and what's waiting.</p>
+          <div class="mock"><div class="cal">
+            <i>1</i><i class="d on">2</i><i class="d">3</i><i class="d">4</i><i class="d">5</i><i class="d">6</i><i class="d">7</i>
+            <i class="d">8</i><i class="d d2">9</i><i class="d">10</i><i class="d">11</i><i class="d">12</i><i class="d">13</i><i class="d">14</i></div></div></div>
+        <div class="feature f-blue reveal"><span class="ic">🔮</span><h3>The month, forecast</h3><p>Know on the 1st exactly what this month needs and which drips would wait.</p>
+          <div class="mock"><div class="mrow"><span>🍲 Upkeep</span><span class="tag p">🛡 Protected</span></div><div class="mrow"><span>💛 Mum</span><span class="tag p">🛡 Protected</span></div><div class="mrow"><span>⛽ Fuel</span><span class="tag w">Waits for top-up</span></div></div></div>
+        <div class="feature f-mint reveal"><span class="ic">💬</span><h3>They hear when it lands</h3><p>The people you pay get a WhatsApp message the moment their money arrives.</p>
+          <div class="mock"><div class="wa"><b>WhatsApp to Mum</b>Hi Mum 💛 ₦30,000 just landed in your OPay account (••6357). Sent by Adaeze via SpenDrip.</div></div></div>
+        <div class="feature f-pink reveal"><span class="ic">💳</span><h3>Bank transfer or card</h3><p>Fund your balance by transfer to your own account number, or with a card through Paystack. Save a card for one-tap top-ups.</p>
+          <div class="mock"><div class="mrow"><span>Top up with Visa ••4081</span><span>→</span></div><div class="mrow"><span style="color:var(--muted)">Card fee shown before you pay</span></div></div></div>
+        <div class="feature f-sky reveal"><span class="ic">✅</span><h3>Names checked for you</h3><p>Add someone with their bank and account number. We show the real account name before you save, so money can't go to the wrong person.</p>
+          <div class="mock"><div class="mrow"><span>GTBank · 0123 ••• 789</span><span class="tag s">✓ ADAEZE OKONKWO</span></div></div></div>
+        <div class="feature f-lilac reveal"><span class="ic">⏸</span><h3>You're always in control</h3><p>Pause one plan or everything at once, set a daily limit, and change any plan in seconds.</p>
+          <div class="mock"><div class="mrow"><span>Pause everything</span><span class="tag w">Off</span></div><div class="mrow"><span>Daily sending limit</span><span>₦50,000</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIORITIES -->
+  <section class="dark" id="priorities">
+    <div class="wrap pri">
+      <div class="reveal" style="display:flex;flex-direction:column;gap:18px">
+        <span class="pill">🛡 Priorities</span>
+        <h2>Mum gets paid first. <svg class="drop" aria-hidden="true"><use href="#drop"/></svg> Always.</h2>
+        <p class="lead">One balance, many plans. Rank up to three plans as priorities, and SpenDrip keeps back exactly what they still need this month. Other plans only use what's left.</p>
+        <p class="lead" style="font-size:16px">Priority 2 never spends money priority 1 still needs. Nothing to calculate yourself.</p>
+      </div>
+      <div class="pcard reveal">
+        <span class="eyebrow" style="color:#A9AFDB">Example · November, ₦190,000 in your balance</span>
+        <div class="porder"><span class="rank">1</span><span>🍲 Upkeep<small>₦5,000 every day</small></span><b>₦151,500</b></div>
+        <div class="porder"><span class="rank">2</span><span>💛 Mum<small>₦30,000 on the 30th</small></span><b>₦30,050</b></div>
+        <div class="porder no"><span class="rank">·</span><span>🤝 Cousin<small>₦25,000 on the 30th</small></span><b style="color:#FFD23F">Waits</b></div>
+        <div class="bigbar"><i style="width:95.5%;background:var(--sun)"></i><i style="flex:1;background:#fff"></i></div>
+        <div class="legend"><span><em style="background:var(--sun)"></em>Protected ₦181,550</span><span><em style="background:#fff"></em>Free ₦8,450</span></div>
+        <p class="note">Cousin waits instead of eating into Upkeep and Mum. Top up ₦16,600 and everyone gets paid. Fees (₦50 a drip) are already counted.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- KOBO -->
+  <section class="kobo-sec">
+    <div class="wrap">
+      <div class="kobo-stage reveal">
+        <span class="blob b1"></span><span class="blob b2"></span>
+        <div style="position:relative;display:flex;flex-direction:column;gap:14px">
+          <span class="eyebrow">Meet Kobo</span>
+          <h2 style="font-size:clamp(30px,4.4vw,48px)">The little drop that carries your money.</h2>
+          <p class="lead">Kobo celebrates when your month is covered, waits patiently when a drip needs a top-up, and naps when everything's paused.</p>
+        </div>
+        <div class="moods">
+          <div class="mood"><span class="kobo k-idle"><svg viewBox="0 0 100 120" width="58" height="70"><g class="body"><use href="#kDrop" fill="url(#kShade)" class="skin"/><ellipse class="shine" cx="34" cy="58" rx="6" ry="10" transform="rotate(25 34 58)"/><ellipse class="cheek" cx="29" cy="92" rx="6" ry="3.6"/><ellipse class="cheek" cx="71" cy="92" rx="6" ry="3.6"/><g class="eyes"><ellipse class="eye" cx="38" cy="77" rx="5" ry="7"/><ellipse class="eye" cx="62" cy="77" rx="5" ry="7"/><circle class="glint" cx="39.6" cy="74" r="1.8"/><circle class="glint" cx="63.6" cy="74" r="1.8"/></g><path class="line" d="M42 89q8 9 16 0"/></g></svg></span>Chilling<small>Nothing to do</small></div>
+          <div class="mood"><span class="kobo k-happy"><svg viewBox="0 0 100 120" width="58" height="70"><g class="body"><use href="#kDrop" fill="url(#kShade)" class="skin"/><ellipse class="shine" cx="34" cy="58" rx="6" ry="10" transform="rotate(25 34 58)"/><ellipse class="cheek" cx="29" cy="92" rx="6" ry="3.6"/><ellipse class="cheek" cx="71" cy="92" rx="6" ry="3.6"/><path class="line" d="M33 79q5-7 10 0M57 79q5-7 10 0"/><path class="fillm" d="M40 88q10 11 20 0Z"/></g></svg></span>Covered<small>Month is funded</small></div>
+          <div class="mood"><span class="kobo k-wait"><svg viewBox="0 0 100 120" width="58" height="70"><g class="body"><use href="#kDrop" fill="url(#kShade)" class="skin"/><ellipse class="shine" cx="34" cy="58" rx="6" ry="10" transform="rotate(25 34 58)"/><ellipse class="cheek" cx="29" cy="92" rx="6" ry="3.6"/><ellipse class="cheek" cx="71" cy="92" rx="6" ry="3.6"/><g class="eyes"><ellipse class="eye" cx="38" cy="77" rx="5" ry="7"/><ellipse class="eye" cx="62" cy="77" rx="5" ry="7"/><circle class="glint" cx="39.6" cy="74" r="1.8"/><circle class="glint" cx="63.6" cy="74" r="1.8"/></g><path class="line" d="M44 92h12"/></g></svg></span>Waiting<small>Needs a top-up</small></div>
+          <div class="mood"><span class="kobo k-sleep"><svg viewBox="0 0 100 120" width="58" height="70"><g class="body"><use href="#kDrop" fill="url(#kShade)" class="skin"/><ellipse class="shine" cx="34" cy="58" rx="6" ry="10" transform="rotate(25 34 58)"/><ellipse class="cheek" cx="29" cy="92" rx="6" ry="3.6"/><ellipse class="cheek" cx="71" cy="92" rx="6" ry="3.6"/><path class="line" d="M33 78q5 4 10 0M57 78q5 4 10 0M46 92q4 2 8 0"/></g></svg></span>Napping<small>Everything paused</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAFETY -->
+  <section id="safety">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="eyebrow">Safety</span><h2>Your money, checked twice.</h2>
+        <p class="lead">Every payment is confirmed with the bank before it counts, and nothing is ever sent twice.</p></div>
+      <div class="safety">
+        <div class="sitem reveal"><span class="ic">🔒</span><h3>Your card stays with Paystack</h3><p>You pay on Paystack's secure page. SpenDrip never sees your card number; we keep only an encrypted token for one-tap top-ups.</p></div>
+        <div class="sitem reveal"><span class="ic">🙂</span><h3>Face ID and PIN</h3><p>Open the app with Face ID or your PIN. It locks itself when you step away, and five wrong PINs lock the account.</p></div>
+        <div class="sitem reveal"><span class="ic">✓</span><h3>Every naira tracked</h3><p>Money is set aside before each transfer and only counted as sent when the bank confirms it. If a transfer fails, it comes straight back to your balance.</p></div>
+        <div class="sitem reveal"><span class="ic">🪪</span><h3>Verified in three steps</h3><p>Your NIN, a photo of your ID and a quick selfie. Your NIN is encrypted, and the people you pay never see it.</p></div>
+        <div class="sitem reveal"><span class="ic">👀</span><h3>No surprises</h3><p>₦50 per drip, card fees shown before you pay, and a forecast that tells you exactly what each month needs.</p></div>
+        <div class="sitem reveal"><span class="ic">⏸</span><h3>A pause button for everything</h3><p>One switch stops every drip at once. Nothing is deleted; switch it back on when you're ready.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="eyebrow">FAQ</span><h2>Questions, answered.</h2></div>
+      <div class="faq">
+        <details class="reveal"><summary>What does it cost?</summary><p>₦50 for each drip that goes out. Topping up by bank transfer to your SpenDrip account has no SpenDrip fee. Card top-ups go through Paystack, and their card fee is shown before you pay.</p></details>
+        <details class="reveal"><summary>What happens if I don't have enough money?</summary><p>Your priorities are paid first, in the order you set. Other drips wait, and we tell you the exact amount to top up so everything goes out. Nothing is sent from money you don't have.</p></details>
+        <details class="reveal"><summary>Who can I send money to?</summary><p>Yourself and anyone with a Nigerian bank or wallet account: GTBank, Access, OPay, Kuda, Moniepoint and more. We check the account name before you save someone.</p></details>
+        <details class="reveal"><summary>When does the money arrive?</summary><p>At the time you choose, Lagos time. Transfers usually land within minutes, and if the person has WhatsApp turned on, they get a message when it does.</p></details>
+        <details class="reveal"><summary>Can I change or stop a plan?</summary><p>Any time. Edit the amount, day, time or person, pause a single plan, or pause everything with one switch. Past payments stay in your activity.</p></details>
+        <details class="reveal"><summary>Is SpenDrip available now?</summary><p>We're in early access. Join the waitlist and we'll send you an invite. If you already have access, open the app at app.spendrip.com.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- WAITLIST -->
+  <section id="join" style="padding-top:0">
+    <div class="wrap">
+      <div class="join reveal">
+        <span class="s"></span>
+        <div style="position:relative;z-index:2;display:flex;flex-direction:column;gap:16px">
+          <h2 style="font-size:clamp(32px,5vw,54px)">Get your money on schedule.</h2>
+          <p class="lead">Join the waitlist and we'll invite you as soon as there's a spot. No spam, just your invite.</p>
+          <p class="small" style="color:#C9CEFF">Already have access? <a href="https://app.spendrip.com" style="color:#fff;font-weight:800">Open the app →</a></p>
+        </div>
+        <form class="wl" id="wl" novalidate>
+          <div class="field"><label for="wl-name">Your first name (optional)</label><input id="wl-name" name="name" autocomplete="given-name" maxlength="80" placeholder="Adaeze"></div>
+          <div class="field"><label for="wl-contact">Phone number or email</label><input id="wl-contact" name="contact" autocomplete="tel" inputmode="email" required placeholder="0803 123 4567 or you@email.com"></div>
+          <button class="btn btn-dark" type="submit" id="wl-btn" style="height:56px">Join the waitlist</button>
+          <p class="form-msg" id="wl-msg" role="status" aria-live="polite"></p>
+          <p class="small">We'll only use this to send your invite.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="fbar">
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:320px">
+        <span class="wm">spendr<span class="i">ı<svg viewBox="0 0 40 52"><path d="M20 0S0 24 0 33a20 20 0 0 0 40 0C40 24 20 0 20 0z"/></svg></span>p</span>
+        <span>Money that shows up on time.</span>
+      </div>
+      <div class="cols">
+        <div><b>Product</b><a href="#how">How it works</a><a href="#priorities">Priorities</a><a href="#safety">Safety</a></div>
+        <div><b>Get started</b><a href="#join">Join the waitlist</a><a href="https://app.spendrip.com">Open the app</a><a href="#faq">FAQ</a></div>
+      </div>
+    </div>
+    <div class="legal"><span>© <span id="yr">2026</span> SpenDrip. Built for Nigeria.</span><span>Card payments are processed by Paystack.</span></div>
+  </div>
+</footer>
+
+<script>
+document.documentElement.classList.add('js');
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+// Sticky nav gets a hairline once you scroll.
+const nav = document.getElementById('nav');
+addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 8), { passive: true });
+
+// Sections rise in as they come into view (visible by default without JS).
+const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 }) : null;
+document.querySelectorAll('.reveal').forEach((el) => io ? io.observe(el) : el.classList.add('in'));
+
+// Waitlist form → /api/waitlist (proxied to the SpenDrip API).
+const form = document.getElementById('wl'), msg = document.getElementById('wl-msg'), btn = document.getElementById('wl-btn');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const contact = form.contact.value.trim();
+  msg.className = 'form-msg';
+  if (!contact) { msg.textContent = 'Add your phone number or email.'; msg.classList.add('err'); form.contact.focus(); return; }
+  btn.disabled = true; btn.textContent = 'Joining…';
+  try {
+    const r = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contact, name: form.name.value.trim(), source: 'landing' }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "That didn't work. Try again in a moment.");
+    msg.textContent = d.message || "You're on the list!"; msg.classList.add('ok');
+    if (!d.already) form.reset();
+  } catch (err) {
+    msg.textContent = err.message; msg.classList.add('err');
+  } finally { btn.disabled = false; btn.textContent = 'Join the waitlist'; }
+});
+</script>
+</body>
+</html>

@@ -108,3 +108,21 @@ class WebAuthnCredential(models.Model):
     device_label = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
+
+
+class WaitlistEntry(models.Model):
+    """Someone who asked to be invited from the landing page."""
+
+    contact = models.CharField(max_length=120, unique=True)  # normalised phone (080…) or lower-case email
+    kind = models.CharField(max_length=5)  # phone | email
+    name = models.CharField(max_length=80, blank=True)
+    source = models.CharField(max_length=40, blank=True)  # e.g. "landing"
+    invited_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name_plural = "waitlist"
+
+    def __str__(self):
+        return f"{self.name or self.contact} ({self.kind})"

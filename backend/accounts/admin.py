@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import KycCheck, User
+from .models import KycCheck, User, WaitlistEntry
 
 
 @admin.register(User)
@@ -13,3 +13,10 @@ class SpenDripUserAdmin(UserAdmin):
 
 
 admin.site.register(KycCheck)
+
+
+@admin.register(WaitlistEntry)
+class WaitlistAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "name", "contact", "kind", "source", "invited_at")
+    list_filter = ("kind", "source")
+    search_fields = ("contact", "name")

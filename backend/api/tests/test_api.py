@@ -221,3 +221,25 @@ def test_dev_tools_are_off_in_production(demo, settings):
     assert c.post("/api/dev/top-up", {"amount_naira": 1000}, format="json").status_code == 404
     assert c.post("/api/dev/tick").status_code == 404
     assert APIClient().get("/api/summary").json()["code"] == "signed_out"
+
+
+def test_waitlist_takes_phone_or_email_once(db):
+    c = APIClient()
+    r = c.post("/api/waitlist", {"contact": "+234 803 123 4567", "name": "Tolu"}, format="json")
+    assert r.status_code == 201 and "on the list" in r.json()["message"]
+    again = c.post("/api/waitlist", {"contact": "08031234567"}, format="json")
+    assert again.status_code == 200 and again.json()["already"] is True
+    assert c.post("/api/waitlist", {"contact": "Ada@Example.com"}, format="json").status_code == 201
+    bad = c.post("/api/waitlist", {"contact": "hello"}, format="json")
+    assert bad.status_code == 400 and "phone number" in bad.json()["error"]
+    from accounts.models import WaitlistEntry
+    assert sorted(WaitlistEntry.objects.values_list("contact", flat=True)) == ["08031234567", "ada@example.com"]
+
+
+def test_waitlist_is_rate_limited(db):
+    from django.core.cache import cache
+    cache.clear()
+    c = APIClient()
+    for i in range(10):
+        c.post("/api/waitlist", {"contact": f"user{i}@example.com"}, format="json")
+    assert c.post("/api/waitlist", {"contact": "one.more@example.com"}, format="json").status_code == 429
