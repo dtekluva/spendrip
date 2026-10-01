@@ -27,5 +27,12 @@ export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size
 
   useEffect(() => { if (instance) setValue(MOOD_INDEX[mood]); }, [mood, instance, setValue]);
 
-  return <RiveComponent style={{ width: size, height: size * 1.2 }} aria-hidden="true" />;
+  // The artboard (320×400) is bigger than Kobo's box (240×288 units) so jumps, sparkles and the flung droplet
+  // aren't clipped. It overflows the box upwards and sideways, like the SVG version does.
+  return (
+    <RiveComponent aria-hidden="true" style={{
+      position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+      width: size * (320 / 240), height: size * (400 / 240), pointerEvents: 'none',
+    }} />
+  );
 }

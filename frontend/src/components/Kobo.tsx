@@ -50,7 +50,7 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title, 
         {!riveReady && <SvgKobo mood={mood} size={size} />}
         <Suspense fallback={null}>
           <RiveBoundary onFail={() => { riveBroken = true; }}>
-            <span style={{ position: riveReady ? 'static' : 'absolute', inset: 0, opacity: riveReady ? 1 : 0 }}>
+            <span style={{ position: 'absolute', inset: 0, opacity: riveReady ? 1 : 0 }}>
               <RiveKobo mood={mood} size={size} onReady={() => setRiveReady(true)} />
             </span>
           </RiveBoundary>
