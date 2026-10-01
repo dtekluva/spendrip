@@ -691,3 +691,5 @@ a{color:inherit}
 .kobo-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .kobo-tile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 10px 14px;border-radius:22px;background:var(--surface);border:1px solid var(--line);text-align:center}
 .kobo-tile b{font-size:15px}
+.kobo-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.kobo-side{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:8px 0}

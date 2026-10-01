@@ -36,12 +36,14 @@ export const KOBO_MOODS: { mood: KoboMood; label: string; when: string }[] = [
 
 const BODY = 'M50 6C50 6 13 55 13 79a37 37 0 0 0 74 0C87 55 50 6 50 6Z';
 
-export default function Kobo({ mood = 'idle', size = 72, follow = false, title }: {
+export default function Kobo({ mood = 'idle', size = 72, follow = false, title, engine = 'auto' }: {
   mood?: KoboMood; size?: number; follow?: boolean; title?: string;
+  /** auto: Rive when possible. Force 'svg' or 'rive' to compare the two (Meet Kobo page). */
+  engine?: 'auto' | 'rive' | 'svg';
 }) {
   const [riveReady, setRiveReady] = useState(false);
   // Eyes that follow your finger exist only in the SVG version, so Kobos with `follow` stay SVG.
-  const showRive = !follow && !riveBroken && !reducedMotion();
+  const showRive = engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion());
   if (showRive) {
     return (
       <span className="kobo kobo-rive" style={{ width: size, height: size * 1.2, position: 'relative' }} role="img" aria-label={title ?? `Kobo, ${mood}`}>
@@ -58,6 +60,9 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title }
   }
   return <SvgKobo mood={mood} size={size} follow={follow} title={title} />;
 }
+
+/** Which engine `<Kobo>` will use with these settings, for labels. */
+export const koboEngine = (follow = false) => (!follow && !riveBroken && !reducedMotion() ? 'Rive' : 'Code');
 
 class RiveBoundary extends Component<{ onFail: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
