@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import type { Draft, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, useAction } from '../components/ui';
+import Kobo from '../components/Kobo';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
 const EMOJIS = ['🍔', '🍲', '⛽', '💛', '🤝', '🏠', '📱', '🚕', '💡', '🎓', '💪', '🐷'];
@@ -32,6 +33,9 @@ export default function NewPlan() {
   const [previewErr, setPreviewErr] = useState('');
   const { busy, error, run } = useAction();
   const recipient = recipients.find((r) => r.id === d.recipient_id);
+  useEffect(() => {
+    if (d.recipient_id == null && recipients.length) setD((x) => ({ ...x, recipient_id: (recipients.find((r) => r.is_self) ?? recipients[0]!).id }));
+  }, [recipients, d.recipient_id]);
 
   const body = useMemo(() => ({ ...d, weekday: d.frequency === 'weekly' ? d.weekday : null, month_day: d.frequency === 'monthly' && !d.month_day_last ? d.month_day : null,
     month_day_last: d.frequency === 'monthly' && d.month_day_last, plan_id: editing ?? undefined }), [d, editing]);
@@ -98,7 +102,19 @@ export default function NewPlan() {
     else impact = <div className="impact warn">This plan fits, but other plans would need {N(extra)} more this month.</div>;
   }
 
-  if (!recipients.length) return <div className="stack"><div className="skeleton" /></div>;
+  if (!recipients.length) {
+    // Brand-new account: nobody to pay yet. Start with the person's own bank account.
+    return (
+      <div className="stack">
+        <div className="close-row"><div className="eyebrow">New plan</div><button className="icon-btn" aria-label="Close" onClick={() => nav(-1)}>{Icon.close}</button></div>
+        <div className="card stack" style={{ maxWidth: 520 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Kobo mood="peek" size={56} />
+            <div><b style={{ fontSize: 17 }}>First, where should your money land?</b><div className="small muted">Add your own bank account. You can add Mum, a cousin or anyone else next.</div></div></div>
+          <AddRecipient self onSaved={(r) => setD((x) => ({ ...x, recipient_id: r.id }))} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="stack">
       <div className="close-row"><div className="eyebrow">{editing ? 'Edit plan' : 'New plan'}</div><button className="icon-btn" aria-label="Close" onClick={() => nav(-1)}>{Icon.close}</button></div>
@@ -184,8 +200,8 @@ function ProtectSheet({ draft, editing, onDone }: { draft: Draft; editing: numbe
 
 function WhoSheet({ current, onDone }: { current: number | null; onDone: (id: number) => void }) {
   const { recipients } = useStore();
-  const [adding, setAdding] = useState(false);
-  if (adding) return <AddRecipient onSaved={(r) => onDone(r.id)} />;
+  const [adding, setAdding] = useState<'' | 'self' | 'other'>('');
+  if (adding) return <AddRecipient self={adding === 'self'} onSaved={(r) => onDone(r.id)} />;
   return (
     <>
       <h3>Who gets it?</h3>
@@ -196,7 +212,10 @@ function WhoSheet({ current, onDone }: { current: number | null; onDone: (id: nu
             <span><b>{r.label}</b><br /><span className="small muted">{r.bank_name} ••{r.account_last4}{r.whatsapp ? ' · WhatsApp on' : ''}</span></span><span className="check">✓</span>
           </button>
         ))}
-        <button className="opt" onClick={() => setAdding(true)}><span className="tile sm t-mint">＋</span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
+        {!recipients.some((r) => r.is_self) && (
+          <button className="opt" onClick={() => setAdding('self')}><span className="tile sm t-cobalt">🙋</span><span><b>My own account</b><br /><span className="small muted">Add the bank account money for you goes to</span></span><span /></button>
+        )}
+        <button className="opt" onClick={() => setAdding('other')}><span className="tile sm t-mint">＋</span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
       </div>
     </>
   );
