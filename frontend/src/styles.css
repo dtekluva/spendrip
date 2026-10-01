@@ -585,3 +585,109 @@ a{color:inherit}
   .vis-sentence .chip{font-size:18px}
   .vis-bal,.vis-acct{padding:28px}
 }
+
+/* ===== Kobo, the SpenDrip drop ===== */
+.kobo{display:inline-block;flex:none;line-height:0;--kobo-ink:#0E1233}
+.kobo svg{overflow:visible;display:block}
+.kobo .k-skin{stroke:#E0A400;stroke-width:1.5}
+.kobo .k-shine{fill:#fff;opacity:.55}
+.kobo .k-cheek{fill:#FF4F8B;opacity:.35}
+.kobo .k-eye{fill:var(--kobo-ink)}
+.kobo .k-glint{fill:#fff}
+.kobo .k-arc path,.kobo .k-brows path{fill:none;stroke:var(--kobo-ink);stroke-width:3.4;stroke-linecap:round}
+.kobo .k-mouth{fill:none;stroke:var(--kobo-ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.kobo .k-mouth.filled{fill:var(--kobo-ink);stroke-width:2.4}
+.kobo .k-shadow{fill:var(--ink);opacity:.14;transform-origin:50px 116px}
+.kobo .k-body,.kobo .k-shadow{transform-box:view-box}
+.kobo .k-body{transform-origin:50px 116px}
+.kobo .k-eyes{transition:transform .15s ease-out}
+.kobo .k-open{transform-origin:50px 77px;transform-box:view-box}
+.kobo .k-level{fill:#FFF3B8;opacity:.75}
+.kobo .k-bubble rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.kobo .k-bubble circle{fill:var(--muted)}
+.kobo .k-z text{fill:var(--muted);font:800 14px var(--display)}
+.kobo .k-droplet{fill:#FFD23F;stroke:#E0A400;stroke-width:1.2}
+.kobo .k-sweat{fill:#9FD8FF}
+.kobo .k-spark{fill:var(--sun);transform-box:view-box;transform-origin:50px 60px}
+
+/* idle: bob + blink */
+.kobo-idle .k-body,.kobo-peek .k-body{animation:k-bob 2.6s ease-in-out infinite}
+.kobo-idle .k-shadow{animation:k-shadow 2.6s ease-in-out infinite}
+.kobo-idle .k-open,.kobo-waiting .k-open,.kobo-peek .k-open,.kobo-send .k-open{animation:k-blink 4.2s infinite}
+@keyframes k-bob{50%{transform:translateY(-4px)}}
+@keyframes k-shadow{50%{transform:scaleX(.88);opacity:.1}}
+@keyframes k-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+
+/* happy: squash and stretch bounce */
+.kobo-happy .k-body{animation:k-bounce 1.1s cubic-bezier(.3,0,.3,1) infinite}
+.kobo-happy .k-shadow{animation:k-bshadow 1.1s cubic-bezier(.3,0,.3,1) infinite}
+@keyframes k-bounce{0%,100%{transform:scale(1.08,.92)}30%{transform:translateY(-16px) scale(.95,1.06)}55%{transform:translateY(-18px) scale(1)}80%{transform:translateY(0) scale(1.05,.95)}}
+@keyframes k-bshadow{30%,55%{transform:scaleX(.7);opacity:.07}}
+
+/* celebrate: big jump, spin of joy, sparkles */
+.kobo-celebrate .k-body{animation:k-jump 1.3s cubic-bezier(.3,0,.25,1) infinite}
+.kobo-celebrate .k-shadow{animation:k-bshadow 1.3s ease infinite}
+.kobo-celebrate .k-spark{animation:k-spark 1.3s ease-out infinite}
+@keyframes k-jump{0%,100%{transform:scale(1.12,.88)}25%{transform:translateY(-34px) scale(.92,1.1) rotate(-6deg)}50%{transform:translateY(-40px) rotate(6deg)}78%{transform:translateY(0) scale(1.1,.9)}}
+@keyframes k-spark{0%{opacity:0;transform:rotate(var(--a)) translateY(0) scale(.4)}20%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-46px) scale(1)}}
+
+/* waiting: sway, glance, typing bubble */
+.kobo-waiting .k-body{animation:k-sway 1.8s ease-in-out infinite}
+.kobo-waiting .k-eyes{animation:k-glance 3.6s ease-in-out infinite}
+.kobo-waiting .k-bubble circle{animation:k-dot 1.2s infinite}
+.kobo-waiting .k-bubble circle:nth-child(3){animation-delay:.15s}.kobo-waiting .k-bubble circle:nth-child(4){animation-delay:.3s}
+@keyframes k-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes k-glance{0%,40%,100%{transform:translateX(0)}50%,85%{transform:translateX(4px) translateY(-2px)}}
+@keyframes k-dot{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+/* worried: shrink, tremble, sweat */
+.kobo-worried .k-body{animation:k-tremble 2.4s ease-in-out infinite}
+.kobo-worried .k-sweat{animation:k-sweat 2.4s ease-in infinite}
+@keyframes k-tremble{0%,100%{transform:scale(.94)}10%{transform:scale(.94) translateX(-1.5px)}20%{transform:scale(.94) translateX(1.5px)}30%{transform:scale(.94)}}
+@keyframes k-sweat{0%,20%{opacity:0;transform:translateY(0)}40%{opacity:1}100%{opacity:0;transform:translateY(22px)}}
+
+/* puddle: splat flat, then pop back */
+.kobo-puddle .k-body{animation:k-puddle 1.6s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes k-puddle{0%{transform:translateY(-20px)}18%{transform:scale(1.5,.32)}55%{transform:scale(1.45,.36)}75%{transform:scale(.9,1.12) translateY(-6px)}100%{transform:scale(1)}}
+
+/* send: lean and fling a droplet up and away */
+.kobo-send .k-body{animation:k-lean 1.8s ease-in-out infinite}
+.kobo-send .k-droplet{transform-box:view-box;animation:k-fling 1.8s cubic-bezier(.3,0,.4,1) infinite}
+@keyframes k-lean{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg) scale(1.04,.96)}40%{transform:rotate(4deg) scale(.97,1.04)}60%{transform:rotate(0)}}
+@keyframes k-fling{0%,30%{opacity:0;transform:translate(0,4px) scale(.4)}38%{opacity:1;transform:translate(0,-4px) scale(1)}80%{opacity:1;transform:translate(44px,-30px) scale(.8)}100%{opacity:0;transform:translate(60px,-34px) scale(.5)}}
+
+/* fill: water level rises, then a happy grow */
+.kobo-fill .k-level{animation:k-level 2s ease-in-out infinite}
+.kobo-fill .k-body{animation:k-grow 2s ease-in-out infinite}
+@keyframes k-level{0%{transform:translateY(80px)}55%,100%{transform:translateY(0)}}
+@keyframes k-grow{0%,50%{transform:scale(.92)}70%{transform:scale(1.07,.97)}85%,100%{transform:scale(1)}}
+
+/* sleep: slow breathing, floating z's */
+.kobo-sleep .k-body{animation:k-breathe 3.2s ease-in-out infinite}
+.kobo-sleep .k-z text{animation:k-z 3.2s ease-in-out infinite}
+.kobo-sleep .k-z text:last-child{animation-delay:1.6s}
+@keyframes k-breathe{50%{transform:scale(1.04,.97)}}
+@keyframes k-z{0%{opacity:0;transform:translate(0,6px)}40%{opacity:1}100%{opacity:0;transform:translate(6px,-10px)}}
+
+/* peek: rise into view once, then idle */
+.kobo-peek svg{animation:k-peek .9s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes k-peek{from{transform:translateY(40%);opacity:0}to{transform:none;opacity:1}}
+
+@media (prefers-reduced-motion: reduce){ .kobo *{animation:none!important} .kobo-peek svg{animation:none!important} }
+
+/* Kobo moments: a short pop-up with a one-line bubble */
+.kobo-pop{position:absolute;left:16px;bottom:96px;z-index:52;display:flex;align-items:flex-end;gap:8px;pointer-events:none;animation:k-pop-in .45s cubic-bezier(.3,1.5,.5,1) both}
+.kobo-pop.out{animation:k-pop-out .35s ease-in both}
+.kobo-say{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:9px 13px;font-weight:700;font-size:14px;box-shadow:var(--shadow);max-width:230px;margin-bottom:34px}
+@keyframes k-pop-in{from{transform:translateY(30px) scale(.8);opacity:0}to{transform:none;opacity:1}}
+@keyframes k-pop-out{to{transform:translateY(20px);opacity:0}}
+@container app (min-width: 860px){ .kobo-pop{left:268px;bottom:28px} }
+
+/* Kobo in context */
+.forecast{position:relative}
+.forecast .kobo-corner{position:absolute;right:10px;top:-26px}
+.forecast h3{padding-right:58px}
+.kobo-empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px 0 4px}
+.kobo-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kobo-tile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 10px 14px;border-radius:22px;background:var(--surface);border:1px solid var(--line);text-align:center}
+.kobo-tile b{font-size:15px}

@@ -98,6 +98,7 @@ export default function Profile() {
         </div>
         <div className="group-h">App</div>
         <div className="list">
+          <SetRow icon="💧" title="Meet Kobo" sub="The little drop that keeps you company" onClick={() => nav('/kobo')} />
           <SetRow icon="🎨" title="Appearance" val={{ themed: 'Themed', light: 'Light', dark: 'Dark' }[look]} onClick={() => openAppearance(store)} />
           <SetRow icon="🚪" title="Sign out" danger onClick={signOut} />
         </div>

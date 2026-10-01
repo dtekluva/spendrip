@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { dayLabel, fmtTime, N } from '../lib/format';
 import type { ActivityItem } from '../lib/types';
 import { StatusPill } from '../components/ui';
+import Kobo from '../components/Kobo';
 
 const REASON: Record<string, string> = {
   protected_for_priorities: 'Waited to keep your priorities safe.', insufficient_funds: 'Waited because your balance was too low.',
@@ -49,7 +50,7 @@ export default function Activity() {
             </div>
           );
         })}
-        {!shown.length && <div className="card muted">Nothing here yet. Your first drip will show up here.</div>}
+        {!shown.length && <div className="card kobo-empty"><Kobo mood="peek" size={64} follow /><span className="muted">Nothing here yet. Your first drip will show up here.</span></div>}
       </div><div className="col stack">
         <div className="card act-sum">
           <div className="eyebrow">Recent</div>

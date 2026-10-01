@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from './api';
 import type { Look, Me, Plan, Recipient, Summary } from './types';
+import { KoboMoment, type KoboMood } from '../components/Kobo';
 
 interface Store {
   me: Me | null;
@@ -18,6 +19,8 @@ interface Store {
   openSheet: (node: ReactNode) => void;
   closeSheet: () => void;
   confetti: () => void;
+  /** Kobo pops up for a moment with one short line. */
+  koboSay: (mood: KoboMood, text: string) => void;
 }
 
 const Ctx = createContext<Store>(null as unknown as Store);
@@ -37,6 +40,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<ReactNode>(null);
   const [bursts, setBursts] = useState<number[]>([]);
   const toastTimer = useRef<number | undefined>(undefined);
+  const [moment, setMoment] = useState<{ mood: KoboMood; text: string; id: number } | null>(null);
+  const momentTimer = useRef<number | undefined>(undefined);
 
   const refreshMe = useCallback(async () => { const m = await api.get<Me>('/me'); setMe(m); return m; }, []);
   const reload = useCallback(async () => {
@@ -70,14 +75,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const id = Date.now(); setBursts((b) => [...b, id]); window.setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
   }, []);
   const closeSheet = useCallback(() => setSheet(null), []);
+  const koboSay = useCallback((mood: KoboMood, text: string) => {
+    setMoment({ mood, text, id: Date.now() });
+    window.clearTimeout(momentTimer.current);
+    momentTimer.current = window.setTimeout(() => setMoment(null), 2800);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSheet(null); };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const value = useMemo<Store>(() => ({ me, summary, plans, recipients, loading, refreshMe, reload, setMe, look, setLook, toast, openSheet: setSheet, closeSheet, confetti }),
-    [me, summary, plans, recipients, loading, refreshMe, reload, look, setLook, toast, closeSheet, confetti]);
+  const value = useMemo<Store>(() => ({ me, summary, plans, recipients, loading, refreshMe, reload, setMe, look, setLook, toast, openSheet: setSheet, closeSheet, confetti, koboSay }),
+    [me, summary, plans, recipients, loading, refreshMe, reload, look, setLook, toast, closeSheet, confetti, koboSay]);
 
   return (
     <Ctx.Provider value={value}>
@@ -94,6 +104,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             {toastState?.action && <button onClick={() => { toastState.action!.run(); setToast(null); }}>{toastState.action.label}</button>}
           </div>
           {bursts.map((id) => <Confetti key={id} />)}
+          {moment && <KoboMoment key={moment.id} mood={moment.mood} text={moment.text} />}
         </div>
       </div>
     </Ctx.Provider>

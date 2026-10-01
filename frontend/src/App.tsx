@@ -16,6 +16,7 @@ import Calendar from './screens/Calendar';
 import Fund from './screens/Fund';
 import Activity from './screens/Activity';
 import Profile from './screens/Profile';
+import KoboGallery from './screens/KoboGallery';
 
 const SEEN = 'sd-seen-splash';
 const seenBefore = () => { try { return localStorage.getItem(SEEN) === '1'; } catch { return false; } };
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/fund" element={<Fund />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/kobo" element={<KoboGallery />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </section>

@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { countdown, dayLabel, fmtTime, greet, lagos, MON, MONL, N, WD } from '../lib/format';
 import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
+import Kobo from '../components/Kobo';
 import { openAppearance } from './Appearance';
 
 export default function Home() {
@@ -61,13 +62,13 @@ export default function Home() {
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
         {summary.paused_all ? (
-          <div className="paused-banner"><span>⏸ All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>
+          <div className="paused-banner"><span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Kobo mood="sleep" size={40} />All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>
         ) : shorts.length ? (
-          <div className="forecast bad"><h3>⚠️ Priorities short by {N(f.priority_shortfall_kobo)}</h3>
+          <div className="forecast bad"><span className="kobo-corner"><Kobo mood="worried" size={52} /></span><h3>⚠️ Priorities short by {N(f.priority_shortfall_kobo)}</h3>
             <p>{prioText} can't all go out in {month}. Other plans are on hold until you top up.</p>
             <button className="btn btn-primary btn-block" onClick={() => nav('/fund')}>Top up {N(f.top_up_kobo)}</button></div>
         ) : waits.length ? (
-          <div className="forecast warn"><h3>🛡 Priorities are safe for {month}</h3>
+          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3>🛡 Priorities are safe for {month}</h3>
             <p>These drips will wait so {prioText} always get paid:</p>
             <div className="chips-row">
               {waits.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip">{p?.emoji} {p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
@@ -75,9 +76,9 @@ export default function Home() {
             </div>
             <button className="btn btn-primary btn-block" onClick={() => nav('/fund')}>Top up {N(f.top_up_kobo)} to send everything</button></div>
         ) : plans.length ? (
-          <div className="forecast ok"><h3>🎉 All of {month} is covered</h3><p>Every drip this month will go out on time, fees included. Nothing to do.</p></div>
+          <div className="forecast ok"><span className="kobo-corner"><Kobo mood="happy" size={52} /></span><h3>🎉 All of {month} is covered</h3><p>Every drip this month will go out on time, fees included. Nothing to do.</p></div>
         ) : (
-          <div className="forecast ok"><h3>Start with one plan</h3><p>For example: ₦40,000 for fuel every Friday at 2 PM.</p>
+          <div className="forecast ok"><span className="kobo-corner"><Kobo mood="peek" size={52} follow /></span><h3>Start with one plan</h3><p>For example: ₦40,000 for fuel every Friday at 2 PM.</p>
             <button className="btn btn-primary btn-block" onClick={() => nav('/plans/new')}>Create a plan</button></div>
         )}
       </div><div className="col stack">

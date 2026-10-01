@@ -4,7 +4,7 @@ import { useStore } from '../lib/store';
 import { useAction } from '../components/ui';
 
 export default function Fund() {
-  const { summary, plans, me, reload, toast, confetti } = useStore();
+  const { summary, plans, me, reload, confetti, koboSay, toast } = useStore();
   const { busy, run } = useAction();
   if (!summary) return <div className="stack"><div className="skeleton" /></div>;
   const f = summary.forecast;
@@ -26,7 +26,7 @@ export default function Fund() {
     await reload();
     const covered = amount >= f.top_up_kobo;
     if (covered) confetti();
-    toast(covered ? `${N(amount)} landed. ${month} is fully covered 🎉` : `${N(amount)} landed. ${N(f.top_up_kobo - amount)} more covers everything.`);
+    koboSay(covered ? 'celebrate' : 'fill', covered ? `Yum, ${N(amount)}! ${month} is fully covered.` : `${N(amount)} in. ${N(f.top_up_kobo - amount)} more covers everything.`);
   });
 
   return (

@@ -4,6 +4,7 @@ import { getPasskey, passkeysSupported } from '../lib/passkey';
 import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
+import Kobo from '../components/Kobo';
 
 /** Returning on the same device: Face ID, or the PIN. */
 export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => void; onForgot: () => void }) {
@@ -34,7 +35,8 @@ export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => 
 
   return (
     <div className="lock">
-      <Wordmark style={{ marginBottom: 14 }} />
+      <Wordmark style={{ marginBottom: 6 }} />
+      <Kobo mood={error ? 'puddle' : 'peek'} size={64} follow />
       <h2>Welcome back{me?.user?.first_name ? `, ${me.user.first_name}` : ''} 👋</h2>
       {mode === 'face' ? (
         <>

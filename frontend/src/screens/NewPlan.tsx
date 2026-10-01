@@ -20,7 +20,7 @@ export default function NewPlan() {
   const { id } = useParams();
   const editing = id ? Number(id) : null;
   const store = useStore();
-  const { plans, recipients, reload, toast, confetti, openSheet, closeSheet } = store;
+  const { plans, recipients, reload, toast, confetti, openSheet, closeSheet, koboSay } = store;
   const nav = useNavigate();
   const existing = plans.find((p) => p.id === editing);
   const [d, setD] = useState<Draft>(() => existing ? fromPlan(existing) : {
@@ -78,7 +78,9 @@ export default function NewPlan() {
     nav('/plans');
     if (!editing) confetti();
     const first = r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
-    toast(editing ? `${r.plan.label} updated` : `${r.plan.label} is live. First drip ${first}.` + (r.dropped_priorities.length ? ` ${r.dropped_priorities.join(', ')} is no longer a priority.` : ''));
+    if (editing) toast(`${r.plan.label} updated`);
+    else koboSay('celebrate', `${r.plan.label} is live! First drip ${first}.`);
+    if (r.dropped_priorities.length) toast(`${r.dropped_priorities.join(', ')} is no longer a priority (max 3).`);
   });
 
   const when = d.frequency === 'daily' ? chip('freq', 'every day') : d.frequency === 'weekly'

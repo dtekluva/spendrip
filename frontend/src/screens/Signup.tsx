@@ -4,6 +4,7 @@ import { createPasskey, passkeysSupported } from '../lib/passkey';
 import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
+import Kobo from '../components/Kobo';
 
 type Step = 'nin' | 'document' | 'selfie' | 'otp' | 'pin' | 'face' | 'done';
 const KYC: Step[] = ['nin', 'document', 'selfie'];
@@ -330,7 +331,7 @@ function DoneStep({ header, onGo }: { header: React.ReactNode; onGo: (to: 'home'
   return (
     <>
       {header}
-      <div className="done-badge">{Icon.check}</div>
+      <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
       <h2 style={{ textAlign: 'center' }}>You're verified, {me?.user?.first_name ?? 'friend'} 🎉</h2>
       <p className="lead" style={{ textAlign: 'center' }}>Your SpenDrip account is ready. Send money to it any time to fund your plans.</p>
       {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
