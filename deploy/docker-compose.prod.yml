@@ -1,0 +1,31 @@
+# Production on a shared droplet (GIFTORIA). Run from the repo root:  deploy/deploy.sh
+# - Settings come from /etc/spendrip.env on the server (root-only, not in git).
+# - Uses the server's own Postgres (database "spendrip"), so containers share the host network.
+# - nginx on the host terminates HTTPS for api.spendrip.com and proxies to 127.0.0.1:8020.
+name: spendrip
+
+x-backend: &backend
+  build: ../backend
+  image: spendrip-backend:latest
+  env_file: /etc/spendrip.env
+  network_mode: host
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  api:
+    <<: *backend
+    command: gunicorn config.wsgi:application --bind 127.0.0.1:8020 --workers 2 --timeout 60 --access-logfile - --forwarded-allow-ips=127.0.0.1
+    mem_limit: 320m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+
+  worker:
+    <<: *backend
+    command: python manage.py run_worker
+    mem_limit: 200m

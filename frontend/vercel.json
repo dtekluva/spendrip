@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://REPLACE-WITH-YOUR-API.vercel.app/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://api.spendrip.com/api/:path*" },
     { "source": "/((?!assets/|icon|apple-touch-icon|manifest|sw\\.js|workbox-).*)", "destination": "/index.html" }
   ],
   "headers": [
