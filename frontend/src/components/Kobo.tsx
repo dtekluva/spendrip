@@ -137,6 +137,7 @@ function SvgKobo({ mood = 'idle', size = 72, follow = false, title }: {
         <g className="k-body">
           <path d={BODY} fill={`url(#${uid}-shade)`} className="k-skin" />
           {mood === 'fill' && <g clipPath={`url(#${uid}-clip)`}><rect className="k-level" x="0" y="40" width="100" height="90" /></g>}
+          {mood === 'puddle' && <path d={BODY} className="k-oops" />}
           <ellipse cx="34" cy="58" rx="6" ry="10" className="k-shine" transform="rotate(25 34 58)" />
           <ellipse cx="29" cy="92" rx="6" ry="3.6" className="k-cheek" />
           <ellipse cx="71" cy="92" rx="6" ry="3.6" className="k-cheek" />

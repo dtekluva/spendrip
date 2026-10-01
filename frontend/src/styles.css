@@ -647,6 +647,9 @@ a{color:inherit}
 @keyframes k-sweat{0%,20%{opacity:0;transform:translateY(0)}40%{opacity:1}100%{opacity:0;transform:translateY(22px)}}
 
 /* puddle: splat flat, then pop back */
+.kobo .k-oops{fill:#FF7A63;opacity:0}
+.kobo-puddle .k-oops{animation:k-oops 1.6s ease-in-out infinite}
+@keyframes k-oops{0%{opacity:0}18%,55%{opacity:.42}90%,100%{opacity:0}}
 .kobo-puddle .k-body{animation:k-puddle 1.6s cubic-bezier(.4,0,.2,1) infinite}
 @keyframes k-puddle{0%{transform:translateY(-20px)}18%{transform:scale(1.5,.32)}55%{transform:scale(1.45,.36)}75%{transform:scale(.9,1.12) translateY(-6px)}100%{transform:scale(1)}}
 
