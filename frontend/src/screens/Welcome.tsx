@@ -20,19 +20,23 @@ export default function Welcome({ onCreate, onSignIn }: { onCreate: () => void; 
   return (
     <div className="onboard">
       <div className="ob-top"><Wordmark /><button className="link" onClick={() => setI(SLIDES.length - 1)}>{last ? '' : 'Skip'}</button></div>
-      <div className="ob-visual" key={i}>{s.v}</div>
-      <div className="ob-slide"><h2>{s.h}</h2><p>{s.p}</p></div>
-      {last ? (
-        <div className="ob-ctrl" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={onCreate}>Create my account</button>
-          <button className="btn btn-soft btn-block" onClick={onSignIn}>I already have an account</button>
+      <div className="ob-body">
+        <div className="ob-visual" key={i}>{s.v}</div>
+        <div className="ob-copy">
+          <div className="ob-slide"><h2>{s.h}</h2><p>{s.p}</p></div>
+          {last ? (
+            <div className="ob-ctrl" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={onCreate}>Create my account</button>
+              <button className="btn btn-soft btn-block" onClick={onSignIn}>I already have an account</button>
+            </div>
+          ) : (
+            <div className="ob-ctrl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+              <div className="ob-dots">{SLIDES.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>
+              <button className="btn btn-primary" style={{ minWidth: 140 }} onClick={() => setI(i + 1)}>Next</button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="ob-ctrl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
-          <div className="ob-dots">{SLIDES.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>
-          <button className="btn btn-primary" style={{ minWidth: 140 }} onClick={() => setI(i + 1)}>Next</button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -567,3 +567,21 @@ body{padding:0!important;margin:0;background:var(--surface-2)}
 a{color:inherit}
 
 .nav .tab{text-decoration:none}
+
+/* ===== Welcome slides: one composed block ===== */
+.ob-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px}
+.ob-copy{display:flex;flex-direction:column;gap:18px}
+@container app (min-width: 860px){
+  .onboard{display:flex;flex-direction:column;gap:0;padding:40px 56px 48px}
+  .ob-top{width:100%;max-width:1040px;margin:0 auto}
+  .ob-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:72px;align-items:center;width:100%;max-width:1040px;margin:0 auto}
+  .ob-visual,.ob-slide,.ob-ctrl{grid-column:auto;grid-row:auto;align-self:auto}
+  .ob-visual{display:grid;place-items:center;flex:none}
+  .ob-copy{gap:28px;max-width:440px}
+  .ob-slide h2{font-size:40px;margin-bottom:12px}
+  .ob-slide p{font-size:18px;max-width:38ch}
+  .vis{max-width:440px}
+  .vis-sentence{font-size:24px;padding:28px 30px}
+  .vis-sentence .chip{font-size:18px}
+  .vis-bal,.vis-acct{padding:28px}
+}
