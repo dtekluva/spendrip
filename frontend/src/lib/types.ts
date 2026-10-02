@@ -13,7 +13,7 @@ export interface Me {
     kyc_status: 'not_started' | 'nin_verified' | 'doc_uploaded' | 'verified' | 'rejected' | 'needs_review'; kyc_id_type: 'nin' | 'bvn';
     nin_last4: string; has_name: boolean;
     has_pin: boolean; pin_locked: boolean; has_face_id: boolean; look: Look; daily_cap_kobo: number | null; paused_all: boolean;
-    notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean;
+    notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean; notify_email: boolean;
     funding_account: FundingAccount | null;
   };
 }

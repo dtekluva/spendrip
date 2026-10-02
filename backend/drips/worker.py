@@ -28,6 +28,7 @@ from providers import ProviderError, TransferRequest, TransferStatus, get_messen
 from providers import messages as copy
 
 from .models import Plan, Run
+from notifications.emails import drip_delivered_email
 from .services import engine_plans, materialise_runs, sent_today_kobo
 
 log = logging.getLogger("spendrip.worker")
@@ -174,6 +175,11 @@ class Worker:
         plan, r, user = run.plan, run.plan.recipient, run.user
         self._tell_self(run, "paid", copy.self_paid(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo,
                                                     recipient_label=r.label, bank=r.bank_name, last4=r.account_number[-4:]))
+        if user.email and user.notify_email:
+            notify(user, key=f"run:{run.pk}:email", channel=OutboxMessage.Channel.EMAIL, template="self_paid_email", to=user.email,
+                   run=run, body=copy.self_paid(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo, recipient_label=r.label,
+                                                bank=r.bank_name, last4=r.account_number[-4:]),
+                   email=drip_delivered_email(run, ledger.balance(user).available_kobo))
         if not r.is_self and r.notify_whatsapp and r.whatsapp:
             notify(user, key=f"run:{run.pk}:wa", channel=OutboxMessage.Channel.WHATSAPP, template="recipient_paid", to=r.whatsapp, run=run,
                    messenger=self.messenger,

@@ -69,3 +69,22 @@ def sign_in_code(to: str, code: str, purpose: str) -> bool:
         subject, heading, first = f"{code} is your SpenDrip sign-in code", "Sign in to SpenDrip", "Use this code to sign in:"
     return send(to, subject, heading, [first, code, "It expires in 10 minutes. Never share it with anyone, including SpenDrip staff.",
                                        "Didn't ask for this? You can ignore this email."])
+
+
+def drip_delivered_email(run, balance_kobo: int) -> dict:
+    """Subject and body for "your drip was delivered". Sent through notify() so it goes out once per run."""
+    from engine import format_naira
+    from zoneinfo import ZoneInfo
+    plan, r = run.plan, run.plan.recipient
+    who = "you" if r.is_self else r.label
+    when = (run.completed_at or run.scheduled_for).astimezone(ZoneInfo(run.user.tz or "Africa/Lagos"))
+    return {
+        "subject": f"{plan.emoji} {format_naira(run.amount_kobo)} delivered to {who}",
+        "heading": f"{plan.label} delivered {plan.emoji}",
+        "paragraphs": [
+            f"{format_naira(run.amount_kobo)} landed in {r.verified_account_name.title()}'s {r.bank_name} account (••{r.account_number[-4:]}).",
+            f"Sent {when.strftime('%-d %b %Y, %-I:%M %p')} · Fee {format_naira(run.fee_kobo)} · Reference {run.provider_ref or str(run.pk)[:8]}",
+            f"Your balance is now {format_naira(balance_kobo)}.",
+        ],
+        "button": ("Open SpenDrip", settings.SPENDRIP["PUBLIC_APP_URL"]),
+    }

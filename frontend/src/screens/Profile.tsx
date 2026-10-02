@@ -100,6 +100,7 @@ export default function Profile() {
         </div>
         <div className="group-h">Notifications</div>
         <div className="list">
+          <SetRow icon="✉️" title="Email me when a drip lands" sub={u.email ? `Sent to ${u.email}` : 'Add an email to get these'} on={u.notify_email} onClick={() => save({ notify_email: !u.notify_email }, 'Saved')} />
           <SetRow icon="🔔" title="Push notifications" sub="When money is sent or added" on={u.notify_push} onClick={() => save({ notify_push: !u.notify_push }, 'Saved')} />
           <SetRow icon="💬" title="WhatsApp the people you pay" sub="They get a message when money lands" on={u.notify_whatsapp_recipients} onClick={() => save({ notify_whatsapp_recipients: !u.notify_whatsapp_recipients }, 'Saved')} />
           <SetRow icon="🌙" title="Tomorrow's drips" sub="A summary at 8 PM" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />

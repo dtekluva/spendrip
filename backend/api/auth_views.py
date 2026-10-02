@@ -45,7 +45,7 @@ def me_json(request) -> dict:
             "kyc_status": u.kyc_status, "kyc_id_type": u.kyc_id_type, "nin_last4": u.nin_last4, "has_name": bool(u.first_name), "has_pin": bool(u.pin_hash), "pin_locked": bool(u.locked_at),
             "has_face_id": u.passkeys.exists(), "look": u.look, "daily_cap_kobo": u.daily_cap_kobo, "paused_all": u.paused_all,
             "notify_push": u.notify_push, "notify_whatsapp_recipients": u.notify_whatsapp_recipients,
-            "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance,
+            "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance, "notify_email": u.notify_email,
             "funding_account": {"account_number": fa.account_number, "bank_name": fa.bank_name, "account_name": fa.account_name} if fa else None,
         },
     }
@@ -63,7 +63,7 @@ class MeUpdate(APIView):
     """Profile settings. Needs the app unlocked."""
 
     FIELDS = {"look": {"themed", "light", "dark"}, "paused_all": bool, "daily_cap_kobo": "cap",
-              "notify_push": bool, "notify_whatsapp_recipients": bool, "notify_daily_summary": bool, "notify_low_balance": bool}
+              "notify_push": bool, "notify_whatsapp_recipients": bool, "notify_daily_summary": bool, "notify_low_balance": bool, "notify_email": bool}
 
     def patch(self, request):
         u = request.user

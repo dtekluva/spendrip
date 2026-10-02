@@ -10,6 +10,7 @@ class OutboxMessage(models.Model):
         PUSH = "push"
         IN_APP = "in_app"
         SMS = "sms"
+        EMAIL = "email"
 
     class Status(models.TextChoices):
         QUEUED = "queued"

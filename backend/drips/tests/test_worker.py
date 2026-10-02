@@ -181,3 +181,34 @@ def test_payout_through_paystack_registers_recipient_once_and_settles_from_payst
     assert [r.recipient_code for r in ps.sent] == ["", "RCP_new"]  # registered once, reused after
     assert ledger.account_balance(ledger.PAYSTACK) == naira(10_000)
     assert ledger.account_balance(ledger.LIBERTY_POOL) == -naira(50_000)  # the top-up came through Liberty
+
+
+def test_delivered_drip_emails_the_sender_once(user, top_up, recipients, make_plan, worker):
+    from django.core import mail
+    user.email = "ada@example.com"
+    user.save(update_fields=["email"])
+    top_up(20_000)
+    mum = make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00")
+    t = lagos("2026-11-02T10:00")
+    worker.tick(t)
+    assert not mail.outbox  # sent, not yet confirmed: no email
+    worker.tick(t + timedelta(seconds=31))
+    worker.tick(t + timedelta(seconds=200))
+    assert len(mail.outbox) == 1
+    m = mail.outbox[0]
+    assert m.to == ["ada@example.com"] and "₦10,000 delivered to Mum" in m.subject
+    assert "Your balance is now ₦9,950" in m.body
+    run = runs_of(mum).get(scheduled_for=t)
+    assert OutboxMessage.objects.get(run=run, channel="email").status == "sent"
+
+
+def test_delivery_email_can_be_turned_off(user, top_up, recipients, make_plan, worker):
+    from django.core import mail
+    user.email, user.notify_email = "ada@example.com", False
+    user.save(update_fields=["email", "notify_email"])
+    top_up(20_000)
+    make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00")
+    t = lagos("2026-11-02T10:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(seconds=31))
+    assert not mail.outbox

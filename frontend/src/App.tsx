@@ -42,14 +42,15 @@ export default function App() {
   useEffect(() => { if (me?.signed_in && me.user && (!me.user.has_pin || !me.user.has_name)) setInSignup(true); }, [me?.signed_in, me?.user?.has_pin, me?.user?.has_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endSplash = useCallback(() => { setSplash(false); try { localStorage.setItem(SEEN, '1'); } catch { /* ignore */ } }, []);
-  const signedIn = (m: Me) => { setMe(m); setFlow('welcome'); nav('/'); };
+  // Signing in always lands in the app (or the lock screen), never back in sign-up.
+  const signedIn = (m: Me) => { setInSignup(false); setMe(m); setFlow('welcome'); nav('/'); };
 
   if (splash) return <Splash quick={quick.current} onDone={endSplash} />;
   if (!me) return <div className="boot">{bootError ? <span>{bootError} <button className="link" onClick={boot}>Try again</button></span> : 'Loading…'}</div>;
 
   if (!me.signed_in) {
     if (flow === 'signin' || flow === 'forgot') return <SignIn forgot={flow === 'forgot'} onBack={() => setFlow('welcome')} onDone={signedIn} />;
-    if (flow === 'signup') return <Signup onExit={() => setFlow('welcome')} onFinished={() => {}} />;
+    if (flow === 'signup') return <Signup onExit={() => { setInSignup(false); setFlow('welcome'); }} onFinished={() => {}} />;
     return <Welcome onCreate={() => { setInSignup(true); setFlow('signup'); }} onSignIn={() => setFlow('signin')} />;
   }
   if (inSignup || !me.user?.has_pin || !me.user?.has_name) {
