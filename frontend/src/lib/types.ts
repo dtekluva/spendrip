@@ -28,8 +28,12 @@ export type Frequency = 'daily' | 'weekly' | 'monthly';
 export interface Plan {
   id: number; label: string; emoji: string; tint: Tint; amount_kobo: number; recipient: Recipient; frequency: Frequency;
   weekday: number | null; month_day: number | null; month_day_last: boolean; time_local: string; tz: string;
-  starts_at: string; ends_at: string | null; status: 'active' | 'paused'; priority_rank: number | null; next_at: string | null;
+  starts_at: string; ends_at: string | null; status: 'active' | 'paused' | 'finished'; priority_rank: number | null; next_at: string | null;
+  start_date: string; end_mode: EndMode; duration_months: number | null; end_date: string | null; finished_at: string | null;
+  state: 'scheduled' | 'active' | 'paused' | 'finished'; first_drip_at: string | null; last_drip_at: string | null;
+  total_drips: number | null; drips_done: number; total_cost_kobo: number | null;
 }
+export type EndMode = 'ongoing' | 'months' | 'date';
 
 export type EventStatus = 'protected' | 'send' | 'wait' | 'short' | 'cap' | 'sent' | 'waited' | 'failed' | 'missed' | 'paused' | 'sending' | 'scheduled';
 export interface DripEvent { plan_id: number; at: string; amount_kobo: number; fee_kobo?: number; rank?: number | null; status: EventStatus }
@@ -53,11 +57,13 @@ export interface Summary {
 export interface Draft {
   label: string; emoji: string; tint: Tint; amount_kobo: number; recipient_id: number | null; frequency: Frequency;
   weekday: number; month_day: number; month_day_last: boolean; time_local: string; priority_rank: number;
+  start_date: string; end_mode: EndMode; duration_months: number; end_date: string;
 }
 
 export interface Preview {
   next_dates: string[]; runs_this_month: number; month_cost_kobo: number; fee_kobo: number; fee_lines?: FeeLineT[]; top_up_before_kobo: number;
   top_up_after_kobo: number; draft_waiting: number; priorities_short_after_kobo: number; priority_order: string[]; dropped_priorities: string[];
+  first_drip_at: string | null; last_drip_at: string | null; total_drips: number | null; total_amount_kobo: number | null; total_fees_kobo: number | null;
 }
 
 export interface ActivityItem {

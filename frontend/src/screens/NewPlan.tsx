@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { dayLabel, fmtTime, ISO_WD, N, ord } from '../lib/format';
+import { addDaysISO, addMonthsISO, dateLabel, dayLabel, dayLabelY, fmtTime, ISO_WD, N, ord, todayISO } from '../lib/format';
 import { useStore } from '../lib/store';
 import { feeLines, feeTotal } from '../lib/fees';
-import type { Draft, Plan, Preview, Recipient, Tint } from '../lib/types';
+import type { Draft, EndMode, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Spinner, useAction } from '../components/ui';
 import Kobo from '../components/Kobo';
@@ -16,7 +16,12 @@ const SUGGEST: [string, string][] = [['⛽', 'Fuel'], ['🍲', 'Upkeep'], ['📱
 const fromPlan = (p: Plan): Draft => ({
   label: p.label, emoji: p.emoji, tint: p.tint, amount_kobo: p.amount_kobo, recipient_id: p.recipient.id, frequency: p.frequency,
   weekday: p.weekday ?? 5, month_day: p.month_day ?? 1, month_day_last: p.month_day_last, time_local: p.time_local, priority_rank: p.priority_rank ?? 0,
+  start_date: p.start_date, end_mode: p.end_mode, duration_months: p.duration_months ?? 3,
+  end_date: p.end_date ?? (p.last_drip_at ? p.last_drip_at.slice(0, 10) : addMonthsISO(todayISO(), 1)),
 });
+
+const MONTH_PICKS = [1, 3, 6, 12];
+const monthsText = (n: number) => `${n} month${n === 1 ? '' : 's'}`;
 
 export default function NewPlan() {
   const { id } = useParams();
@@ -25,10 +30,21 @@ export default function NewPlan() {
   const { plans, recipients, reload, toast, confetti, openSheet, closeSheet, koboSay } = store;
   const nav = useNavigate();
   const existing = plans.find((p) => p.id === editing);
-  const [d, setD] = useState<Draft>(() => existing ? fromPlan(existing) : {
+  const [params] = useSearchParams();
+  const source = !editing ? plans.find((p) => p.id === Number(params.get('from'))) : undefined;
+  const [d, setD] = useState<Draft>(() => existing ? (params.get('extend') && existing.state === 'finished'
+    ? { ...fromPlan(existing), end_mode: 'date', end_date: addMonthsISO(todayISO(), 1) }  // extending: pick a new last day
+    : fromPlan(existing)) : source ? {
+    // "Run it again": same sentence, starting today, for the same length of time.
+    ...fromPlan(source), start_date: todayISO(), end_mode: source.end_mode === 'ongoing' ? 'ongoing' : 'months',
+    duration_months: source.duration_months ?? 3, priority_rank: 0,
+  } : {
     label: 'Food', emoji: '🍔', tint: TINTS[plans.length % 4]!, amount_kobo: 1_000_000, recipient_id: recipients.find((r) => r.is_self)?.id ?? recipients[0]?.id ?? null,
     frequency: 'weekly', weekday: 5, month_day: 1, month_day_last: false, time_local: '14:00', priority_rank: 0,
+    start_date: todayISO(), end_mode: 'ongoing', duration_months: 3, end_date: addMonthsISO(todayISO(), 1),
   });
+  const startLocked = !!existing && existing.drips_done > 0;
+  useEffect(() => { if (existing && params.get('extend')) window.setTimeout(() => openChip('end'), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [pulse, setPulse] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewErr, setPreviewErr] = useState('');
@@ -39,7 +55,9 @@ export default function NewPlan() {
   }, [recipients, d.recipient_id]);
 
   const body = useMemo(() => ({ ...d, weekday: d.frequency === 'weekly' ? d.weekday : null, month_day: d.frequency === 'monthly' && !d.month_day_last ? d.month_day : null,
-    month_day_last: d.frequency === 'monthly' && d.month_day_last, plan_id: editing ?? undefined }), [d, editing]);
+    month_day_last: d.frequency === 'monthly' && d.month_day_last, plan_id: editing ?? undefined,
+    start_date: !editing && d.start_date === todayISO() ? 'today' : d.start_date,
+    duration_months: d.end_mode === 'months' ? d.duration_months : undefined, end_date: d.end_mode === 'date' ? d.end_date : undefined }), [d, editing]);
 
   useEffect(() => {
     if (!d.recipient_id) return;
@@ -73,6 +91,8 @@ export default function NewPlan() {
       <p className="small muted">Picked 29, 30 or 31? In shorter months it goes out on the last day.</p></>);
     if (k === 'time') openSheet(<TimeSheet value={d.time_local} onDone={(t) => set('time', { time_local: t })} />);
     if (k === 'protect') openSheet(<ProtectSheet draft={d} editing={editing} onDone={(r) => set('protect', { priority_rank: r })} />);
+    if (k === 'start') openSheet(<StartSheet value={d.start_date} locked={startLocked} onDone={(v) => set('start', { start_date: v })} />);
+    if (k === 'end') openSheet(<EndSheet draft={d} body={body} onDone={(patch) => set('end', patch)} />);
   };
 
   const save = () => run(async () => {
@@ -82,7 +102,8 @@ export default function NewPlan() {
     await reload();
     nav('/plans');
     if (!editing) confetti();
-    const first = r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
+    const first = r.plan.first_drip_at && r.plan.state === 'scheduled' ? `${dayLabelY(r.plan.first_drip_at)}, ${fmtTime(r.plan.time_local)}`
+      : r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
     if (editing) toast(`${r.plan.label} updated`);
     else koboSay('celebrate', `${r.plan.label} is live! First drip ${first}.`);
     if (r.dropped_priorities.length) toast(`${r.dropped_priorities.join(', ')} is no longer a priority (max 3).`);
@@ -91,6 +112,8 @@ export default function NewPlan() {
   const when = d.frequency === 'daily' ? chip('freq', 'every day') : d.frequency === 'weekly'
     ? <>{chip('freq', 'every week')} on {chip('day', ISO_WD[d.weekday])}</>
     : <>{chip('freq', 'every month')} on {chip('day', d.month_day_last ? 'the last day' : 'the ' + ord(d.month_day))}</>;
+  const startText = d.start_date === todayISO() ? 'starting today' : `starting ${dateLabel(d.start_date)}`;
+  const endText = d.end_mode === 'ongoing' ? 'and keeps going' : d.end_mode === 'months' ? `for ${monthsText(d.duration_months)}` : `until ${dateLabel(d.end_date)}`;
   const shownRank = d.priority_rank ? Math.min(d.priority_rank, plans.filter((p) => p.priority_rank && p.id !== editing).length + 1) : 0;
 
   let impact: React.ReactNode = null;
@@ -121,7 +144,8 @@ export default function NewPlan() {
       <div className="close-row"><div className="eyebrow">{editing ? 'Edit plan' : 'New plan'}</div><button className="icon-btn" aria-label="Close" onClick={() => nav(-1)}>{Icon.close}</button></div>
       <div className="cols cols-new"><div className="col stack">
         <p className="sentence">
-          Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')} {when} at {chip('time', fmtTime(d.time_local))}.{' '}
+          Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')} {when} at {chip('time', fmtTime(d.time_local))},{' '}
+          {chip('start', startText, d.start_date !== todayISO())} {chip('end', endText, d.end_mode !== 'ongoing')}.{' '}
           {chip('protect', shownRank ? `🛡 Priority ${shownRank}` : '＋ Protect it', !!shownRank)}
         </p>
         <p className="hint">👆 Tap any coloured word to change it.</p>
@@ -129,6 +153,12 @@ export default function NewPlan() {
         <div className="card preview">
           <div className="eyebrow">Next drips</div>
           <div className="dates">{(preview?.next_dates ?? []).map((x) => <span key={x}>{dayLabel(x)}</span>)}</div>
+          {preview?.total_drips != null && (
+            <div className="whole">
+              <div className="kv"><span className="muted">Whole plan</span><b className="num">{preview.total_drips} drip{preview.total_drips === 1 ? '' : 's'} · {N((preview.total_amount_kobo ?? 0) + (preview.total_fees_kobo ?? 0))}</b></div>
+              <div className="kv sub"><span className="muted">{preview.first_drip_at ? `${dayLabelY(preview.first_drip_at)} → ` : ''}{preview.last_drip_at ? dayLabelY(preview.last_drip_at) : ''}</span><span className="muted num">incl. {N(preview.total_fees_kobo ?? 0)} fees</span></div>
+            </div>
+          )}
           {preview && <div className="kv"><span className="muted">Rest of this month</span><b className="num">{preview.runs_this_month} × {N(d.amount_kobo + preview.fee_kobo)} = {N(preview.month_cost_kobo)}</b></div>}
           <div className="fee-lines">
             <div className="kv"><span className="muted">Fees per drip</span><b className="num">{N(preview?.fee_kobo ?? feeTotal(d.amount_kobo, store.summary?.fees))}</b></div>
@@ -279,4 +309,80 @@ export function AddRecipient({ onSaved, self = false }: { onSaved: (r: Recipient
       </div>
     </>
   );
+}
+
+
+/* ---------------- when it starts ---------------- */
+function StartSheet({ value, locked, onDone }: { value: string; locked: boolean; onDone: (iso: string) => void }) {
+  const today = todayISO();
+  const [pick, setPick] = useState(value);
+  const firstOfNext = addMonthsISO(today.slice(0, 8) + '01', 1);
+  const opts: [string, string][] = [[today, 'Today'], [addDaysISO(today, 1), 'Tomorrow'], [firstOfNext, `1st of next month (${dateLabel(firstOfNext)})`]];
+  if (locked) return (<>
+    <h3>When it started</h3>
+    <p className="muted">This plan started on {dateLabel(value)} and has already sent drips, so its start can't change. You can still change when it ends.</p>
+  </>);
+  return (<>
+    <h3>When should it start?</h3>
+    <div className="opt-list">{opts.map(([iso, label]) => (
+      <button key={iso} className="opt" aria-pressed={value === iso} onClick={() => onDone(iso)}><span>📅</span><span><b>{label}</b></span><span className="check">✓</span></button>
+    ))}</div>
+    <div className="field" style={{ marginTop: 10 }}><label htmlFor="sd">Or pick a date</label>
+      <input id="sd" type="date" min={today} max={addMonthsISO(today, 12)} value={pick} onChange={(e) => setPick(e.target.value)} /></div>
+    <button className="btn btn-primary btn-block" disabled={!pick || pick < today} onClick={() => onDone(pick)}>Start {pick === today ? 'today' : `on ${pick ? dateLabel(pick) : '…'}`}</button>
+    <p className="small muted">The first drip goes out on the first matching day from then.</p>
+  </>);
+}
+
+/* ---------------- when it ends ---------------- */
+function EndSheet({ draft, body, onDone }: { draft: Draft; body: Record<string, unknown>; onDone: (patch: Partial<Draft>) => void }) {
+  const [mode, setMode] = useState<EndMode>(draft.end_mode);
+  const [months, setMonths] = useState(draft.duration_months || 3);
+  const minDate = draft.start_date > todayISO() ? draft.start_date : todayISO();
+  const [date, setDate] = useState(draft.end_date < minDate ? addMonthsISO(minDate, 1) : draft.end_date);
+  const [sum, setSum] = useState<Preview | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (mode === 'ongoing') { setSum(null); setErr(''); return; }
+    const t = window.setTimeout(() => {
+      api.post<Preview>('/plans/preview', { ...body, end_mode: mode, duration_months: mode === 'months' ? months : undefined, end_date: mode === 'date' ? date : undefined })
+        .then((p) => { setSum(p); setErr(''); }).catch((e) => { setSum(null); setErr(e.message); });
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [mode, months, date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const total = sum ? (sum.total_amount_kobo ?? 0) + (sum.total_fees_kobo ?? 0) : 0;
+  return (<>
+    <h3>When should it end?</h3>
+    <div className="seg" role="group" aria-label="End">
+      {([['ongoing', 'Keeps going'], ['months', 'For months'], ['date', 'Until a date']] as const).map(([k, l]) => (
+        <button key={k} aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>
+      ))}
+    </div>
+    {mode === 'ongoing' && <p className="muted" style={{ margin: '12px 0' }}>It runs until you pause or delete it.</p>}
+    {mode === 'months' && (
+      <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+        <div className="quick">{MONTH_PICKS.map((n) => <button key={n} aria-pressed={months === n} onClick={() => setMonths(n)}>{monthsText(n)}</button>)}</div>
+        <div className="stepper">
+          <button aria-label="One month fewer" disabled={months <= 1} onClick={() => setMonths(months - 1)}>−</button>
+          <b className="num">{monthsText(months)}</b>
+          <button aria-label="One month more" disabled={months >= 36} onClick={() => setMonths(months + 1)}>＋</button>
+        </div>
+      </div>
+    )}
+    {mode === 'date' && (
+      <div className="field" style={{ marginTop: 12 }}><label htmlFor="ed">Last day</label>
+        <input id="ed" type="date" min={minDate} max={addMonthsISO(draft.start_date, 36)} value={date} onChange={(e) => setDate(e.target.value)} /></div>
+    )}
+    {mode !== 'ongoing' && (sum?.total_drips ? (
+      <div className="end-sum">
+        <span>Last drip <b>{sum.last_drip_at ? dayLabelY(sum.last_drip_at) : '—'}</b></span>
+        <span><b className="num">{sum.total_drips}</b> drip{sum.total_drips === 1 ? '' : 's'} · <b className="num">{N(sum.total_amount_kobo ?? 0)}</b> plus <span className="num">{N(sum.total_fees_kobo ?? 0)}</span> fees</span>
+        <span className="small muted">That's <b className="num">{N(total)}</b> in total. Paused drips aren't added on at the end.</span>
+      </div>
+    ) : err ? <div className="impact warn">{err}</div> : <Spinner label="Working it out…" />)}
+    <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} disabled={mode !== 'ongoing' && (!!err || !sum?.total_drips)}
+      onClick={() => onDone(mode === 'months' ? { end_mode: mode, duration_months: months } : mode === 'date' ? { end_mode: mode, end_date: date } : { end_mode: 'ongoing' })}>
+      Done
+    </button>
+  </>);
 }

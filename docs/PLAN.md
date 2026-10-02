@@ -325,6 +325,8 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 | Identity checks | Later, inside the app: NIN **or** BVN → ID photo → selfie. Required before money moves: the account number is issued on verification, card top-ups and dev top-ups are refused, and the worker skips unverified users' runs. |
 | Sign-in | Face ID or PIN on a known device. New device: emailed code, then PIN. |
 | Email | Mailgun, sending domain `mg.spendrip.com`. Waitlist welcome on join; invites from the admin action. |
+| Plan start and end | (2 Oct 2026) Start today or on a date; keep going, for 1–36 months, or until a date (inclusive). Pausing doesn't move the end. Finished plans release their priority and lower ones move up. The last drip's delivery email says so. Details: docs/plans/plan-start-end.md. |
+| Fees | (2 Oct 2026) ₦50 SpenDrip fee + Paystack transfer fee (₦10/₦25/₦50) + ₦50 stamp duty from ₦10,000, passed through and shown line by line. Fees ledger in admin. |
 | Payout to "me" | To your own bank account, saved as a verified recipient. |
 
 ### Still open (none of these block Phase 0–2)

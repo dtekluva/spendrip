@@ -735,3 +735,23 @@ a{color:inherit}
 /* Kobo loader (sending codes etc.) */
 .kobo-loader{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;font-weight:700;font-size:14px;color:var(--muted);animation:fadeup .25s ease both}
 .sent-note{color:var(--mint);font-weight:700}
+
+/* plan start / end */
+.stepper{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px}
+.stepper button{width:44px;height:44px;border-radius:12px;font-size:22px;font-weight:800;background:var(--chip-bg,rgba(127,127,127,.12));color:var(--ink)}
+.stepper button:disabled{opacity:.35}
+.stepper b{font-size:18px}
+.end-sum{display:flex;flex-direction:column;gap:4px;margin-top:14px;padding:14px 16px;border-radius:16px;background:color-mix(in srgb,var(--cobalt) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--cobalt) 25%,transparent)}
+.whole{display:flex;flex-direction:column;gap:2px;padding-bottom:8px;margin-bottom:6px;border-bottom:1px dashed var(--line)}
+.whole .kv.sub{font-size:13px}
+.p-sched{background:color-mix(in srgb,var(--mint) 16%,transparent);color:var(--mint)}
+.plan-progress{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.pbar{display:block;height:6px;border-radius:99px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:99px;background:var(--cobalt)}
+.finished-list summary{cursor:pointer;list-style:none;padding:6px 2px}
+.finished-list summary::-webkit-details-marker{display:none}
+.finished-list summary .eyebrow::after{content:" ▾"}
+.finished-list[open] summary .eyebrow::after{content:" ▴"}
+.plan-card.done{grid-template-columns:auto 1fr;opacity:.92}
+.done-actions{display:flex;gap:8px;margin-top:8px}
+.done-actions .btn{height:38px;padding:0 14px;font-size:14px}

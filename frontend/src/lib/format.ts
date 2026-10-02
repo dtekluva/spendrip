@@ -58,3 +58,28 @@ export function countdown(at: string | Date): string {
   const m = Math.floor(s / 60); s -= m * 60;
   return d ? `in ${d}d ${h}h ${m}m` : `in ${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
+
+/* ---- calendar dates (YYYY-MM-DD, Lagos) for plan starts and ends ---- */
+const pad = (n: number) => String(n).padStart(2, '0');
+export const todayISO = () => { const x = lagos(new Date()); return `${x.y}-${pad(x.m)}-${pad(x.d)}`; };
+const noon = (iso: string) => new Date(`${iso}T12:00:00+01:00`);
+export function addDaysISO(iso: string, n: number): string {
+  const x = lagos(new Date(noon(iso).getTime() + n * 86_400_000));
+  return `${x.y}-${pad(x.m)}-${pad(x.d)}`;
+}
+export function addMonthsISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  const t = y * 12 + (m - 1) + n, ny = Math.floor(t / 12), nm = (t % 12) + 1;
+  const dim = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+  return `${ny}-${pad(nm)}-${pad(Math.min(d, dim))}`;
+}
+/** "Sun 1 Nov", or "Sun 1 Nov 2027" when it isn't this year. */
+export function dateLabel(iso: string): string {
+  const x = lagos(noon(iso)), now = lagos(new Date());
+  return `${WD[x.wd]!.slice(0, 3)} ${x.d} ${MON[x.m - 1]}${x.y !== now.y ? ' ' + x.y : ''}`;
+}
+/** Like dayLabel, plus the year when it isn't this year. */
+export function dayLabelY(d: Date | string): string {
+  const x = lagos(d), now = lagos(new Date());
+  return dayLabel(d) + (x.y !== now.y ? ` ${x.y}` : '');
+}

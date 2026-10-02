@@ -1,11 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { cadence, dayLabel, fmtTime, N } from '../lib/format';
+import { cadence, dateLabel, dayLabel, dayLabelY, fmtTime, N } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Plan } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Switch } from '../components/ui';
+
+/** "Drip 4 of 17 · ends Fri 29 Jan", "Starts Sun 1 Nov", "Ending soon" and the like. */
+function planMeta(p: Plan) {
+  const bounded = p.total_drips != null;
+  const soon = p.state === 'active' && !!p.last_drip_at && new Date(p.last_drip_at).getTime() - Date.now() < 7 * 86_400_000;
+  const pct = bounded && p.total_drips ? Math.min(100, Math.round((p.drips_done / p.total_drips) * 100)) : 0;
+  return { bounded, soon, pct };
+}
+
+function Progress({ p }: { p: Plan }) {
+  const { bounded, pct } = planMeta(p);
+  if (!bounded || !p.total_drips) return null;
+  return (
+    <span className="plan-progress">
+      <span className="small muted num">{p.drips_done ? `Drip ${Math.min(p.drips_done, p.total_drips!)} of ${p.total_drips}` : `${p.total_drips} drip${p.total_drips === 1 ? '' : 's'}`} · {p.state === 'finished' ? 'ended' : 'ends'} {p.last_drip_at ? dayLabelY(p.last_drip_at) : ''}</span>
+      <span className="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
+    </span>
+  );
+}
 
 export default function Plans() {
   const store = useStore();
@@ -19,6 +38,8 @@ export default function Plans() {
     if (p) { openSheet(<PlanSheet plan={p} />); setParams({}, { replace: true }); }
   }, [params, plans]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const current = plans.filter((p) => p.state !== 'finished');
+  const finished = plans.filter((p) => p.state === 'finished');
   const prio = plans.filter((p) => p.priority_rank).sort((a, b) => a.priority_rank! - b.priority_rank!);
   const total = summary?.forecast.total_needed_kobo ?? 0;
   const fees = (summary?.forecast.events ?? []).reduce((t, e) => t + (e.fee_kobo ?? 0), 0);
@@ -80,20 +101,50 @@ export default function Plans() {
       </div><div className="col stack">
         <div className="eyebrow col-head">All plans</div>
         <div className="plan-list">
-          {plans.map((p) => (
-            <button key={p.id} className={`plan-card ${p.status === 'paused' ? 'paused' : ''}`} onClick={() => openSheet(<PlanSheet plan={p} />)}>
-              <span className={`tile t-${p.tint}`}>{p.emoji}</span>
-              <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span className="nm">{p.label} {p.priority_rank && <span className="pill p-prot">🛡 Priority {p.priority_rank}</span>} {p.status === 'paused' && <span className="pill p-off">Paused</span>}</span>
-                <span className="amt num">{N(p.amount_kobo)}</span>
-                <span className="small muted">{cadence(p)} · {fmtTime(p.time_local)} · to {p.recipient.label}</span>
-                <span className="small" style={{ fontWeight: 700 }}>{p.status === 'paused' ? 'Not sending' : p.next_at ? 'Next: ' + dayLabel(p.next_at) : ''}</span>
-              </span>
-              <Switch on={p.status === 'active'} label={`${p.status === 'active' ? 'Pause' : 'Resume'} ${p.label}`} onChange={() => togglePause(p)} />
-            </button>
-          ))}
-          {!plans.length && <div className="card">No plans yet. Tap ＋ to make your first one.</div>}
+          {current.map((p) => {
+            const { soon } = planMeta(p);
+            return (
+              <button key={p.id} className={`plan-card ${p.status === 'paused' ? 'paused' : ''}`} onClick={() => openSheet(<PlanSheet plan={p} />)}>
+                <span className={`tile t-${p.tint}`}>{p.emoji}</span>
+                <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span className="nm">{p.label} {p.priority_rank && <span className="pill p-prot">🛡 Priority {p.priority_rank}</span>}
+                    {p.status === 'paused' && <span className="pill p-off">Paused</span>}
+                    {p.state === 'scheduled' && <span className="pill p-sched">Starts {dateLabel(p.start_date)}</span>}
+                    {soon && <span className="pill p-wait">Ending soon</span>}</span>
+                  <span className="amt num">{N(p.amount_kobo)}</span>
+                  <span className="small muted">{cadence(p)} · {fmtTime(p.time_local)} · to {p.recipient.label}</span>
+                  <span className="small" style={{ fontWeight: 700 }}>{p.status === 'paused' ? 'Not sending'
+                    : p.state === 'scheduled' && p.first_drip_at ? 'First drip: ' + dayLabelY(p.first_drip_at)
+                    : p.next_at ? 'Next: ' + dayLabel(p.next_at) : ''}</span>
+                  <Progress p={p} />
+                </span>
+                <Switch on={p.status === 'active'} label={`${p.status === 'active' ? 'Pause' : 'Resume'} ${p.label}`} onChange={() => togglePause(p)} />
+              </button>
+            );
+          })}
+          {!current.length && <div className="card">No plans running. Tap ＋ to make one.</div>}
         </div>
+        {!!finished.length && (
+          <details className="finished-list">
+            <summary><span className="eyebrow">Finished · {finished.length}</span></summary>
+            <div className="plan-list">
+              {finished.map((p) => (
+                <div key={p.id} className="plan-card done">
+                  <span className={`tile t-${p.tint}`}>{p.emoji}</span>
+                  <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="nm">{p.label} <span className="pill p-off">Finished</span></span>
+                    <span className="small muted">{N(p.amount_kobo)} · {cadence(p)} · to {p.recipient.label}</span>
+                    <Progress p={p} />
+                    <span className="done-actions">
+                      <button className="btn btn-soft" onClick={() => nav(`/plans/${p.id}/edit?extend=1`)}>Extend</button>
+                      <button className="btn btn-soft" onClick={() => nav(`/plans/new?from=${p.id}`)}>Run it again</button>
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
         <button className="btn btn-soft btn-block" onClick={() => nav('/plans/new')}>＋ New plan</button>
       </div></div>
     </div>
@@ -122,7 +173,16 @@ function PlanSheet({ plan }: { plan: Plan }) {
     <>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}><span className={`tile t-${p.tint}`}>{p.emoji}</span>
         <div><h3 style={{ margin: 0 }}>{p.label}</h3><div className="muted small">{N(p.amount_kobo)} to {p.recipient.label} ({p.recipient.bank_name} ••{p.recipient.account_last4})</div></div></div>
-      <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{cadence(p)} at {fmtTime(p.time_local)}.{p.next_at && ` Next: ${dayLabel(p.next_at)}.`}</p>
+      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{cadence(p)} at {fmtTime(p.time_local)}.{p.state === 'scheduled' && p.first_drip_at ? ` Starts ${dayLabelY(p.first_drip_at)}.` : p.next_at ? ` Next: ${dayLabel(p.next_at)}.` : ''}</p>
+      <p className="small muted" style={{ margin: '0 0 12px' }}>{p.end_mode === 'ongoing' ? 'Keeps going until you stop it.'
+        : `${p.state === 'finished' ? 'Ran' : 'Runs'} ${p.end_mode === 'months' ? `for ${p.duration_months} month${p.duration_months === 1 ? '' : 's'}` : `until ${p.end_date ? dateLabel(p.end_date) : ''}`}`
+        + (p.total_drips != null ? ` · ${p.total_drips} drips · ${N(p.total_cost_kobo ?? 0)} with fees` : '')}</p>
+      {p.state === 'finished' ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { closeSheet(); nav(`/plans/${p.id}/edit?extend=1`); }}>Extend</button>
+          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => { closeSheet(); nav(`/plans/new?from=${p.id}`); }}>Run it again</button>
+        </div>
+      ) : (<>
       <div className="opt-list">
         <div className="opt" style={{ cursor: 'default', gridTemplateColumns: '1fr' }}>
           <span><b>🛡 Priority</b><br /><span className="small muted">1 is paid first. Lower priorities and other plans can't touch the money it needs.</span></span>
@@ -131,6 +191,7 @@ function PlanSheet({ plan }: { plan: Plan }) {
         <div className="opt" style={{ cursor: 'default' }}><span>⏯</span><span><b>Sending</b><br /><span className="small muted">Turn off to pause. Nothing is lost.</span></span>
           <Switch on={p.status === 'active'} label="Sending" onChange={pause} /></div>
       </div>
+      </>)}
       <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
         <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => { closeSheet(); nav(`/plans/${p.id}/edit`); }}>Edit plan</button>
         {!confirm && <button className="btn btn-soft" style={{ flex: 1, color: 'var(--red)' }} onClick={() => setConfirm(true)}>Delete</button>}

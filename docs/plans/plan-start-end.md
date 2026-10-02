@@ -1,6 +1,6 @@
 # Plans with a start and an end
 
-Status: **approved 2 Oct 2026, being built.**
+Status: **built 2 Oct 2026.** Calendar shows "First drip" / "🏁 Last drip" tags in a day's list.
 
 Decisions: end by months or by date (no "N drips" yet); pausing doesn't move the end; when a priority plan finishes, the priorities below move up; the only end-of-plan notice is the "last drip" line in the delivery email (no 3-day warning, no "finished" note).
 

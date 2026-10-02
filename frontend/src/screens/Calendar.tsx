@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { dayLabel, fmtTime, kN, lagos, MONL, N } from '../lib/format';
+import { dayLabel, fmtTime, kN, lagos, MONL, N, dayKey } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { DripEvent } from '../lib/types';
 import { StatusPill } from '../components/ui';
@@ -72,7 +72,9 @@ export default function Calendar() {
             return (
               <button key={i} className="row" style={{ gridTemplateColumns: 'auto 1fr auto' }} onClick={() => p && nav(`/plans?open=${p.id}`)}>
                 <span className={`tile sm t-${p?.tint ?? 'cobalt'}`}>{p?.emoji ?? '💸'}</span>
-                <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p?.label ?? 'Deleted plan'} {e.rank ? <span className="pill p-prot">🛡 {e.rank}</span> : null}</span>
+                <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p?.label ?? 'Deleted plan'} {e.rank ? <span className="pill p-prot">🛡 {e.rank}</span> : null}
+                  {p?.first_drip_at && dayKey(p.first_drip_at) === dayKey(e.at) && p.total_drips != null ? <span className="pill p-sched">First drip</span> : null}
+                  {p?.last_drip_at && dayKey(p.last_drip_at) === dayKey(e.at) ? <span className="pill p-wait">🏁 Last drip</span> : null}</span>
                   <span className="s">{fmtTime(e.at)}{p ? ` · to ${p.recipient.label}` : ''}</span></span>
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}><span className="amt num">{N(e.amount_kobo)}</span><StatusPill status={e.status} /></span>
               </button>

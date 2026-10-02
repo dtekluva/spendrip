@@ -104,8 +104,8 @@ def plan_progress(plan: Plan, now: datetime) -> dict:
         state = "finished"
     elif plan.status == Plan.Status.PAUSED:
         state = "paused"
-    elif first and first > now and done == 0:
-        state = "scheduled"
+    elif plan.starts_at > now and done == 0:
+        state = "scheduled"  # its start date is still ahead
     else:
         state = "active"
     fee = fee_schedule()(plan.amount_kobo)
