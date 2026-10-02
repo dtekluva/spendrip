@@ -14,7 +14,7 @@ from math import ceil
 import requests
 
 from .banks import BY_NIP
-from .base import NameEnquiryResult, ProviderError, TransferRequest, TransferResult, TransferStatus
+from .base import NameEnquiryError, NameEnquiryResult, ProviderError, TransferRequest, TransferResult, TransferStatus
 
 # Paystack local card pricing: 1.5% + ₦100 (the ₦100 is waived under ₦2,500), capped at ₦2,000.
 CARD_PERCENT = 0.015
@@ -99,14 +99,17 @@ class PaystackProvider:
     def _cbn(nip_code: str) -> str:
         bank = BY_NIP.get(nip_code)
         if not bank or not bank[1]:
-            raise ValueError("Paystack can't pay this bank yet. Choose another bank.")
+            raise NameEnquiryError("We can't pay this bank yet. Choose another bank.", kind="unsupported")
         return bank[1]
 
     def name_enquiry(self, bank_code, account_number):
         status, body = self.client.call("GET", "/bank/resolve", params={"account_number": account_number, "bank_code": self._cbn(bank_code)})
         name = (body.get("data") or {}).get("account_name") if body.get("status") else None
+        if status == 429 or "limit" in str(body.get("message", "")).lower():
+            # Test mode allows only 3 real-bank checks a day; live mode can also rate-limit.
+            raise NameEnquiryError(str(body.get("message", "Too many account checks.")), kind="limit")
         if status >= 400 or not name:
-            raise ValueError("We couldn't find that account. Check the number and bank.")
+            raise NameEnquiryError("We couldn't find that account. Check the number and bank.")
         return NameEnquiryResult(account_name=name.strip(), bank_code=bank_code, account_number=account_number)
 
     def create_recipient(self, req: TransferRequest) -> str:

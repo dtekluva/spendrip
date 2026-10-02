@@ -45,6 +45,14 @@ class NameEnquiryResult:
     account_number: str
 
 
+class NameEnquiryError(ValueError):
+    """A name check that didn't give a name. `kind` is not_found | limit | unsupported."""
+
+    def __init__(self, message: str, kind: str = "not_found"):
+        super().__init__(message)
+        self.kind = kind
+
+
 @dataclass(frozen=True)
 class VirtualAccount:
     account_number: str

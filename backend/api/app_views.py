@@ -18,7 +18,7 @@ from engine import PlanLike, Schedule, forecast, next_occurrences, occurrences, 
 from ledger import services as ledger
 from ledger.models import Inflow
 from notifications.models import OutboxMessage
-from providers import get_payout_provider
+from providers import get_payout_provider, names
 
 from providers.banks import BANKS, BY_NIP
 
@@ -155,6 +155,13 @@ class Banks(APIView):
         return Response([{"name": n, "nip_code": nip} for n, nip, _ in BANKS])
 
 
+def check_name(code: str, number: str):
+    try:
+        return names.resolve(code, number)
+    except names.NameCheckFailed as e:
+        raise FlowError(e.message, code=e.code, status=e.status)
+
+
 class RecipientLookup(APIView):
     """Check an account before saving it, so money can't go to the wrong person."""
 
@@ -164,11 +171,8 @@ class RecipientLookup(APIView):
             raise FlowError("Choose a bank.")
         if not (len(number) == 10 and number.isdigit()):
             raise FlowError("Account numbers have 10 digits.")
-        try:
-            r = get_payout_provider().name_enquiry(code, number)
-        except ValueError as e:
-            raise FlowError(str(e), code="lookup_failed")
-        return Response({"account_name": r.account_name, "bank_name": BY_NIP[code][0]})
+        n = check_name(code, number)
+        return Response({"account_name": n.account_name, "bank_name": BY_NIP[code][0], "test_name": n.test_name})
 
 
 class Recipients(APIView):
@@ -185,7 +189,7 @@ class Recipients(APIView):
             raise FlowError("Choose a bank and enter a 10-digit account number.")
         if request.user.recipients.filter(nip_bank_code=code, account_number=number).exists():
             raise FlowError("You've already saved this account.", code="duplicate", status=409)
-        name = get_payout_provider().name_enquiry(code, number).account_name  # always check server-side
+        name = check_name(code, number).account_name  # always checked server-side (reuses the lookup's answer)
         r = Recipient.objects.create(
             user=request.user, label=label[:60], is_self=bool(d.get("is_self", False)), bank_name=BY_NIP[code][0], nip_bank_code=code,
             cbn_bank_code=BY_NIP[code][1], account_number=number, verified_account_name=name,

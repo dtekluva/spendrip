@@ -5,7 +5,7 @@ import { dayLabel, fmtTime, ISO_WD, N, ord } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Draft, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
-import { Icon, useAction } from '../components/ui';
+import { Icon, Spinner, useAction } from '../components/ui';
 import Kobo from '../components/Kobo';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
@@ -229,14 +229,22 @@ export function AddRecipient({ onSaved, self = false }: { onSaved: (r: Recipient
   const [acct, setAcct] = useState('');
   const [wa, setWa] = useState('');
   const [name, setName] = useState('');
+  const [testName, setTestName] = useState(false);
+  const [checking, setChecking] = useState(false);
   const { busy, error, setError, run } = useAction();
   useEffect(() => { api.get<{ name: string; nip_code: string }[]>('/banks').then(setBanks); }, []);
   useEffect(() => {
-    setName(''); setError('');
+    setName(''); setError(''); setTestName(false);
     if (acct.length === 10 && bank) {
-      const t = window.setTimeout(() => api.post<{ account_name: string }>('/recipients/lookup', { nip_bank_code: bank, account_number: acct })
-        .then((r) => setName(r.account_name)).catch((e) => setError(e.message)), 200);
-      return () => window.clearTimeout(t);
+      let live = true;
+      const t = window.setTimeout(() => {
+        setChecking(true);
+        api.post<{ account_name: string; test_name?: boolean }>('/recipients/lookup', { nip_bank_code: bank, account_number: acct })
+          .then((r) => { if (live) { setName(r.account_name); setTestName(!!r.test_name); } })
+          .catch((e) => { if (live) setError(e.message); })
+          .finally(() => { if (live) setChecking(false); });
+      }, 300);
+      return () => { live = false; window.clearTimeout(t); setChecking(false); };
     }
   }, [acct, bank]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = () => run(async () => {
@@ -251,7 +259,9 @@ export function AddRecipient({ onSaved, self = false }: { onSaved: (r: Recipient
         <div className="field"><label htmlFor="rb">Bank</label><select id="rb" value={bank} onChange={(e) => setBank(e.target.value)}><option value="">Choose bank</option>{banks.map((b) => <option key={b.nip_code} value={b.nip_code}>{b.name}</option>)}</select></div>
         <div className="field"><label htmlFor="ra">Account number</label><input id="ra" inputMode="numeric" maxLength={10} placeholder="10 digits" value={acct} onChange={(e) => setAcct(e.target.value.replace(/\D/g, ''))} /></div>
         {acct.length > 0 && acct.length < 10 && <span className="small muted">{10 - acct.length} more digit{10 - acct.length > 1 ? 's' : ''}…</span>}
+        {checking && <Spinner label="Checking the account name…" />}
         {name && <div className="verified">✅ <span>{name}<br /><span className="small muted" style={{ fontWeight: 600 }}>Is this the right person?</span></span></div>}
+        {name && testName && <p className="dev-note">Test mode: Paystack allows 3 real name checks a day and today's are used up, so this is a made-up test name.</p>}
         {error && <div className="error-card">{error}</div>}
         {!self && <div className="field"><label htmlFor="rw">WhatsApp number (optional)</label><input id="rw" inputMode="tel" placeholder="We'll message them when money lands" value={wa} onChange={(e) => setWa(e.target.value)} /></div>}
         <button className="btn btn-primary btn-block" disabled={!name || !label.trim() || busy} onClick={save}>Save</button>

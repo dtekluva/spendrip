@@ -100,3 +100,16 @@ def test_name_check_uses_cbn_code():
     p, s = provider({("GET", "/bank/resolve"): FakeResp(200, {"status": True, "data": {"account_name": "ADAEZE OKONKWO "}})})
     assert p.name_enquiry("100004", "9028906357").account_name == "ADAEZE OKONKWO"
     assert s.calls[0][2]["params"] == {"account_number": "9028906357", "bank_code": "999992"}  # OPay
+
+
+def test_name_check_limit_is_reported_as_a_limit_not_as_not_found():
+    from providers.base import NameEnquiryError
+    msg = "Test mode daily limit of 3 live bank resolves exceeded. Use test bank codes 001 or upgrade to live mode."
+    p, _ = provider({("GET", "/bank/resolve"): FakeResp(429, {"status": False, "message": msg})})
+    with pytest.raises(NameEnquiryError) as e:
+        p.name_enquiry("000013", "0123456789")
+    assert e.value.kind == "limit"
+    p, _ = provider({("GET", "/bank/resolve"): FakeResp(422, {"status": False, "message": "Could not resolve account name"})})
+    with pytest.raises(NameEnquiryError) as e:
+        p.name_enquiry("000013", "0123456789")
+    assert e.value.kind == "not_found"
