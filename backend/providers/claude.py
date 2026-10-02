@@ -29,7 +29,7 @@ def vision_json(prompt: str, image: bytes, *, max_tokens: int = 700, session: re
     if not cfg["API_KEY"]:
         raise ProviderError("ANTHROPIC_API_KEY is not set")
     body = {
-        "model": cfg["MODEL"], "max_tokens": max_tokens, "temperature": 0,
+        "model": cfg["MODEL"], "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": media_type(image), "data": base64.b64encode(image).decode()}},
             {"type": "text", "text": prompt},
