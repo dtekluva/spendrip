@@ -352,14 +352,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .splash.out{opacity:0;transform:scale(1.08);pointer-events:none}
 .splash .stagewrap{position:relative;display:flex;flex-direction:column;align-items:center}
 .splash .sk-wrap{position:relative;width:84px;height:101px;display:flex;justify-content:center}
-.splash .sk-hop{width:100%;height:100%;animation:sk-hop .5s cubic-bezier(.3,0,.3,1) 1.75s both}
+.splash .sk-hop{width:100%;height:100%;animation:sk-hop .5s cubic-bezier(.3,0,.3,1) 2.05s both}
 .splash .sk{width:100%;height:100%;overflow:visible;animation:sk-fall .5s cubic-bezier(.55,0,.85,.4) both}
 .splash .sk-body{transform-box:view-box;transform-origin:50px 116px;animation:sk-land .62s cubic-bezier(.3,0,.3,1) .5s both}
 .splash .sk-open{animation:sk-show 2.9s steps(1) both}
 .splash .sk-happy{opacity:0;animation:sk-hide 2.9s steps(1) both}
 .splash .sk-o{opacity:0;animation:sk-early 2.9s steps(1) both}
 .splash .sk-smile{animation:sk-late 2.9s steps(1) both}
-.splash .sk-blink{transform-box:view-box;transform-origin:50px 77px;animation:sk-blink .28s ease 2.2s both}
+.splash .sk-blink{transform-box:view-box;transform-origin:50px 77px;animation:sk-blink .28s ease 2.75s both}
 .splash .sk-glow{position:absolute;left:50%;bottom:-6px;width:220px;height:220px;margin-left:-110px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--splash-drop) 45%,transparent),transparent);opacity:0;transform:translateY(50%) scale(.3);animation:sk-glow 1.4s ease-out .5s both;pointer-events:none}
 .splash .ripple{position:absolute;bottom:-11px;left:50%;width:70px;height:22px;margin-left:-35px;border:3px solid var(--splash-drop);border-radius:50%;opacity:0;animation:ripple 1s ease-out .5s both}
 .splash .ripple.r2{animation-delay:.66s;border-color:color-mix(in srgb,var(--splash-ink) 55%,transparent)}

@@ -9,7 +9,7 @@ const DROPS: [number, number, number][] = [[-58, 34, 9], [-34, 52, 7], [-14, 40,
 export default function Splash({ onDone, quick }: { onDone: () => void; quick: boolean }) {
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const t = window.setTimeout(onDone, reduce ? 700 : quick ? 1500 : 2900);
+    const t = window.setTimeout(onDone, reduce ? 700 : quick ? 2700 : 3900);
     return () => window.clearTimeout(t);
   }, [onDone, quick]);
   const letters = ['s', 'p', 'e', 'n', 'd', 'r', 'ı', 'p'];
