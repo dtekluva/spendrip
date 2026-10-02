@@ -103,3 +103,24 @@ Before real money, wire Liberty (`PAYMENT_PROVIDER=liberty` plus the `LIBERTY_*`
 ## Liberty webhook
 
 When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks/liberty`. Optionally set `LIBERTY_WEBHOOK_SECRET` and have Liberty send it as `X-SpenDrip-Secret`. Every inflow is checked with Liberty (`verify_event`) before it's credited, and each one is credited only once.
+
+## Live mode (switched on 2 Oct 2026)
+
+`/etc/spendrip.env` on the droplet:
+
+| Setting | Live value | What it does |
+|---|---|---|
+| `SPENDRIP_DEV_TOOLS` | `false` | No on-screen codes, no simulated top-ups. Required for live Paystack keys. |
+| `PAYSTACK_MODE` | `live` | Uses `PAYSTACK_SECRET_KEY` / `PAYSTACK_PUBLIC_KEY` (live). Real cards and payouts. |
+| `KYC_PROVIDER` | `live` | BVN via Paystack customer validation (webhook), ID photo and selfie read by Claude (`ANTHROPIC_API_KEY`). |
+| `BANK_TRANSFER_FUNDING` | `false` | No account numbers until Liberty is live. Cards only. |
+| `PAYOUTS_ENABLED` | `true` | **Kill switch.** Set to `false` and run `deploy/deploy.sh` to stop every payout. |
+
+**Paystack dashboard (live):**
+- Webhook URL: `https://api.spendrip.com/api/webhooks/paystack`
+- Transfer OTP: off
+- Balance: funded
+
+**Backups and rollback:**
+- Pre-live database backup: `/root/backups/spendrip-before-live-20261002-2146.dump`
+- Previous env file: `/etc/spendrip.env.bak-before-live`
