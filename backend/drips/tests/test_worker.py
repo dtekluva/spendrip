@@ -196,8 +196,8 @@ def test_delivered_drip_emails_the_sender_once(user, top_up, recipients, make_pl
     worker.tick(t + timedelta(seconds=200))
     assert len(mail.outbox) == 1
     m = mail.outbox[0]
-    assert m.to == ["ada@example.com"] and "₦10,000 delivered to Mum" in m.subject
-    assert "Your balance is now ₦9,950" in m.body
+    assert m.to == ["ada@example.com"] and "₦10,000 just landed for Mum" in m.subject
+    assert "Balance now: ₦9,950" in m.body and "kobo-celebrate.png" in m.alternatives[0][0]
     run = runs_of(mum).get(scheduled_for=t)
     assert OutboxMessage.objects.get(run=run, channel="email").status == "sent"
 

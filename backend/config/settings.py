@@ -203,3 +203,5 @@ MAILGUN = {
 EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
                  else "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")
+# Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
+EMAIL_ASSET_BASE = env("EMAIL_ASSET_BASE", "https://spendrip.com/email").rstrip("/")

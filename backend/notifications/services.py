@@ -16,9 +16,10 @@ def notify(user, *, key: str, channel: str, template: str, body: str, to: str = 
     if channel in (OutboxMessage.Channel.WHATSAPP, OutboxMessage.Channel.SMS):
         status = (messenger or get_messenger()).send(channel=channel, to=to, body=body)
     elif channel == OutboxMessage.Channel.EMAIL:
-        from .emails import send
+        from .emails import send, send_raw
         e = email or {}
-        ok = send(to, e.get("subject", body[:80]), e.get("heading", body[:80]), e.get("paragraphs", [body]), e.get("button"))
+        ok = (send_raw(to, e["subject"], e.get("text", body), e["html"]) if e.get("html") else
+              send(to, e.get("subject", body[:80]), e.get("heading", body[:80]), e.get("paragraphs", [body]), e.get("button")))
         status = OutboxMessage.Status.SENT if ok else OutboxMessage.Status.FAILED
     elif channel == OutboxMessage.Channel.PUSH:
         status = OutboxMessage.Status.MOCKED  # web push arrives with the PWA (Phase 2)
