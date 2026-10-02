@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',  // a new version waits until the person taps Refresh (see components/UpdateBar.tsx)
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'SpenDrip',

@@ -1,0 +1,35 @@
+import { useEffect, useState } from 'react';
+import { registerSW } from 'virtual:pwa-register';
+
+/**
+ * The app is cached for offline use, so a new version only arrives in the background. Check for one on launch,
+ * whenever the app comes back to the foreground and every 30 minutes, then offer a Refresh (never forced).
+ */
+let update: ((reload?: boolean) => Promise<void>) | null = null;
+const listeners = new Set<() => void>();
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  update = registerSW({
+    immediate: true,
+    onNeedRefresh() { listeners.forEach((l) => l()); },
+    onRegisteredSW(_url, reg) {
+      if (!reg) return;
+      const check = () => { reg.update().catch(() => {}); };
+      window.setInterval(check, 30 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    },
+  });
+}
+
+export default function UpdateBar() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const l = () => setReady(true); listeners.add(l); return () => { listeners.delete(l); }; }, []);
+  if (!ready) return null;
+  return (
+    <div className="update-bar" role="status">
+      <span>✨ A new version of SpenDrip is ready</span>
+      <button className="btn btn-primary" onClick={() => update?.(true)}>Refresh</button>
+      <button className="link small" aria-label="Later" onClick={() => setReady(false)}>Later</button>
+    </div>
+  );
+}
