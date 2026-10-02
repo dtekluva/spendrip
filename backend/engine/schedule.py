@@ -84,3 +84,35 @@ def start_of_month(at: datetime, tz: str) -> datetime:
 def day_key(at: datetime, tz: str) -> date:
     """Local calendar day, used for daily caps."""
     return at.astimezone(ZoneInfo(tz)).date()
+
+
+# ---------------------------------------------------------------- start and end of a plan
+
+MAX_PLAN_MONTHS = 36
+
+
+def months_later(d: date, n: int) -> date:
+    """The same day n months on, clamped to the month's last day (31 Jan + 1 month = 28/29 Feb)."""
+    y, m = divmod(d.month - 1 + n, 12)
+    year, month = d.year + y, m + 1
+    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
+
+
+def start_of_local_day(d: date, tz: str) -> datetime:
+    return datetime.combine(d, time(0, 0), tzinfo=ZoneInfo(tz))
+
+
+def end_of_local_day(d: date, tz: str) -> datetime:
+    return datetime.combine(d, time(23, 59, 59, 999_999), tzinfo=ZoneInfo(tz))
+
+
+def end_after_months(start: datetime, n: int, tz: str) -> datetime:
+    """"For n months" from `start`: up to just before the same date n months later. Start 1 Nov, 3 months →
+    drips on 1 Nov, 1 Dec and 1 Jan, but not 1 Feb."""
+    first_day = start.astimezone(ZoneInfo(tz)).date()
+    return start_of_local_day(months_later(first_day, n), tz) - timedelta(microseconds=1)
+
+
+def all_occurrences(s: Schedule) -> list[datetime]:
+    """Every drip of a plan that has an end. Empty for plans that keep going."""
+    return occurrences(s, s.starts_at, s.ends_at) if s.ends_at else []

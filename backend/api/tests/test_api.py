@@ -367,3 +367,56 @@ def test_mailgun_backend_posts_to_the_api(settings, monkeypatch):
     url, kw = calls[0]
     assert url == "https://api.mailgun.net/v3/mg.example.com/messages" and kw["auth"] == ("api", "k")
     assert kw["data"]["html"] == "<b>html</b>" and kw["data"]["to"] == ["a@b.com"]
+
+
+# ------------------------------------------------------------------ start and end dates
+
+def test_plan_for_three_months_shows_the_whole_commitment(demo, dev):
+    from datetime import date, timedelta
+    c = unlocked_client(demo)
+    start = (date.today() + timedelta(days=10)).isoformat()
+    body = plan_body(demo, label="Rent help", frequency="monthly", month_day=int(start[8:]), weekday=None,
+                     start_date=start, end_mode="months", duration_months=3)
+    pv = c.post("/api/plans/preview", body, format="json").json()
+    assert pv["total_drips"] == 3 and pv["total_amount_kobo"] == 3_000_000 and pv["last_drip_at"]
+    p = c.post("/api/plans", body, format="json").json()["plan"]
+    assert p["state"] == "scheduled" and p["end_mode"] == "months" and p["duration_months"] == 3
+    assert p["total_drips"] == 3 and p["drips_done"] == 0 and str(p["start_date"]) == start
+
+
+def test_until_a_date_and_bad_windows(demo, dev):
+    from datetime import date, timedelta
+    c = unlocked_client(demo)
+    today = date.today()
+    ok = c.post("/api/plans", plan_body(demo, frequency="daily", weekday=None, end_mode="date",
+                                         end_date=(today + timedelta(days=6)).isoformat()), format="json")
+    assert ok.status_code == 201 and ok.json()["plan"]["end_mode"] == "date"
+    past = c.post("/api/plans", plan_body(demo, start_date=(today - timedelta(days=1)).isoformat()), format="json")
+    assert past.status_code == 400 and "today or a later date" in past.json()["error"]
+    before = c.post("/api/plans", plan_body(demo, start_date=(today + timedelta(days=5)).isoformat(), end_mode="date",
+                                             end_date=(today + timedelta(days=2)).isoformat()), format="json")
+    assert before.status_code == 400 and "before the start" in before.json()["error"]
+    none = c.post("/api/plans", plan_body(demo, frequency="monthly", weekday=None, month_day=28, start_date=today.isoformat(),
+                                           end_mode="date", end_date=today.isoformat()), format="json")
+    assert none.status_code == 400 or none.json()["plan"]["total_drips"] >= 1
+    too_long = c.post("/api/plans", plan_body(demo, end_mode="months", duration_months=40), format="json")
+    assert too_long.status_code == 400 and "between 1 and 36" in too_long.json()["error"]
+
+
+def test_finished_plan_releases_priority_and_can_be_extended(demo, dev):
+    from datetime import timedelta
+    from django.utils import timezone
+    from drips.services import finish_plans
+    c = unlocked_client(demo)
+    upkeep = demo.plans.get(label="Upkeep")  # priority 1; Mum is 2
+    upkeep.end_mode, upkeep.ends_at = "date", timezone.now() - timedelta(days=1)
+    upkeep.save()
+    from drips.models import Run
+    Run.objects.filter(plan=upkeep, status="scheduled").delete()
+    assert finish_plans(timezone.now()) == 1
+    ranks = {p["label"]: (p["priority_rank"], p["state"]) for p in c.get("/api/plans").json()}
+    assert ranks["Upkeep"] == (None, "finished") and ranks["Mum"][0] == 1
+    assert c.patch(f"/api/plans/{upkeep.id}", {"status": "active"}, format="json").json()["code"] == "finished"
+    from datetime import date
+    ext = c.patch(f"/api/plans/{upkeep.id}", {"end_mode": "date", "end_date": (date.today() + timedelta(days=30)).isoformat()}, format="json")
+    assert ext.status_code == 200 and ext.json()["plan"]["state"] in ("active", "scheduled")

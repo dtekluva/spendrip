@@ -38,7 +38,13 @@ class Plan(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active"
         PAUSED = "paused"
+        FINISHED = "finished"  # reached its end date and its last drip is done
         DELETED = "deleted"
+
+    class EndMode(models.TextChoices):
+        ONGOING = "ongoing"  # keeps going
+        MONTHS = "months"  # for `duration_months` months from the start
+        DATE = "date"  # until `ends_at`'s date, inclusive
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="plans")
     label = models.CharField(max_length=40)
@@ -53,7 +59,10 @@ class Plan(models.Model):
     time_local = models.CharField(max_length=5)  # HH:MM
     tz = models.CharField(max_length=64, default="Africa/Lagos")
     starts_at = models.DateTimeField()
-    ends_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)  # last moment a drip may fall (computed from end_mode)
+    end_mode = models.CharField(max_length=8, choices=EndMode.choices, default=EndMode.ONGOING)
+    duration_months = models.PositiveSmallIntegerField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     priority_rank = models.PositiveSmallIntegerField(null=True, blank=True)  # 1–3
     provider = models.CharField(max_length=20, default="liberty")

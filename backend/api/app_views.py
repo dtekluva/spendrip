@@ -13,8 +13,22 @@ from rest_framework.views import APIView
 from accounts import services as acc
 from accounts.services import FlowError
 from drips.models import Plan, Recipient, Run
-from drips.services import engine_plans, fee_schedule, reschedule, sent_today_kobo, user_forecast
-from engine import PlanLike, Schedule, forecast, next_occurrences, occurrences, set_priority, validate_schedule
+from drips.services import engine_plans, fee_schedule, plan_progress, reschedule, sent_today_kobo, user_forecast
+from engine import (
+    MAX_PLAN_MONTHS,
+    PlanLike,
+    Schedule,
+    all_occurrences,
+    end_after_months,
+    end_of_local_day,
+    forecast,
+    months_later,
+    next_occurrences,
+    occurrences,
+    set_priority,
+    start_of_local_day,
+    validate_schedule,
+)
 from ledger import services as ledger
 from ledger.models import Inflow
 from notifications.models import OutboxMessage
@@ -52,10 +66,14 @@ def recipient_json(r: Recipient) -> dict:
 
 def plan_json(p: Plan, now: datetime) -> dict:
     nxt = next_occurrences(p.schedule, now, 1) if p.status == Plan.Status.ACTIVE else []
+    z = ZoneInfo(p.tz)
     return {"id": p.id, "label": p.label, "emoji": p.emoji, "tint": p.tint, "amount_kobo": p.amount_kobo,
             "recipient": recipient_json(p.recipient), "frequency": p.frequency, "weekday": p.weekday, "month_day": p.month_day,
             "month_day_last": p.month_day_last, "time_local": p.time_local, "tz": p.tz, "starts_at": p.starts_at,
-            "ends_at": p.ends_at, "status": p.status, "priority_rank": p.priority_rank, "next_at": nxt[0] if nxt else None}
+            "ends_at": p.ends_at, "status": p.status, "priority_rank": p.priority_rank, "next_at": nxt[0] if nxt else None,
+            "start_date": p.starts_at.astimezone(z).date(), "end_mode": p.end_mode, "duration_months": p.duration_months,
+            "end_date": p.ends_at.astimezone(z).date() if p.ends_at and p.end_mode == Plan.EndMode.DATE else None,
+            "finished_at": p.finished_at, **plan_progress(p, now)}
 
 
 def user_plans(user):
@@ -109,14 +127,82 @@ def parse_plan(data, user, instance: Plan | None = None) -> dict:
     out["month_day"] = None if out["month_day_last"] else md
     out["time_local"] = str(data.get("time_local", cur("time_local", "")))
     out["tz"] = user.tz
-    out["starts_at"] = _dt(data.get("starts_at")) or cur("starts_at") or timezone.now()
-    out["ends_at"] = _dt(data.get("ends_at")) if "ends_at" in data else cur("ends_at")
+    out.update(_window(data, user, instance))
     sched = Schedule(frequency=out["frequency"], time_local=out["time_local"], tz=out["tz"], starts_at=out["starts_at"],
                      weekday=out["weekday"], month_day="last" if out["month_day_last"] else out["month_day"], ends_at=out["ends_at"])
     errors = validate_schedule(sched)
     if errors:
         raise FlowError(errors[0][0].upper() + errors[0][1:] + ".")
+    if out["ends_at"] and not all_occurrences(sched):
+        raise FlowError("This ends before its first drip. Pick a later end.", code="no_drips")
     return out
+
+
+def _date(v, what: str):
+    from datetime import date
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        raise FlowError(f"Pick a valid {what} date.")
+
+
+def _window(data, user, instance: Plan | None) -> dict:
+    """When a plan starts and ends, from start_date ("today" or YYYY-MM-DD), end_mode, duration_months and end_date."""
+    tz, now = user.tz, timezone.now()
+    today = now.astimezone(ZoneInfo(tz)).date()
+    sent = (Run.objects.filter(plan=instance).exclude(status__in=[Run.Status.SCHEDULED, Run.Status.CANCELLED])
+            .order_by("-scheduled_for").first()) if instance else None
+
+    if "start_date" in data and data["start_date"] not in (None, ""):
+        raw = str(data["start_date"])
+        day = today if raw == "today" else _date(raw, "start")
+        current = instance.starts_at.astimezone(ZoneInfo(tz)).date() if instance else None
+        if instance and day == current:
+            starts = instance.starts_at
+        elif sent:
+            raise FlowError("This plan has already sent drips, so its start date can't change.", code="started")
+        elif day < today:
+            raise FlowError("Pick today or a later date to start.")
+        elif day > months_later(today, 12):
+            raise FlowError("Plans can start up to a year from today.")
+        else:
+            starts = now if day == today else start_of_local_day(day, tz)
+    else:
+        starts = instance.starts_at if instance else now
+
+    mode = data.get("end_mode") or (instance.end_mode if instance else Plan.EndMode.ONGOING)
+    months = None
+    if mode == Plan.EndMode.ONGOING:
+        ends = None
+    elif mode == Plan.EndMode.MONTHS:
+        try:
+            months = int(data.get("duration_months") or (instance.duration_months if instance else 0) or 0)
+        except (TypeError, ValueError):
+            months = 0
+        if not 1 <= months <= MAX_PLAN_MONTHS:
+            raise FlowError(f"Choose between 1 and {MAX_PLAN_MONTHS} months.")
+        ends = end_after_months(starts, months, tz)
+    elif mode == Plan.EndMode.DATE:
+        raw = data.get("end_date") or (instance.ends_at.astimezone(ZoneInfo(tz)).date().isoformat()
+                                        if instance and instance.ends_at else None)
+        if not raw:
+            raise FlowError("Pick the date the plan ends.")
+        day = _date(raw, "end")
+        start_day = starts.astimezone(ZoneInfo(tz)).date()
+        if day < start_day:
+            raise FlowError("The end date is before the start. Pick a later date.")
+        if day > months_later(start_day, MAX_PLAN_MONTHS):
+            raise FlowError(f"Plans can run for up to {MAX_PLAN_MONTHS} months. Pick an earlier end, or let it keep going.")
+        ends = end_of_local_day(day, tz)
+    else:
+        raise FlowError("End must be: keeps going, a number of months, or a date.")
+
+    if ends and sent and sent.scheduled_for > ends:
+        when = sent.scheduled_for.astimezone(ZoneInfo(tz))
+        raise FlowError(f"A drip already went out on {when:%-d %b %Y}. Pick an end after that.", code="end_before_sent")
+    if ends and ends < now and not sent:
+        raise FlowError("That end has already passed. Pick a later end.")
+    return {"starts_at": starts, "ends_at": ends, "end_mode": mode, "duration_months": months}
 
 
 def _int(v):
@@ -251,15 +337,20 @@ class PlanDetail(APIView):
         d = request.data
         dropped = []
         with transaction.atomic():
-            if "status" in d:
-                if d["status"] not in (Plan.Status.ACTIVE, Plan.Status.PAUSED):
-                    raise FlowError("Status must be active or paused.")
-                plan.status = d["status"]
+            was_finished = plan.status == Plan.Status.FINISHED
             schedule_keys = {"label", "emoji", "tint", "amount_kobo", "recipient_id", "frequency", "weekday", "month_day",
-                             "month_day_last", "time_local", "starts_at", "ends_at"}
+                             "month_day_last", "time_local", "start_date", "end_mode", "duration_months", "end_date"}
             if schedule_keys & set(d):
                 for k, v in parse_plan(d, request.user, instance=plan).items():
                     setattr(plan, k, v)
+            if was_finished and (plan.ends_at is None or plan.ends_at > timezone.now()):
+                plan.status, plan.finished_at = Plan.Status.ACTIVE, None  # extended: it runs again
+            if "status" in d:
+                if d["status"] not in (Plan.Status.ACTIVE, Plan.Status.PAUSED):
+                    raise FlowError("Status must be active or paused.")
+                if plan.status == Plan.Status.FINISHED:
+                    raise FlowError("This plan has finished. Extend its end date to start it again.", code="finished")
+                plan.status = d["status"]
             plan.save()
             if "priority_rank" in d:
                 dropped = apply_priority(request.user, plan, int(d["priority_rank"] or 0))
@@ -276,6 +367,17 @@ class PlanDetail(APIView):
             plan.save(update_fields=["status", "updated_at"])
             Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED).update(status=Run.Status.CANCELLED)
         return Response(status=204)
+
+
+def whole_plan(sched: Schedule, amount_kobo: int) -> dict:
+    """Totals for a plan with an end, so people see the full commitment before saving."""
+    every = all_occurrences(sched)
+    first = every[0] if every else (next_occurrences(sched, sched.starts_at, 1) or [None])[0]
+    fee = fee_schedule()(amount_kobo)
+    return {"first_drip_at": first, "last_drip_at": every[-1] if every else None,
+            "total_drips": len(every) if sched.ends_at else None,
+            "total_amount_kobo": len(every) * amount_kobo if sched.ends_at else None,
+            "total_fees_kobo": len(every) * fee if sched.ends_at else None}
 
 
 class PlanPreview(APIView):
@@ -317,6 +419,7 @@ class PlanPreview(APIView):
             "priorities_short_after_kobo": f1.priority_shortfall_kobo,
             "priority_order": [labels.get(pid, fields["label"]) for pid in order],
             "dropped_priorities": [labels.get(pid, pid) for pid in dropped],
+            **whole_plan(sched, fields["amount_kobo"]),
         })
 
 

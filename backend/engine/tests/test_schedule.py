@@ -48,3 +48,34 @@ def test_validation_messages_are_plain():
     ]
     assert len(validate_schedule(Schedule(frequency="monthly", month_day=32, time_local="10:00", **BASE))) == 1
     assert validate_schedule(Schedule(frequency="daily", time_local="06:00", **BASE)) == []
+
+
+def test_months_later_clamps_to_month_end():
+    from datetime import date
+    from engine import months_later
+    assert months_later(date(2026, 1, 31), 1) == date(2026, 2, 28)
+    assert months_later(date(2028, 1, 31), 1) == date(2028, 2, 29)  # leap year
+    assert months_later(date(2026, 11, 15), 3) == date(2027, 2, 15)
+    assert months_later(date(2026, 12, 1), 12) == date(2027, 12, 1)
+
+
+def test_for_three_months_monthly_gives_three_drips():
+    from engine import all_occurrences, end_after_months
+    start = at("2026-11-01T00:00")
+    s = Schedule(frequency="monthly", time_local="10:00", tz=TZ, starts_at=start, month_day=1, ends_at=end_after_months(start, 3, TZ))
+    assert [d.date().isoformat() for d in all_occurrences(s)] == ["2026-11-01", "2026-12-01", "2027-01-01"]
+
+
+def test_for_three_months_weekly_stops_before_the_same_date():
+    from engine import all_occurrences, end_after_months
+    start = at("2026-10-02T00:00")  # a Friday
+    s = Schedule(frequency="weekly", time_local="14:00", tz=TZ, starts_at=start, weekday=5, ends_at=end_after_months(start, 3, TZ))
+    days = [d.date().isoformat() for d in all_occurrences(s)]
+    assert days[0] == "2026-10-02" and days[-1] == "2027-01-01" and len(days) == 14  # up to, not including, 2 Jan
+
+
+def test_until_a_date_is_inclusive():
+    from datetime import date
+    from engine import all_occurrences, end_of_local_day
+    s = Schedule(frequency="daily", time_local="06:00", tz=TZ, starts_at=at("2026-11-01T00:00"), ends_at=end_of_local_day(date(2026, 11, 3), TZ))
+    assert len(all_occurrences(s)) == 3

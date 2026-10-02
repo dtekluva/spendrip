@@ -4,6 +4,7 @@ import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
 import { OtpBoxes, looksLikeEmail, useResend } from './Signup';
+import { KoboLoader } from '../components/Kobo';
 
 /** Signing in on a new device, or after "Forgot PIN": email → emailed code → PIN (or a new PIN). */
 export default function SignIn({ forgot: startForgot = false, onBack, onDone }: { forgot?: boolean; onBack: () => void; onDone: (m: Me) => void }) {
@@ -20,6 +21,7 @@ export default function SignIn({ forgot: startForgot = false, onBack, onDone }: 
   const resend = useResend();
 
   const [note, setNote] = useState('');
+  const [resending, setResending] = useState(false);
   const start = () => run(async () => {
     try {
       const r = await api.post<any>('/auth/signin/start', { email });
@@ -62,6 +64,7 @@ export default function SignIn({ forgot: startForgot = false, onBack, onDone }: 
             <div className="field"><label htmlFor="em">Email</label>
               <input id="em" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" placeholder="you@example.com" value={email} autoFocus
                 onChange={(e) => { setEmail(e.target.value); setError(''); }} onKeyDown={(e) => e.key === 'Enter' && looksLikeEmail(email) && start()} /></div>
+            {busy && <KoboLoader label="Sending your code…" />}
             {error && <div className="error-card">{error}</div>}
             <div className="kyc-actions"><button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={busy || !looksLikeEmail(email)} onClick={start}>Email me a code</button></div>
           </>
@@ -73,9 +76,13 @@ export default function SignIn({ forgot: startForgot = false, onBack, onDone }: 
             {note && <p className="small muted" style={{ margin: 0 }}>{note}</p>}
             <OtpBoxes value={code} onChange={(v) => { setCode(v); setError(''); if (v.length === 6) setStep('pin'); }} />
             <p className="err">{error}</p>
+            {resending ? <KoboLoader label="Sending a new code…" /> : (
             <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>
-              {resend.left > 0 ? `Resend code in 0:${String(resend.left).padStart(2, '0')}` : <button className="link" onClick={start}>Resend code</button>}
-            </p>
+                {resend.left > 0 ? `Resend code in 0:${String(resend.left).padStart(2, '0')}` : (
+                  <button className="link" onClick={() => { setResending(true); Promise.resolve(start()).finally(() => setResending(false)); }}>Resend code</button>
+                )}
+              </p>
+            )}
             {devCode && me?.dev_tools && <div className="kyc-actions"><p className="dev-note">Test mode: your code is <b>{devCode}</b>.</p></div>}
           </>
         )}

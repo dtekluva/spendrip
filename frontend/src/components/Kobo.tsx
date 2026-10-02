@@ -174,3 +174,13 @@ export function KoboMoment({ mood, text }: { mood: KoboMood; text: string }) {
     </div>
   );
 }
+
+/** A loader with Kobo doing the work, e.g. while a code is being emailed. */
+export function KoboLoader({ label, mood = 'send', size = 46 }: { label: string; mood?: KoboMood; size?: number }) {
+  return (
+    <div className="kobo-loader" role="status" aria-live="polite">
+      <Kobo mood={mood} size={size} engine="svg" title="" />
+      <span>{label}</span>
+    </div>
+  );
+}

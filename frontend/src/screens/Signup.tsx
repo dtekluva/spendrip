@@ -4,7 +4,7 @@ import { createPasskey, passkeysSupported } from '../lib/passkey';
 import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
-import Kobo from '../components/Kobo';
+import Kobo, { KoboLoader } from '../components/Kobo';
 
 /** Sign-up: email → code → name → PIN → Face ID. Identity checks come later, from inside the app (see Verify). */
 type Step = 'email' | 'code' | 'name' | 'pin' | 'face' | 'done';
@@ -71,7 +71,7 @@ function EmailStep({ header, onNext }: { header: React.ReactNode; onNext: (maske
       <div className="field"><label htmlFor="em">Email</label>
         <input id="em" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" placeholder="you@example.com" value={email} autoFocus
           onChange={(e) => { setEmail(e.target.value); setError(''); }} onKeyDown={(e) => e.key === 'Enter' && start()} /></div>
-      {busy && <Spinner label="Sending your code…" />}
+      {busy && <KoboLoader label="Sending your code…" />}
       {error && <div className="error-card">{error}</div>}
       <div className="kyc-actions">
         <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ok || busy} onClick={start}>Email me a code</button>
@@ -129,6 +129,13 @@ function OtpStep({ header, emailMasked, devCode, setDevCode, onNext }: {
   const [ok, setOk] = useState(false);
   const { busy, error, setError, run } = useAction();
   const resend = useResend();
+  const [resending, setResending] = useState(false);
+  const [sentNote, setSentNote] = useState('');
+  const resendCode = () => {
+    setResending(true); setSentNote(''); setError('');
+    run(async () => { const r = await api.post<any>('/signup/otp/resend'); setDevCode(r.dev_code ?? ''); resend.restart(); setSentNote('New code sent ✓ Check your inbox.'); })
+      .finally(() => setResending(false));
+  };
   const change = (v: string) => {
     setCode(v); setError('');
     if (v.length === 6) run(async () => {
@@ -142,12 +149,13 @@ function OtpStep({ header, emailMasked, devCode, setDevCode, onNext }: {
       <h2>Check your email</h2>
       <p className="lead">We sent a 6-digit code to <b style={{ color: 'var(--ink)' }}>{emailMasked || 'your email'}</b>. It can take a minute, and sometimes lands in spam.</p>
       <OtpBoxes value={code} onChange={change} ok={ok} />
-      {busy ? <Spinner label="Checking code…" /> : <p className="err">{error}</p>}
-      <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>
-        {resend.left > 0 ? `Resend code in 0:${String(resend.left).padStart(2, '0')}` : (
-          <button className="link" onClick={() => run(async () => { const r = await api.post<any>('/signup/otp/resend'); setDevCode(r.dev_code ?? ''); resend.restart(); })}>Resend code</button>
-        )}
-      </p>
+      {busy && !resending ? <Spinner label="Checking code…" /> : <p className="err">{error}</p>}
+      {resending ? <KoboLoader label="Sending a new code…" /> : (
+        <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>
+          {sentNote && <span className="sent-note">{sentNote}<br /></span>}
+          {resend.left > 0 ? `Resend code in 0:${String(resend.left).padStart(2, '0')}` : <button className="link" onClick={resendCode}>Resend code</button>}
+        </p>
+      )}
       {devCode && <div className="kyc-actions"><p className="dev-note">Test mode: your code is <b>{devCode}</b>.</p></div>}
     </>
   );

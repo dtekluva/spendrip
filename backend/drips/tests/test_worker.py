@@ -243,3 +243,25 @@ def test_forecast_uses_each_drips_own_fee(user, top_up, recipients, make_plan, r
     f = user_forecast(user, lagos("2026-11-02T09:00"))
     assert sorted(e.fee_kobo for e in f.events) == [naira(60), naira(150)]
     assert f.total_needed_kobo == naira(3_060 + 60_150)
+
+
+def test_last_drip_says_so_and_the_plan_finishes(user, top_up, recipients, make_plan, worker):
+    from django.core import mail
+    from drips.models import Plan
+    from engine import end_after_months
+    user.email = "ada@example.com"
+    user.save(update_fields=["email"])
+    top_up(20_000)
+    mum = make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00", priority=1)
+    mum.starts_at = lagos("2026-11-01T00:00")
+    mum.end_mode, mum.duration_months, mum.ends_at = "months", 1, end_after_months(mum.starts_at, 1, "Africa/Lagos")
+    mum.save()
+    t = lagos("2026-11-02T10:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(seconds=31))
+    m = mail.outbox[-1]
+    assert "1 of 1" in m.body.replace("·", "") or "Mum · 1 of 1" in m.alternatives[0][0]
+    assert "That was the last one" in m.body
+    worker.tick(lagos("2026-12-01T00:30"))
+    mum.refresh_from_db()
+    assert mum.status == Plan.Status.FINISHED and mum.priority_rank is None and mum.finished_at

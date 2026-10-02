@@ -84,3 +84,61 @@ def reschedule(plan: Plan, now: datetime | None = None) -> None:
     Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
     if plan.status == Plan.Status.ACTIVE:
         materialise_runs(now, plans=[plan])
+
+
+# ---------------------------------------------------------------- start, end and progress
+
+DONE_STATUSES = (Run.Status.SUCCESSFUL, Run.Status.FAILED, Run.Status.SKIPPED_PROTECTED, Run.Status.SKIPPED_INSUFFICIENT,
+                 Run.Status.SKIPPED_CAP, Run.Status.SKIPPED_PAUSED, Run.Status.MISSED)
+
+
+def plan_progress(plan: Plan, now: datetime) -> dict:
+    """Where a plan is in its life. Drips that waited or were skipped still use up their slot."""
+    from engine import all_occurrences, next_occurrences
+    s = plan.schedule
+    bounded = plan.ends_at is not None
+    every = all_occurrences(s) if bounded else []
+    first = every[0] if every else (next_occurrences(s, plan.starts_at, 1) or [None])[0]
+    done = Run.objects.filter(plan=plan, status__in=DONE_STATUSES + Run.IN_FLIGHT).count()
+    if plan.status == Plan.Status.FINISHED:
+        state = "finished"
+    elif plan.status == Plan.Status.PAUSED:
+        state = "paused"
+    elif first and first > now and done == 0:
+        state = "scheduled"
+    else:
+        state = "active"
+    fee = fee_schedule()(plan.amount_kobo)
+    return {
+        "state": state,
+        "first_drip_at": first,
+        "last_drip_at": every[-1] if every else None,
+        "total_drips": len(every) if bounded else None,
+        "drips_done": done,
+        "total_cost_kobo": len(every) * (plan.amount_kobo + fee) if bounded else None,
+    }
+
+
+def release_priority(plan: Plan) -> None:
+    """Take a plan out of the priority list; the ones below move up a place."""
+    if not plan.priority_rank:
+        return
+    ranked = list(Plan.objects.filter(user_id=plan.user_id, priority_rank__isnull=False).exclude(pk=plan.pk).order_by("priority_rank"))
+    Plan.objects.filter(user_id=plan.user_id).update(priority_rank=None)  # clear first so the unique constraint never trips
+    for i, p in enumerate(ranked, start=1):
+        Plan.objects.filter(pk=p.pk).update(priority_rank=i)
+    plan.priority_rank = None
+
+
+def finish_plans(now: datetime) -> int:
+    """Plans past their end with nothing left to send become Finished and give up their priority."""
+    from django.db import transaction
+    finished = 0
+    for plan in Plan.objects.filter(status__in=[Plan.Status.ACTIVE, Plan.Status.PAUSED], ends_at__lt=now):
+        if Run.objects.filter(plan=plan, status__in=(Run.Status.SCHEDULED, *Run.IN_FLIGHT)).exists():
+            continue  # its last drip is still being handled
+        with transaction.atomic():
+            release_priority(plan)
+            Plan.objects.filter(pk=plan.pk).update(status=Plan.Status.FINISHED, finished_at=now, priority_rank=None)
+        finished += 1
+    return finished

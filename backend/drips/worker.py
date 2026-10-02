@@ -29,7 +29,7 @@ from providers import messages as copy
 
 from .models import Plan, Run
 from notifications.emails import drip_delivered_email
-from .services import engine_plans, fee_schedule, materialise_runs, sent_today_kobo
+from .services import engine_plans, fee_schedule, finish_plans, materialise_runs, sent_today_kobo
 
 log = logging.getLogger("spendrip.worker")
 ADVISORY_LOCK_KEY = 0x5D_D21F  # one worker at a time
@@ -59,7 +59,8 @@ class Worker:
             created = materialise_runs(now)
             handled = self.process_due(now)
             checked = self.check_in_flight(now)
-            return {"created": created, "handled": handled, "checked": checked}
+            finished = finish_plans(now)
+            return {"created": created, "handled": handled, "checked": checked, "finished": finished}
         finally:
             with connection.cursor() as c:
                 c.execute("SELECT pg_advisory_unlock(%s)", [ADVISORY_LOCK_KEY])

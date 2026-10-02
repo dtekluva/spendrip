@@ -96,13 +96,19 @@ def delivered_context(run, balance_kobo: int) -> dict:
     plan, r, user = run.plan, run.plan.recipient, run.user
     tz = ZoneInfo(user.tz or "Africa/Lagos")
     when = (run.completed_at or run.scheduled_for).astimezone(tz)
+    total = index = None
+    if plan.ends_at:
+        from engine import all_occurrences
+        every = all_occurrences(plan.schedule)
+        total = len(every)
+        index = next((i for i, at in enumerate(every, start=1) if at >= run.scheduled_for), total)
     nxt = (Run.objects.filter(user=user, status=Run.Status.SCHEDULED, scheduled_for__gt=run.scheduled_for)
            .exclude(pk=run.pk).select_related("plan").order_by("scheduled_for").first())
     return {
         "first_name": user.first_name.title(), "emoji": plan.emoji, "label": plan.label, "amount_kobo": run.amount_kobo,
         "fee_kobo": run.fee_kobo, "fee_lines": run.fee_parts.lines(), "to_self": r.is_self, "recipient_label": r.label, "account_name": r.verified_account_name.title(),
         "bank": r.bank_name, "last4": r.account_number[-4:], "when": when, "reference": run.provider_ref or str(run.pk)[:8].upper(),
-        "balance_kobo": balance_kobo, "seed": run.pk.int if hasattr(run.pk, "int") else hash(str(run.pk)),
+        "drip_index": index, "drip_total": total, "balance_kobo": balance_kobo, "seed": run.pk.int if hasattr(run.pk, "int") else hash(str(run.pk)),
         "next": {"emoji": nxt.plan.emoji, "label": nxt.plan.label, "amount_kobo": nxt.amount_kobo,
                  "when": nxt.scheduled_for.astimezone(tz)} if nxt else None,
     }
@@ -127,7 +133,10 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
     hi = f"Hi {c['first_name']}," if c["first_name"] else "Hi there,"
     nxt = c.get("next")
 
-    rows = [("Drip", f"{c['emoji']} {c['label']}"), ("To", f"{c['account_name']}<br><span style=\"color:#6b7099;font-weight:600\">{e(c['bank'])} ••{e(c['last4'])}</span>"),
+    of = c.get("drip_total")
+    last = bool(of) and c.get("drip_index") == of
+    drip = f"{c['emoji']} {c['label']}" + (f" · {c['drip_index']} of {of}" if of else "")
+    rows = [("Drip", drip), ("To", f"{c['account_name']}<br><span style=\"color:#6b7099;font-weight:600\">{e(c['bank'])} ••{e(c['last4'])}</span>"),
             ("Landed", _when(c["when"]))]
     rows += [(line["label"], N(line["amount_kobo"])) for line in c.get("fee_lines") or [{"label": "Fees", "amount_kobo": c["fee_kobo"]}]]
     rows += [("Reference", c["reference"])]
@@ -158,6 +167,8 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
  </td></tr>
  <tr><td style="padding:24px 28px 6px;font-size:16px;line-height:1.55;color:#3b4070">
    {e(hi)} your <b style="color:#0E1233">{e(c['emoji'])} {e(c['label'])}</b> drip went out right on schedule and the bank has confirmed it. Nothing for you to do. 🙌
+   {('<div style="margin-top:14px;background:#DDF5EC;border-radius:14px;padding:12px 16px;color:#0b6b4f;font-weight:700">🏁 That was the last one. Your '
+     + e(c['label']) + ' plan is finished. You can extend it or run it again from Plans.</div>') if last else ''}
  </td></tr>
  <tr><td style="padding:10px 28px 18px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{row_html}</table></td></tr>
  <tr><td style="padding:0 28px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B1040;border-radius:18px">
@@ -176,7 +187,8 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
 
     text = "\n".join([
         f"{opener} {amount} just landed for {who}.", "",
-        f"{hi} your {c['emoji']} {c['label']} drip went out on schedule and the bank has confirmed it.", "",
+        f"{hi} your {c['emoji']} {c['label']} drip went out on schedule and the bank has confirmed it.",
+        *([f"That was the last one. Your {c['label']} plan is finished. Extend it or run it again from Plans."] if last else []), "",
         f"To: {c['account_name']} ({c['bank']} ••{c['last4']})", f"Landed: {_when(c['when'])}",
         *[f"{line['label']}: {N(line['amount_kobo'])}" for line in c.get("fee_lines") or []],
         f"Reference: {c['reference']}", f"Balance now: {N(c['balance_kobo'])}",
