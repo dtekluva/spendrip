@@ -7,12 +7,16 @@ from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from .models import Inflow, LedgerAccount, LedgerEntry, LedgerTransaction
+from .models import FeeLine, Inflow, LedgerAccount, LedgerEntry, LedgerTransaction
 
 LIBERTY_POOL = "liberty_pool"
 PAYSTACK = "paystack"
-FEES = "fees"
-SYSTEM_ACCOUNTS = (LIBERTY_POOL, PAYSTACK, FEES)
+FEES = "fees"  # SpenDrip's own fee income
+FEES_PROVIDER = "fees:provider"  # transfer charges passed through to the payout provider
+FEES_STAMP_DUTY = "fees:stamp_duty"  # stamp duty collected, owed to government
+SYSTEM_ACCOUNTS = (LIBERTY_POOL, PAYSTACK, FEES, FEES_PROVIDER, FEES_STAMP_DUTY)
+FEE_ACCOUNTS = {"service": (FEES, FeeLine.PaidTo.SPENDRIP), "provider": (FEES_PROVIDER, FeeLine.PaidTo.PROVIDER),
+                "stamp_duty": (FEES_STAMP_DUTY, FeeLine.PaidTo.GOVERNMENT)}
 
 
 class LedgerError(Exception):
@@ -137,19 +141,38 @@ def reserve(user, run) -> bool:
 
 
 def settle(user, run) -> bool:
-    """The transfer went out: held money leaves the pool, the fee goes to fees."""
+    """The transfer went out: held money leaves the pool and each fee goes to its own fee account,
+    with one Fees-table row per fee pointing back at this run and this posting."""
     if not LedgerTransaction.objects.filter(idempotency_key=f"reserve:{run.pk}").exists():
         raise LedgerError(f"run {run.pk} was never reserved")
     if LedgerTransaction.objects.filter(idempotency_key=f"release:{run.pk}").exists():
         raise LedgerError(f"run {run.pk} was already released")
     pool = PAYSTACK if run.provider == "paystack" else LIBERTY_POOL
     account(pool)
-    account(FEES)
+    parts = run.fee_parts
+    fees = [("service", parts.service_kobo), ("provider", parts.provider_kobo), ("stamp_duty", parts.stamp_duty_kobo)]
     lines = [(held_code(user.pk), -run.cost_kobo), (pool, run.amount_kobo)]
-    if run.fee_kobo:
-        lines.append((FEES, run.fee_kobo))
-    _, created = post(f"settle:{run.pk}", "settle", lines, run=run, memo=f"{run.plan.label} sent")
+    for kind, amount in fees:
+        if amount:
+            lines.append((account(FEE_ACCOUNTS[kind][0]).code, amount))
+    with transaction.atomic():
+        txn, created = post(f"settle:{run.pk}", "settle", lines, run=run, memo=f"{run.plan.label} sent")
+        for kind, amount in fees:
+            if amount:
+                code, paid_to = FEE_ACCOUNTS[kind]
+                FeeLine.objects.get_or_create(run=run, kind=kind, defaults={
+                    "paid_to": paid_to, "amount_kobo": amount, "user": user, "ledger_transaction": txn, "account_code": code,
+                    "provider": run.provider, "reference": run.provider_ref or str(run.pk)})
     return created
+
+
+def record_card_fee(charge, txn=None) -> None:
+    """The card fee Paystack kept on a top-up. Paid by the cardholder on top of their top-up, so it never
+    touches a SpenDrip account; it's recorded so every fee is visible in one table."""
+    if charge.fee_kobo:
+        FeeLine.objects.get_or_create(card_charge=charge, kind=FeeLine.Kind.CARD, defaults={
+            "paid_to": FeeLine.PaidTo.PROVIDER, "amount_kobo": charge.fee_kobo, "user": charge.user,
+            "ledger_transaction": txn, "provider": "paystack", "reference": charge.reference})
 
 
 def release(user, run) -> bool:

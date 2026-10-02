@@ -132,3 +132,44 @@ class CardCharge(models.Model):
     inflow = models.OneToOneField(Inflow, null=True, blank=True, on_delete=models.PROTECT, related_name="card_charge")
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+
+class FeeLine(models.Model):
+    """
+    One fee, traceable to where it came from. Written in the same database transaction as the ledger
+    posting that moved the money, so the Fees table always agrees with the fee accounts.
+    """
+
+    class Kind(models.TextChoices):
+        SERVICE = "service", "SpenDrip fee"
+        PROVIDER = "provider", "Transfer fee (Paystack)"
+        STAMP_DUTY = "stamp_duty", "Stamp duty"
+        CARD = "card_processing", "Card fee (Paystack)"
+
+    class PaidTo(models.TextChoices):
+        SPENDRIP = "spendrip", "SpenDrip (income)"
+        PROVIDER = "provider", "Payment provider"
+        GOVERNMENT = "government", "Government (FIRS)"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    paid_to = models.CharField(max_length=12, choices=PaidTo.choices)
+    amount_kobo = models.BigIntegerField()
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="fee_lines")
+    run = models.ForeignKey("drips.Run", null=True, blank=True, on_delete=models.PROTECT, related_name="fee_lines")
+    card_charge = models.ForeignKey(CardCharge, null=True, blank=True, on_delete=models.PROTECT, related_name="fee_lines")
+    ledger_transaction = models.ForeignKey(LedgerTransaction, null=True, blank=True, on_delete=models.PROTECT, related_name="fee_lines")
+    account_code = models.CharField(max_length=80, blank=True)  # the ledger account it was posted to, if on our books
+    provider = models.CharField(max_length=20, blank=True)
+    reference = models.CharField(max_length=120, blank=True)  # the transfer or charge reference at the provider
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["run", "kind"], condition=models.Q(run__isnull=False), name="fee_once_per_run_kind"),
+            models.UniqueConstraint(fields=["card_charge", "kind"], condition=models.Q(card_charge__isnull=False), name="fee_once_per_charge_kind"),
+        ]
+        indexes = [models.Index(fields=["kind", "created_at"])]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} ₦{self.amount_kobo / 100:,.2f}"

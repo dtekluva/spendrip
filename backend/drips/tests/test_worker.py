@@ -212,3 +212,34 @@ def test_delivery_email_can_be_turned_off(user, top_up, recipients, make_plan, w
     worker.tick(t)
     worker.tick(t + timedelta(seconds=31))
     assert not mail.outbox
+
+
+def test_itemised_fees_are_charged_posted_and_listed(user, top_up, recipients, make_plan, worker, real_fees):
+    from ledger.models import FeeLine
+    top_up(100_000)
+    mum = make_plan("Mum", 30_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00")
+    t = lagos("2026-11-02T10:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(seconds=31))
+    run = runs_of(mum).get(scheduled_for=t)
+    assert run.status == Run.Status.SUCCESSFUL and run.fee_kobo == naira(125)
+    assert ledger.balance(user).available_kobo == naira(100_000 - 30_125)
+    assert ledger.account_balance(ledger.FEES) == naira(50)
+    assert ledger.account_balance(ledger.FEES_PROVIDER) == naira(25)
+    assert ledger.account_balance(ledger.FEES_STAMP_DUTY) == naira(50)
+    assert ledger.trial_balance() == 0
+    lines = {f.kind: f for f in FeeLine.objects.filter(run=run)}
+    assert {k: v.amount_kobo for k, v in lines.items()} == {"service": naira(50), "provider": naira(25), "stamp_duty": naira(50)}
+    assert {v.paid_to for v in lines.values()} == {"spendrip", "provider", "government"}
+    assert all(v.ledger_transaction.idempotency_key == f"settle:{run.pk}" for v in lines.values())
+    worker.tick(t + timedelta(seconds=200))  # ticking again changes nothing
+    assert FeeLine.objects.filter(run=run).count() == 3
+
+
+def test_forecast_uses_each_drips_own_fee(user, top_up, recipients, make_plan, real_fees):
+    from drips.services import user_forecast
+    make_plan("Small", 3_000, recipients["mum"], frequency="monthly", month_day=20, time_local="10:00")
+    make_plan("Big", 60_000, recipients["mum"], frequency="monthly", month_day=21, time_local="10:00")
+    f = user_forecast(user, lagos("2026-11-02T09:00"))
+    assert sorted(e.fee_kobo for e in f.events) == [naira(60), naira(150)]
+    assert f.total_needed_kobo == naira(3_060 + 60_150)

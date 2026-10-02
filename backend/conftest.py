@@ -17,7 +17,9 @@ def offline_providers(settings):
     """Tests never call real Paystack or Liberty, whatever is in .env."""
     from providers import registry
 
-    settings.SPENDRIP = {**settings.SPENDRIP, "PAYMENT_PROVIDER": "mock", "PAYOUT_PROVIDER": ""}
+    # Flat ₦50 per drip unless a test turns the itemised fees on (see real_fees).
+    settings.SPENDRIP = {**settings.SPENDRIP, "PAYMENT_PROVIDER": "mock", "PAYOUT_PROVIDER": "",
+                         "STAMP_DUTY_KOBO": 0, "PASS_THROUGH_TRANSFER_FEES": False}
     settings.PAYSTACK = {**settings.PAYSTACK, "SECRET_KEY": "", "PUBLIC_KEY": "", "NAME_CHECK_SECRET_KEY": ""}
     for f in (registry.get_payment_provider, registry.get_payout_provider, registry.get_card_gateway):
         f.cache_clear()
@@ -74,3 +76,9 @@ def make_plan(user):
                                    starts_at=lagos("2026-01-01T00:00"), **sched)
 
     return _make
+
+
+@pytest.fixture
+def real_fees(settings):
+    settings.SPENDRIP = {**settings.SPENDRIP, "STAMP_DUTY_KOBO": 5_000, "PASS_THROUGH_TRANSFER_FEES": True}
+    return settings

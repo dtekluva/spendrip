@@ -100,7 +100,7 @@ def delivered_context(run, balance_kobo: int) -> dict:
            .exclude(pk=run.pk).select_related("plan").order_by("scheduled_for").first())
     return {
         "first_name": user.first_name.title(), "emoji": plan.emoji, "label": plan.label, "amount_kobo": run.amount_kobo,
-        "fee_kobo": run.fee_kobo, "to_self": r.is_self, "recipient_label": r.label, "account_name": r.verified_account_name.title(),
+        "fee_kobo": run.fee_kobo, "fee_lines": run.fee_parts.lines(), "to_self": r.is_self, "recipient_label": r.label, "account_name": r.verified_account_name.title(),
         "bank": r.bank_name, "last4": r.account_number[-4:], "when": when, "reference": run.provider_ref or str(run.pk)[:8].upper(),
         "balance_kobo": balance_kobo, "seed": run.pk.int if hasattr(run.pk, "int") else hash(str(run.pk)),
         "next": {"emoji": nxt.plan.emoji, "label": nxt.plan.label, "amount_kobo": nxt.amount_kobo,
@@ -128,7 +128,9 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
     nxt = c.get("next")
 
     rows = [("Drip", f"{c['emoji']} {c['label']}"), ("To", f"{c['account_name']}<br><span style=\"color:#6b7099;font-weight:600\">{e(c['bank'])} ••{e(c['last4'])}</span>"),
-            ("Landed", _when(c["when"])), ("Fee", N(c["fee_kobo"])), ("Reference", c["reference"])]
+            ("Landed", _when(c["when"]))]
+    rows += [(line["label"], N(line["amount_kobo"])) for line in c.get("fee_lines") or [{"label": "Fees", "amount_kobo": c["fee_kobo"]}]]
+    rows += [("Reference", c["reference"])]
     row_html = "".join(
         f'<tr><td style="padding:11px 0;border-top:1px solid #EEF0F8;color:#6b7099;font-size:14px;width:38%">{k}</td>'
         f'<td style="padding:11px 0;border-top:1px solid #EEF0F8;color:#0E1233;font-size:15px;font-weight:700;text-align:right">{v if k == "To" else e(v)}</td></tr>'
@@ -175,7 +177,8 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
     text = "\n".join([
         f"{opener} {amount} just landed for {who}.", "",
         f"{hi} your {c['emoji']} {c['label']} drip went out on schedule and the bank has confirmed it.", "",
-        f"To: {c['account_name']} ({c['bank']} ••{c['last4']})", f"Landed: {_when(c['when'])}", f"Fee: {N(c['fee_kobo'])}",
+        f"To: {c['account_name']} ({c['bank']} ••{c['last4']})", f"Landed: {_when(c['when'])}",
+        *[f"{line['label']}: {N(line['amount_kobo'])}" for line in c.get("fee_lines") or []],
         f"Reference: {c['reference']}", f"Balance now: {N(c['balance_kobo'])}",
         *([f"Next up: {nxt['emoji']} {nxt['label']} · {N(nxt['amount_kobo'])} on {_when(nxt['when'])}"] if nxt else []), "",
         f"Open SpenDrip: {app}", "", "Turn these off in Profile → Email me when a drip lands.",
@@ -193,7 +196,9 @@ def sample_delivered(first_name: str = "Ada") -> dict:
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     now = datetime.now(ZoneInfo("Africa/Lagos")).replace(second=0, microsecond=0)
-    return {"first_name": first_name, "emoji": "💛", "label": "Mum", "amount_kobo": 3_000_000, "fee_kobo": 5_000, "to_self": False,
+    return {"first_name": first_name, "emoji": "💛", "label": "Mum", "amount_kobo": 3_000_000, "fee_kobo": 12_500, "to_self": False,
+            "fee_lines": [{"label": "SpenDrip fee", "amount_kobo": 5_000}, {"label": "Transfer fee (Paystack)", "amount_kobo": 2_500},
+                          {"label": "Stamp duty", "amount_kobo": 5_000}],
             "recipient_label": "Mum", "account_name": "Ngozi Okafor", "bank": "OPay", "last4": "6357", "when": now,
             "reference": "SDP-7F3K2Q", "balance_kobo": 15_495_000, "seed": 0,
             "next": {"emoji": "⛽", "label": "Fuel", "amount_kobo": 4_000_000, "when": (now + timedelta(days=2)).replace(hour=14, minute=0)}}

@@ -109,7 +109,10 @@ class Run(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="runs")
     scheduled_for = models.DateTimeField()
     amount_kobo = models.BigIntegerField()
-    fee_kobo = models.BigIntegerField()
+    fee_kobo = models.BigIntegerField()  # total of the three parts below
+    service_fee_kobo = models.BigIntegerField(default=0)  # SpenDrip's fee
+    provider_fee_kobo = models.BigIntegerField(default=0)  # payout provider's transfer charge, passed through
+    stamp_duty_kobo = models.BigIntegerField(default=0)  # government stamp duty, passed through
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.SCHEDULED)
     attempts = models.PositiveSmallIntegerField(default=0)  # status checks made
     provider = models.CharField(max_length=20, blank=True)
@@ -126,6 +129,13 @@ class Run(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["plan", "scheduled_for"], name="run_unique_per_plan_time")]
         indexes = [models.Index(fields=["status", "scheduled_for"]), models.Index(fields=["status", "next_check_at"])]
+
+    @property
+    def fee_parts(self):
+        from engine import FeeParts
+        if self.service_fee_kobo + self.provider_fee_kobo + self.stamp_duty_kobo != self.fee_kobo:
+            return FeeParts(service_kobo=self.fee_kobo)  # runs from before fees were itemised
+        return FeeParts(self.service_fee_kobo, self.provider_fee_kobo, self.stamp_duty_kobo)
 
     @property
     def cost_kobo(self) -> int:

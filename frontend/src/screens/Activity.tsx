@@ -41,10 +41,17 @@ export default function Activity() {
                 <span className={`ic t-${isIn ? 'mint' : a.plan!.tint}`}>{isIn ? '⬇️' : a.plan!.emoji}</span>
                 <div style={{ minWidth: 0 }}><b>{title}</b><div className="small muted">{sub} · {fmtTime(a.at)}</div>
                   {a.whatsapp && <div className="wa"><div className="wa-h">WhatsApp to {a.whatsapp.to}{a.whatsapp.status === 'mocked' ? ' · preview (not sent yet)' : ''}</div>{a.whatsapp.body}</div>}
+                  {(a.status === 'sent' || a.status === 'sending') && !!a.fee_lines?.length && (
+                    <div className="small muted num fee-inline">{a.fee_lines.map((l) => `${l.label} ${N(l.amount_kobo)}`).join(' · ')}</div>
+                  )}
                   {a.status === 'waited' && <button className="link small" style={{ marginTop: 6 }} onClick={() => nav('/fund')}>Top up</button>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <b className="num" style={a.status === 'waited' ? { color: 'var(--muted)' } : undefined}>{sign}{N(a.amount_kobo)}</b><StatusPill status={a.status} />
+                  <b className="num" style={a.status === 'waited' ? { color: 'var(--muted)' } : undefined}>{sign}{N(a.amount_kobo)}</b>
+                  {(a.status === 'sent' || a.status === 'sending') && !!a.fee_kobo && (
+                    <span className="small muted num" title={(a.fee_lines ?? []).map((l) => `${l.label} ${N(l.amount_kobo)}`).join(' · ')}>+ {N(a.fee_kobo)} fees</span>
+                  )}
+                  <StatusPill status={a.status} />
                 </div>
               </div>
             </div>

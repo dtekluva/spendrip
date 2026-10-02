@@ -34,11 +34,18 @@ export interface Plan {
 export type EventStatus = 'protected' | 'send' | 'wait' | 'short' | 'cap' | 'sent' | 'waited' | 'failed' | 'missed' | 'paused' | 'sending' | 'scheduled';
 export interface DripEvent { plan_id: number; at: string; amount_kobo: number; fee_kobo?: number; rank?: number | null; status: EventStatus }
 
+export interface FeeRules {
+  service_kobo: number; stamp_duty_kobo: number; stamp_duty_from_kobo: number;
+  provider_tiers: { up_to_kobo: number | null; fee_kobo: number }[];
+}
+export interface FeeLineT { kind: string; label: string; amount_kobo: number }
+
 export interface Summary {
   balance: { available_kobo: number; held_kobo: number; total_kobo: number };
   forecast: { window_end: string; protected_kobo: number; free_kobo: number; total_needed_kobo: number; top_up_kobo: number;
     priority_shortfall_kobo: number; events: DripEvent[] };
   fee_kobo: number;
+  fees?: FeeRules;
   paused_all: boolean;
   funding_account: FundingAccount | null;
 }
@@ -49,12 +56,12 @@ export interface Draft {
 }
 
 export interface Preview {
-  next_dates: string[]; runs_this_month: number; month_cost_kobo: number; fee_kobo: number; top_up_before_kobo: number;
+  next_dates: string[]; runs_this_month: number; month_cost_kobo: number; fee_kobo: number; fee_lines?: FeeLineT[]; top_up_before_kobo: number;
   top_up_after_kobo: number; draft_waiting: number; priorities_short_after_kobo: number; priority_order: string[]; dropped_priorities: string[];
 }
 
 export interface ActivityItem {
-  kind: 'run' | 'inflow'; status: string; at: string; amount_kobo: number; fee_kobo?: number; reason?: string; sender?: string;
+  kind: 'run' | 'inflow'; status: string; at: string; amount_kobo: number; fee_kobo?: number; fee_lines?: FeeLineT[]; reason?: string; sender?: string;
   plan?: { id: number; label: string; emoji: string; tint: Tint };
   recipient?: { label: string; bank_name: string; account_last4: string };
   whatsapp?: { to: string; body: string; status: string } | null;

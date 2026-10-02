@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from accounts import services as acc
 from accounts.services import FlowError
 from drips.models import Plan, Recipient, Run
-from drips.services import engine_plans, fee_kobo, reschedule, sent_today_kobo, user_forecast
+from drips.services import engine_plans, fee_schedule, reschedule, sent_today_kobo, user_forecast
 from engine import PlanLike, Schedule, forecast, next_occurrences, occurrences, set_priority, validate_schedule
 from ledger import services as ledger
 from ledger.models import Inflow
@@ -31,6 +31,11 @@ MIN_AMOUNT_KOBO, MAX_AMOUNT_KOBO = 10_000, 1_000_000_000  # ₦100 – ₦10m
 def event_json(e) -> dict:
     return {"plan_id": int(e.plan_id) if str(e.plan_id).isdigit() else e.plan_id, "at": e.at, "amount_kobo": e.amount_kobo,
             "fee_kobo": e.fee_kobo, "rank": e.rank, "status": e.status}
+
+
+def fees_json() -> dict:
+    """The fee rules, so the app can show the lines for any amount."""
+    return fee_schedule().describe()
 
 
 def forecast_json(f) -> dict:
@@ -142,7 +147,8 @@ class Summary(APIView):
         return Response({
             "balance": {"available_kobo": bal.available_kobo, "held_kobo": bal.held_kobo, "total_kobo": bal.total_kobo},
             "forecast": forecast_json(user_forecast(user)),
-            "fee_kobo": fee_kobo(),
+            "fee_kobo": fee_schedule().service_kobo,  # SpenDrip's own fee; see "fees" for the full rules
+            "fees": fees_json(),
             "paused_all": user.paused_all,
             "funding_account": {"account_number": fa.account_number, "bank_name": fa.bank_name, "account_name": fa.account_name} if fa else None,
         })
@@ -295,7 +301,7 @@ class PlanPreview(APIView):
         after = [replace(p, priority_rank=ranks.get(p.id)) for p in others] + [draft]
 
         bal = ledger.balance(user).available_kobo
-        kw = dict(fee_kobo=fee_kobo(), tz=user.tz, daily_cap_kobo=user.daily_cap_kobo, sent_today_kobo=sent_today_kobo(user, now))
+        kw = dict(fee_kobo=fee_schedule(), tz=user.tz, daily_cap_kobo=user.daily_cap_kobo, sent_today_kobo=sent_today_kobo(user, now))
         f0, f1 = forecast(before, bal, now, **kw), forecast(after, bal, now, **kw)
         mine = [e for e in f1.events if e.plan_id == draft_id]
         labels = {str(p.pk): p.label for p in user_plans(user)}
@@ -303,7 +309,8 @@ class PlanPreview(APIView):
             "next_dates": next_occurrences(sched, now, 5),
             "runs_this_month": len(mine),
             "month_cost_kobo": sum(e.cost_kobo for e in mine),
-            "fee_kobo": fee_kobo(),
+            "fee_kobo": fee_schedule()(fields["amount_kobo"]),
+            "fee_lines": fee_schedule().parts(fields["amount_kobo"]).lines(),
             "top_up_before_kobo": f0.top_up_kobo,
             "top_up_after_kobo": f1.top_up_kobo,
             "draft_waiting": sum(1 for e in mine if e.status in ("wait", "short", "cap")),
@@ -346,11 +353,12 @@ class Calendar(APIView):
         elif months_away > 0:
             for p in engine_plans(user):
                 if p.status == "active":
-                    events += [{"plan_id": int(p.id), "at": at, "amount_kobo": p.amount_kobo, "rank": p.priority_rank, "status": "scheduled"}
+                    events += [{"plan_id": int(p.id), "at": at, "amount_kobo": p.amount_kobo, "fee_kobo": fee_schedule()(p.amount_kobo),
+                                "rank": p.priority_rank, "status": "scheduled"}
                                for at in occurrences(p.schedule, start, end)]
         events.sort(key=lambda e: e["at"])
         return Response({"month": f"{y:04d}-{m:02d}", "events": events,
-                         "total_kobo": sum(e["amount_kobo"] for e in events) + fee_kobo() * len(events)})
+                         "total_kobo": sum(e["amount_kobo"] + e.get("fee_kobo", 0) for e in events)})
 
 
 class Activity(APIView):
@@ -365,7 +373,7 @@ class Activity(APIView):
             rec = r.plan.recipient
             items.append({
                 "kind": "run", "status": RUN_STATUS.get(r.status, r.status), "at": r.completed_at or r.scheduled_for,
-                "amount_kobo": r.amount_kobo, "fee_kobo": r.fee_kobo, "reason": r.last_error if r.status.startswith("skipped") else "",
+                "amount_kobo": r.amount_kobo, "fee_kobo": r.fee_kobo, "fee_lines": r.fee_parts.lines(), "reason": r.last_error if r.status.startswith("skipped") else "",
                 "plan": {"id": r.plan_id, "label": r.plan.label, "emoji": r.plan.emoji, "tint": r.plan.tint},
                 "recipient": {"label": rec.label, "bank_name": rec.bank_name, "account_last4": rec.account_number[-4:]},
                 "whatsapp": {"to": rec.label, "body": wa[r.id].body, "status": wa[r.id].status} if r.id in wa else None,

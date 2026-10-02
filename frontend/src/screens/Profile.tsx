@@ -96,7 +96,7 @@ export default function Profile() {
             onClick={() => save({ paused_all: !u.paused_all }, u.paused_all ? 'All drips are back on' : 'All drips paused')} />
           <SetRow icon="👥" title="People" sub={people.map((r) => r.label).join(', ') || 'No one yet'} val={String(people.length)} onClick={peopleSheet} />
           <SetRow icon="💳" title="Saved cards" sub="For one-tap top-ups" onClick={() => openSheet(<CardsSheet />)} />
-          <SetRow icon="🧾" title="Transfer fee" sub="₦50 per drip, always included in your totals" />
+          <SetRow icon="🧾" title="Fees per drip" sub="₦50 SpenDrip fee, plus Paystack's transfer fee (₦10–₦50) and ₦50 stamp duty on ₦10,000+. Always included in your totals." />
         </div>
         <div className="group-h">Notifications</div>
         <div className="list">

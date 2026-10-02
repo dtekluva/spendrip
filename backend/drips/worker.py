@@ -29,7 +29,7 @@ from providers import messages as copy
 
 from .models import Plan, Run
 from notifications.emails import drip_delivered_email
-from .services import engine_plans, materialise_runs, sent_today_kobo
+from .services import engine_plans, fee_schedule, materialise_runs, sent_today_kobo
 
 log = logging.getLogger("spendrip.worker")
 ADVISORY_LOCK_KEY = 0x5D_D21F  # one worker at a time
@@ -96,7 +96,7 @@ class Worker:
             d = decide(
                 plan_id=str(plan.pk), at=run.scheduled_for, amount_kobo=run.amount_kobo, plans=engine_plans(user),
                 available_kobo=available, sent_today_kobo=sent_today_kobo(user, run.scheduled_for),
-                fee_kobo=run.fee_kobo, tz=user.tz, daily_cap_kobo=user.daily_cap_kobo,
+                fee_kobo=fee_schedule(), tz=user.tz, daily_cap_kobo=user.daily_cap_kobo,
             )
             if not d.ok:
                 self._set(run, SKIP_STATUS[d.reason], last_error=d.reason)

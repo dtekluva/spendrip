@@ -21,7 +21,7 @@ export default function Plans() {
 
   const prio = plans.filter((p) => p.priority_rank).sort((a, b) => a.priority_rank! - b.priority_rank!);
   const total = summary?.forecast.total_needed_kobo ?? 0;
-  const fees = (summary?.forecast.events.length ?? 0) * (summary?.fee_kobo ?? 5000);
+  const fees = (summary?.forecast.events ?? []).reduce((t, e) => t + (e.fee_kobo ?? 0), 0);
 
   const setRank = async (p: Plan, rank: number, undo?: () => void) => {
     const r = await api.patch<{ dropped_priorities: string[] }>(`/plans/${p.id}`, { priority_rank: rank });

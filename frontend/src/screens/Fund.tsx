@@ -3,6 +3,7 @@ import { lagos, MONL, N } from '../lib/format';
 import { useStore } from '../lib/store';
 import { useAction } from '../components/ui';
 import { CardPanel } from './CardTopUp';
+import { feeTotal } from '../lib/fees';
 import { VerifyCard } from './Verify';
 
 export default function Fund() {
@@ -10,7 +11,7 @@ export default function Fund() {
   const { busy, run } = useAction();
   if (!summary) return <div className="stack"><div className="skeleton" /></div>;
   const f = summary.forecast;
-  const fee = summary.fee_kobo;
+  const feeOf = (amount: number) => feeTotal(amount, summary.fees);
   const month = MONL[lagos(new Date()).m - 1];
   const fa = summary.funding_account;
   const verified = me?.user?.kyc_status === 'verified';
@@ -67,7 +68,7 @@ export default function Fund() {
                 <div className="tgroup">{g}</div>
                 {rows.map((p) => { const n = counts.get(p.id)!; return (
                   <div key={p.id} className="trow"><span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
-                    <span><b>{p.label}</b><br /><span className="small muted num">{n} × ({N(p.amount_kobo)} + {N(fee)} fee)</span></span><b className="num">{N(n * (p.amount_kobo + fee))}</b></div>
+                    <span><b>{p.label}</b><br /><span className="small muted num">{n} × ({N(p.amount_kobo)} + {N(feeOf(p.amount_kobo))} fees)</span></span><b className="num">{N(n * (p.amount_kobo + feeOf(p.amount_kobo)))}</b></div>
                 ); })}
               </div>
             );

@@ -71,3 +71,14 @@ def test_removed_card_cannot_be_charged(user):
     cards.remove_card(card)
     with pytest.raises(FlowError):
         cards.charge_saved_card(user, card, 1_000_000)
+
+
+def test_card_fee_is_listed_with_its_top_up(user):
+    from ledger.models import CardCharge, FeeLine
+    import ledger.cards as lc
+    charge = CardCharge.objects.create(user=user, reference="sdc_t1", net_kobo=5_000_000, fee_kobo=85_000, gross_kobo=5_085_000)
+    lc.complete("sdc_t1", {"status": "success", "currency": "NGN", "amount_kobo": 5_085_000})
+    lc.complete("sdc_t1", {"status": "success", "currency": "NGN", "amount_kobo": 5_085_000})
+    f = FeeLine.objects.get(card_charge=charge)
+    assert f.kind == "card_processing" and f.amount_kobo == 85_000 and f.paid_to == "provider"
+    assert f.ledger_transaction.idempotency_key == "inflow:paystack:sdc_t1"

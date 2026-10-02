@@ -22,7 +22,7 @@ from providers.paystack import card_fee_kobo, gross_for_net
 
 from . import services as ledger
 from .crypto import decrypt, encrypt
-from .models import CardCharge, Inflow, SavedCard
+from .models import CardCharge, Inflow, SavedCard, LedgerTransaction
 
 MIN_TOPUP_KOBO = 10_000  # ₦100
 MAX_TOPUP_KOBO = 1_000_000_000  # ₦10m
@@ -100,6 +100,7 @@ def complete(reference: str, result: dict | None = None) -> CardCharge:
             defaults={"user": charge.user, "amount_kobo": charge.net_kobo, "sender_name": "Card top-up", "raw": {"gross_kobo": charge.gross_kobo}},
         )
         ledger.credit_inflow(inflow, source=ledger.PAYSTACK)
+        ledger.record_card_fee(charge, LedgerTransaction.objects.filter(idempotency_key=f"inflow:paystack:{reference}").first())
         auth = result.get("authorization")
         if charge.save_card and auth and auth.get("reusable") and auth.get("authorization_code") and not charge.card_id:
             card, _ = SavedCard.objects.update_or_create(

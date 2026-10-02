@@ -109,7 +109,12 @@ USE_X_FORWARDED_HOST = True
 
 # ---- SpenDrip ----
 SPENDRIP = {
-    "TRANSFER_FEE_KOBO": int(env("TRANSFER_FEE_KOBO", "5000")),
+    # What each drip costs on top of its amount (engine/fees.py): SpenDrip's fee, plus the payout provider's
+    # transfer charge and the ₦50 stamp duty on ₦10,000+, both passed through at cost.
+    "TRANSFER_FEE_KOBO": int(env("TRANSFER_FEE_KOBO", "5000")),  # SpenDrip's own fee
+    "STAMP_DUTY_KOBO": int(env("STAMP_DUTY_KOBO", "5000")),
+    "STAMP_DUTY_FROM_KOBO": int(env("STAMP_DUTY_FROM_KOBO", "1000000")),
+    "PASS_THROUGH_TRANSFER_FEES": env_bool("PASS_THROUGH_TRANSFER_FEES", True),
     "LATE_SEND_WINDOW_HOURS": int(env("LATE_SEND_WINDOW_HOURS", "6")),
     "MATERIALISE_DAYS": 35,
     "WORKER_TICK_SECONDS": int(env("WORKER_TICK_SECONDS", "30")),

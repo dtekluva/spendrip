@@ -726,3 +726,8 @@ a{color:inherit}
 .verify-card .btn{height:40px;padding:0 16px}
 @media (max-width:420px){.verify-card{grid-template-columns:auto 1fr}.verify-card .btn{grid-column:1 / -1}}
 .kyc .seg{margin:2px 0 4px}
+
+/* fee breakdown lines */
+.fee-lines{display:flex;flex-direction:column;gap:2px}
+.fee-lines .kv.sub{font-size:13px;padding-left:12px}
+.fee-inline{margin-top:4px}

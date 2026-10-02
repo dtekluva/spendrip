@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
+from .fees import fee_for
 from .schedule import Schedule, day_key, end_of_month, occurrences
 
 # Event statuses
@@ -92,9 +93,9 @@ def validate_priorities(plans) -> list[str]:
     return errors
 
 
-def _events(plans, start: datetime, end: datetime, fee_kobo: int) -> list[ForecastEvent]:
+def _events(plans, start: datetime, end: datetime, fee_kobo) -> list[ForecastEvent]:
     events = [
-        ForecastEvent(p.id, at, p.amount_kobo, fee_kobo, p.priority_rank, p.order)
+        ForecastEvent(p.id, at, p.amount_kobo, fee_for(fee_kobo, p.amount_kobo), p.priority_rank, p.order)
         for p in plans
         if p.status == "active"
         for at in occurrences(p.schedule, start, end)
@@ -103,7 +104,7 @@ def _events(plans, start: datetime, end: datetime, fee_kobo: int) -> list[Foreca
     return events
 
 
-def forecast(plans, available_kobo: int, now: datetime, *, fee_kobo: int, tz: str,
+def forecast(plans, available_kobo: int, now: datetime, *, fee_kobo, tz: str,
              daily_cap_kobo: int | None = None, sent_today_kobo: int = 0) -> Forecast:
     """Simulate the rest of the month run by run."""
     window_end = end_of_month(now, tz)
@@ -155,7 +156,7 @@ def forecast(plans, available_kobo: int, now: datetime, *, fee_kobo: int, tz: st
 
 
 def decide(*, plan_id: str, at: datetime, amount_kobo: int, plans, available_kobo: int, sent_today_kobo: int,
-           fee_kobo: int, tz: str, daily_cap_kobo: int | None = None) -> Decision:
+           fee_kobo, tz: str, daily_cap_kobo: int | None = None) -> Decision:
     """
     Live decision for one due run (used by the worker). Matches what forecast() predicts:
     the money that must stay behind is the cost of higher-priority runs still due after this
@@ -163,7 +164,7 @@ def decide(*, plan_id: str, at: datetime, amount_kobo: int, plans, available_kob
     """
     plan = next((p for p in plans if p.id == plan_id), None)
     rank = plan.priority_rank if plan else None
-    cost = amount_kobo + fee_kobo
+    cost = amount_kobo + fee_for(fee_kobo, amount_kobo)
 
     guarded = [p for p in plans if p.id != plan_id and p.priority_rank and (rank is None or p.priority_rank < rank)]
     reserved = sum(e.cost_kobo for e in _events(guarded, at + timedelta(microseconds=1), end_of_month(at, tz), fee_kobo))

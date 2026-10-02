@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { dayLabel, fmtTime, ISO_WD, N, ord } from '../lib/format';
 import { useStore } from '../lib/store';
+import { feeLines, feeTotal } from '../lib/fees';
 import type { Draft, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Spinner, useAction } from '../components/ui';
@@ -129,7 +130,12 @@ export default function NewPlan() {
           <div className="eyebrow">Next drips</div>
           <div className="dates">{(preview?.next_dates ?? []).map((x) => <span key={x}>{dayLabel(x)}</span>)}</div>
           {preview && <div className="kv"><span className="muted">Rest of this month</span><b className="num">{preview.runs_this_month} × {N(d.amount_kobo + preview.fee_kobo)} = {N(preview.month_cost_kobo)}</b></div>}
-          <div className="kv"><span className="muted">Includes transfer fee</span><b className="num">{N(preview?.fee_kobo ?? 5000)} each</b></div>
+          <div className="fee-lines">
+            <div className="kv"><span className="muted">Fees per drip</span><b className="num">{N(preview?.fee_kobo ?? feeTotal(d.amount_kobo, store.summary?.fees))}</b></div>
+            {(preview?.fee_lines ?? feeLines(d.amount_kobo, store.summary?.fees)).map((l) => (
+              <div key={l.kind} className="kv sub"><span className="muted">{l.label}</span><span className="num">{N(l.amount_kobo)}</span></div>
+            ))}
+          </div>
           {impact}
           {previewErr && <div className="impact warn">{previewErr}</div>}
           {recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b>On ✓</b></div>}
@@ -142,7 +148,10 @@ export default function NewPlan() {
 }
 
 function AmountSheet({ value, onDone }: { value: number; onDone: (kobo: number) => void }) {
+  const { summary } = useStore();
   const [v, setV] = useState(String(Math.round(value / 100)));
+  const lines = feeLines(+v * 100, summary?.fees);
+  const total = lines.reduce((t, l) => t + l.amount_kobo, 0);
   const quick = [3000, 5000, 10000, 25000, 40000];
   const press = (k: string) => setV((x) => (k === '⌫' ? x.slice(0, -1) || '0' : ((x === '0' ? '' : x) + k).slice(0, 8)));
   return (
@@ -151,7 +160,9 @@ function AmountSheet({ value, onDone }: { value: number; onDone: (kobo: number) 
       <div className="amt-display num">₦{Number(v || 0).toLocaleString('en-NG')}</div>
       <div className="quick">{quick.map((q) => <button key={q} aria-pressed={+v === q} onClick={() => setV(String(q))}>₦{q.toLocaleString('en-NG')}</button>)}</div>
       <div className="keypad">{['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', '⌫'].map((k) => <button key={k} aria-label={k === '⌫' ? 'Delete' : k} onClick={() => press(k)}>{k}</button>)}</div>
-      <div className="small muted" style={{ marginBottom: 12 }}>Plus ₦50 transfer fee per drip. Minimum ₦100.</div>
+      <div className="small muted" style={{ marginBottom: 12 }}>
+        Plus <b className="num">{N(total)}</b> per drip: {lines.map((l) => `${N(l.amount_kobo)} ${l.kind === 'service' ? 'SpenDrip fee' : l.label.replace(' (Paystack)', '').toLowerCase()}`).join(' · ')}. Minimum ₦100.
+      </div>
       <button className="btn btn-primary btn-block" disabled={+v < 100} onClick={() => onDone(+v * 100)}>Done</button>
     </>
   );
