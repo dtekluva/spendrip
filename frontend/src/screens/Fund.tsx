@@ -48,7 +48,8 @@ export default function Fund() {
             </div>
             <span className="small muted">Transfers usually land in under a minute. We'll notify you.</span>
           </div>
-        ) : <VerifyCard />}
+        ) : verified ? <div className="card small muted">Bank transfers are coming soon. For now, top up by card below.</div> : <VerifyCard />}
+        {verified && me?.user?.limits && <p className="small muted" style={{ margin: 0 }}>Your account can hold up to {N(me.user.limits.max_balance_kobo)} for now.</p>}
         {verified && <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>}
         {me?.dev_tools && verified && (
           <div className="demo">

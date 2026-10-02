@@ -81,7 +81,12 @@ export default function Profile() {
           )}
           <SetRow icon="📊" title="Account limits" sub="Set by your verification level" val="View" onClick={() => openSheet(<>
             <h3>Account limits</h3>
-            <p className="muted">Your limits depend on your verification level. We're confirming the exact figures with our banking partner and will show them here.</p></>)} />
+            {u.limits ? (<>
+              <div className="kv"><span className="muted">Each drip</span><b className="num">up to {N(u.limits.max_drip_kobo)}</b></div>
+              <div className="kv"><span className="muted">Your balance</span><b className="num">up to {N(u.limits.max_balance_kobo)}</b></div>
+              <div className="kv"><span className="muted">Daily sending limit</span><b className="num">{u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'None'}</b></div>
+              <p className="small muted">These apply while your account is verified with BVN and ID. Higher limits come with a face check, which we're adding soon.</p>
+            </>) : <p className="muted">No extra limits on this account. Your daily sending limit is {u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'off'}.</p>}</>)} />
         </div>
         <div className="group-h">Security</div>
         <div className="list">

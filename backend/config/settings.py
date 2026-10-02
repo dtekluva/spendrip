@@ -115,6 +115,14 @@ SPENDRIP = {
     "STAMP_DUTY_KOBO": int(env("STAMP_DUTY_KOBO", "5000")),
     "STAMP_DUTY_FROM_KOBO": int(env("STAMP_DUTY_FROM_KOBO", "1000000")),
     "PASS_THROUGH_TRANSFER_FEES": env_bool("PASS_THROUGH_TRANSFER_FEES", True),
+    # Live-money safety rails.
+    "PAYOUTS_ENABLED": env_bool("PAYOUTS_ENABLED", True),  # off = no drip is sent; due ones wait (and miss after the late window)
+    "DEFAULT_DAILY_CAP_KOBO": int(env("DEFAULT_DAILY_CAP_KOBO", "10000000")),  # ₦100,000 a day for new accounts
+    # Bank-transfer funding needs real virtual accounts (Liberty). Off = no account number is issued or shown; cards only.
+    "BANK_TRANSFER_FUNDING": env_bool("BANK_TRANSFER_FUNDING", True),
+    # Limits for accounts verified with BVN + ID only (no face match yet), modelled on CBN Tier 1.
+    "TIER1_MAX_BALANCE_KOBO": int(env("TIER1_MAX_BALANCE_KOBO", "30000000")),  # ₦300,000
+    "TIER1_MAX_DRIP_KOBO": int(env("TIER1_MAX_DRIP_KOBO", "5000000")),  # ₦50,000
     "LATE_SEND_WINDOW_HOURS": int(env("LATE_SEND_WINDOW_HOURS", "6")),
     "MATERIALISE_DAYS": 35,
     "WORKER_TICK_SECONDS": int(env("WORKER_TICK_SECONDS", "30")),
@@ -210,3 +218,11 @@ EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")
 # Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
 EMAIL_ASSET_BASE = env("EMAIL_ASSET_BASE", "https://spendrip.com/email").rstrip("/")
+
+
+# ---- Claude (reads ID photos and checks selfies are clear when KYC_PROVIDER=live) ----
+ANTHROPIC = {
+    "API_KEY": env("ANTHROPIC_API_KEY", ""),
+    "MODEL": env("ANTHROPIC_KYC_MODEL", "claude-sonnet-5-5"),
+    "BASE_URL": env("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/"),
+}

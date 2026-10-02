@@ -1,20 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, Spinner, useAction } from '../components/ui';
-import Kobo from '../components/Kobo';
+import Kobo, { KoboLoader } from '../components/Kobo';
+import { N } from '../lib/format';
 
 /** Verify your identity, from inside the app: NIN or BVN → ID photo → selfie. Unlocks adding money and sending it. */
-type Step = 'id' | 'document' | 'selfie' | 'done';
+type Step = 'id' | 'waiting' | 'document' | 'selfie' | 'done';
 const STEPS: Step[] = ['id', 'document', 'selfie'];
 const ID_TYPES = [['nin', 'NIN slip / ID card'], ['dl', "Driver's licence"], ['vc', "Voter's card"], ['pp', 'Passport']] as const;
 const fmt11 = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/^(\d{3})(\d{0,4})(\d{0,4}).*/, (_, a, b, c) => [a, b, c].filter(Boolean).join(' '));
 
 function startStep(me: Me | null): Step {
   const s = me?.user?.kyc_status;
-  return s === 'verified' ? 'done' : s === 'nin_verified' ? 'document' : s === 'doc_uploaded' ? 'selfie' : 'id';
+  return s === 'verified' ? 'done' : s === 'bvn_pending' ? 'waiting' : s === 'nin_verified' ? 'document' : s === 'doc_uploaded' ? 'selfie' : 'id';
 }
 
 export default function Verify() {
@@ -22,7 +23,8 @@ export default function Verify() {
   const nav = useNavigate();
   const [step, setStep] = useState<Step>(() => startStep(me));
   const dev = !!me?.dev_tools;
-  const i = STEPS.indexOf(step);
+  const i = Math.max(0, STEPS.indexOf(step === 'waiting' ? 'id' : step));
+  const live = me?.user?.kyc_mode === 'live';
   const back = () => (i > 0 && step !== 'document' ? setStep(STEPS[i - 1]!) : nav(-1));
   const header = (
     <>
@@ -36,7 +38,8 @@ export default function Verify() {
   return (
     <div className="kyc verify">
       <div className="kyc-inner" key={step}>
-        {step === 'id' && <IdStep header={header} onNext={() => setStep('document')} />}
+        {step === 'id' && (live ? <BvnStep header={header} onSent={() => setStep('waiting')} /> : <IdStep header={header} onNext={() => setStep('document')} />)}
+        {step === 'waiting' && <WaitingStep header={header} onDone={(ok) => setStep(ok ? 'document' : 'id')} />}
         {step === 'document' && <DocStep header={header} dev={dev} onNext={() => setStep('selfie')} />}
         {step === 'selfie' && <SelfieStep header={header} dev={dev} onNext={async (m) => { setMe(m); await reload(); confetti(); setStep('done'); }} />}
         {step === 'done' && <DoneStep header={header} />}
@@ -98,6 +101,83 @@ function IdStep({ header, onNext }: { header: React.ReactNode; onNext: () => voi
   );
 }
 
+/* ---------------- live: BVN checked with your bank (Paystack) ---------------- */
+function BvnStep({ header, onSent }: { header: React.ReactNode; onSent: () => void }) {
+  const { me, setMe } = useStore();
+  const [banks, setBanks] = useState<{ name: string; nip_code: string }[]>([]);
+  const [bvn, setBvn] = useState('');
+  const [bank, setBank] = useState('');
+  const [acct, setAcct] = useState('');
+  const [acctName, setAcctName] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [first, setFirst] = useState(me?.user?.first_name ?? '');
+  const [last, setLast] = useState(me?.user?.last_name ?? '');
+  const { busy, error, setError, run } = useAction();
+  useEffect(() => { api.get<{ name: string; nip_code: string }[]>('/banks').then(setBanks); }, []);
+  useEffect(() => {
+    setAcctName('');
+    if (acct.length !== 10 || !bank) return;
+    let live = true;
+    setChecking(true);
+    api.post<{ account_name: string }>('/recipients/lookup', { nip_bank_code: bank, account_number: acct })
+      .then((r) => { if (live) setAcctName(r.account_name); }).catch((e) => { if (live) setError(e.message); }).finally(() => { if (live) setChecking(false); });
+    return () => { live = false; };
+  }, [acct, bank]); // eslint-disable-line react-hooks/exhaustive-deps
+  const digits = bvn.replace(/\D/g, '');
+  const ready = digits.length === 11 && !!acctName && !!first.trim() && !!last.trim();
+  const send = () => run(async () => {
+    setMe(await api.post<Me>('/kyc/bvn', { bvn: digits, first_name: first, last_name: last, nip_bank_code: bank, account_number: acct }));
+    onSent();
+  });
+  return (
+    <>
+      {header}
+      <h2>Verify with your BVN</h2>
+      <p className="lead">Your bank confirms your BVN belongs to you. Use the bank account your BVN is linked to.</p>
+      {me?.user?.kyc_message && <div className="error-card">{me.user.kyc_message}</div>}
+      <input className="nin-input" inputMode="numeric" autoComplete="off" placeholder="000 0000 0000" aria-label="BVN" autoFocus
+        value={fmt11(bvn)} onChange={(e) => { setBvn(e.target.value); setError(''); }} />
+      <p className="small muted" style={{ margin: '-6px 0 0', textAlign: 'center' }}>Don't know it? Dial <b>*565*0#</b> from the phone number linked to your bank account.</p>
+      <div className="field"><label htmlFor="vb">Your bank</label>
+        <select id="vb" value={bank} onChange={(e) => { setBank(e.target.value); setError(''); }}><option value="">Choose bank</option>{banks.map((b) => <option key={b.nip_code} value={b.nip_code}>{b.name}</option>)}</select></div>
+      <div className="field"><label htmlFor="va">Account number</label>
+        <input id="va" inputMode="numeric" maxLength={10} placeholder="0123456789" value={acct} onChange={(e) => { setAcct(e.target.value.replace(/\D/g, '').slice(0, 10)); setError(''); }} /></div>
+      {checking && <Spinner label="Checking the account name…" />}
+      {acctName && <div className="verified">✅ <span>{acctName}<br /><span className="small muted" style={{ fontWeight: 600 }}>Name on the account. Enter it below as it is on your BVN.</span></span></div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="field"><label htmlFor="vf">First name</label><input id="vf" autoComplete="given-name" value={first} onChange={(e) => setFirst(e.target.value)} /></div>
+        <div className="field"><label htmlFor="vl">Last name</label><input id="vl" autoComplete="family-name" value={last} onChange={(e) => setLast(e.target.value)} /></div>
+      </div>
+      {busy && <KoboLoader label="Sending to your bank…" />}
+      {error && <div className="error-card">{error}</div>}
+      <div className="kyc-actions">
+        <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ready || busy} onClick={send}>Check my BVN</button>
+        <div className="lockline"><span>🔒</span><span>We only use your BVN to confirm it's you. We keep the last 4 digits, and the people you send money to never see it.</span></div>
+      </div>
+    </>
+  );
+}
+
+function WaitingStep({ header, onDone }: { header: React.ReactNode; onDone: (ok: boolean) => void }) {
+  const { me, refreshMe } = useStore();
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const iv = window.setInterval(() => { refreshMe().catch(() => {}); }, 4000);
+    const t = window.setTimeout(() => setSlow(true), 90_000);
+    return () => { window.clearInterval(iv); window.clearTimeout(t); };
+  }, [refreshMe]);
+  const s = me?.user?.kyc_status;
+  useEffect(() => { if (s && s !== 'bvn_pending') onDone(s === 'nin_verified' || s === 'doc_uploaded' || s === 'verified'); }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      {header}
+      <div style={{ marginTop: 40 }}><KoboLoader mood="waiting" size={84} label="Checking your BVN with your bank…" /></div>
+      <p className="lead" style={{ textAlign: 'center' }}>This usually takes under a minute. You can leave this screen; we'll pick up where you left off.</p>
+      {slow && <p className="small muted" style={{ textAlign: 'center' }}>Taking longer than usual. Banks sometimes reply slowly, so check back in a few minutes.</p>}
+    </>
+  );
+}
+
 /* ---------------- photos ---------------- */
 function sampleBlob(kind: 'id' | 'selfie'): Promise<Blob> {
   const c = document.createElement('canvas');
@@ -116,10 +196,24 @@ function sampleBlob(kind: 'id' | 'selfie'): Promise<Blob> {
   return new Promise((r) => c.toBlob((b) => r(b!), 'image/jpeg', 0.85));
 }
 
+/** Phone photos are huge (and sometimes HEIC). Re-encode as JPEG, at most 1600px on the long side, before upload. */
+async function shrink(file: Blob, max = 1600): Promise<Blob> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise<Blob>((r) => c.toBlob((b) => r(b ?? file), 'image/jpeg', 0.85));
+  } catch {
+    return file;  // the browser can't decode it; send it as it is
+  }
+}
+
 function useUpload(path: string, extra: Record<string, string> = {}) {
   const [preview, setPreview] = useState('');
   const [blob, setBlob] = useState<Blob | null>(null);
-  const take = (b: Blob) => { setBlob(b); setPreview(URL.createObjectURL(b)); };
+  const take = (b: Blob) => { shrink(b).then((x) => { setBlob(x); setPreview(URL.createObjectURL(x)); }); };
   const send = async () => {
     const fd = new FormData();
     fd.append('image', blob!, 'photo.jpg');
@@ -216,7 +310,8 @@ function DoneStep({ header }: { header: React.ReactNode }) {
       {header}
       <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
       <h2 style={{ textAlign: 'center' }}>You're verified, {me?.user?.first_name ?? 'friend'} 🎉</h2>
-      <p className="lead" style={{ textAlign: 'center' }}>Your SpenDrip account is ready. Send money to it any time to fund your plans.</p>
+      <p className="lead" style={{ textAlign: 'center' }}>{fa ? 'Your SpenDrip account is ready. Send money to it any time to fund your plans.' : 'You can now add money by card and start sending.'}</p>
+      {me?.user?.limits && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>For now: up to {N(me.user.limits.max_drip_kobo)} per drip and {N(me.user.limits.max_balance_kobo)} in your balance.</p>}
       {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
         <span className="acct-no num">{fa.account_number.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}</span>
         <span style={{ fontWeight: 700 }}>{fa.bank_name} · {fa.account_name}</span></div>}
@@ -235,14 +330,15 @@ export function VerifyCard({ compact = false }: { compact?: boolean }) {
   const s = me?.user?.kyc_status;
   if (!s || s === 'verified') return null;
   const started = s !== 'not_started';
+  const pending = s === 'bvn_pending';
   return (
     <div className="card verify-card">
       <span className="vc-ic">🪪</span>
       <div style={{ minWidth: 0 }}>
-        <b>{started ? 'Finish verifying your identity' : 'Verify your identity'}</b>
-        {!compact && <p className="small muted" style={{ margin: '2px 0 0' }}>Needed before you can add money and start sending. Your NIN or BVN, a photo of your ID and a selfie. About 2 minutes.</p>}
+        <b>{pending ? 'Checking your BVN with your bank…' : started ? 'Finish verifying your identity' : 'Verify your identity'}</b>
+        {!compact && <p className="small muted" style={{ margin: '2px 0 0' }}>Needed before you can add money and start sending. {me?.user?.kyc_mode === 'live' ? 'Your BVN, a photo of your ID and a selfie.' : 'Your NIN or BVN, a photo of your ID and a selfie.'} About 2 minutes.</p>}
       </div>
-      <button className="btn btn-primary" onClick={() => nav('/verify')}>{started ? 'Continue' : 'Verify'}</button>
+      <button className="btn btn-primary" onClick={() => nav('/verify')}>{pending ? 'View' : started ? 'Continue' : 'Verify'}</button>
     </div>
   );
 }

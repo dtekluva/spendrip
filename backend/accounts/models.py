@@ -10,7 +10,8 @@ WEAK_PINS = {"0000", "1111", "1234", "4321", "1212", "2222", "9999"}
 class User(AbstractUser):
     class Kyc(models.TextChoices):
         NOT_STARTED = "not_started"
-        NIN_VERIFIED = "nin_verified"
+        BVN_PENDING = "bvn_pending"  # sent to Paystack to match BVN, bank account and name; waiting for the answer
+        NIN_VERIFIED = "nin_verified"  # the ID number (NIN or BVN) checked out
         DOC_UPLOADED = "doc_uploaded"
         VERIFIED = "verified"
         REJECTED = "rejected"
@@ -26,6 +27,9 @@ class User(AbstractUser):
     nin_last4 = models.CharField(max_length=4, blank=True)
     nin_hash = models.CharField(max_length=128, blank=True)
     kyc_id_type = models.CharField(max_length=3, default="nin")  # which number nin_* holds: nin | bvn
+    kyc_tier = models.PositiveSmallIntegerField(default=0)  # 1 = BVN + ID checked (CBN Tier-1-style limits apply)
+    kyc_message = models.CharField(max_length=240, blank=True)  # why the last check didn't pass, shown to the person
+    paystack_customer_code = models.CharField(max_length=40, blank=True)
 
     pin_hash = models.CharField(max_length=256, blank=True)
     failed_pin_attempts = models.PositiveSmallIntegerField(default=0)

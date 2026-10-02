@@ -67,6 +67,9 @@ class Worker:
 
     # ------------------------------------------------------------- due runs
     def process_due(self, now: datetime) -> int:
+        if not self.cfg.get("PAYOUTS_ENABLED", True):
+            log.warning("payouts are switched off (PAYOUTS_ENABLED=false); due drips wait")
+            return 0
         due = list(Run.objects.filter(status=Run.Status.SCHEDULED, scheduled_for__lte=now)
                    .select_related("plan", "plan__recipient", "user"))
         by_user = defaultdict(list)

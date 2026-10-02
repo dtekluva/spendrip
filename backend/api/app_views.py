@@ -114,6 +114,10 @@ def parse_plan(data, user, instance: Plan | None = None) -> dict:
         raise FlowError("Enter an amount.")
     if not MIN_AMOUNT_KOBO <= amount <= MAX_AMOUNT_KOBO:
         raise FlowError("Amounts must be between ₦100 and ₦10,000,000.")
+    lim = acc.limits(user)
+    if lim and amount > lim["max_drip_kobo"]:
+        from engine import format_naira
+        raise FlowError(f"Each drip can be up to {format_naira(lim['max_drip_kobo'])} for now.", code="over_limit")
     out["amount_kobo"] = amount
     rid = data.get("recipient_id", instance.recipient_id if instance else None)
     recipient = Recipient.objects.filter(pk=rid, user=user).first()
@@ -523,9 +527,22 @@ class CardQuote(APIView):
                          "fee_kobo": q.fee_kobo, "gross_kobo": q.gross_kobo, "payer_covers_fee": q.payer_covers_fee})
 
 
+def check_balance_limit(user, adding_kobo: int) -> None:
+    lim = acc.limits(user)
+    if not lim:
+        return
+    room = lim["max_balance_kobo"] - ledger.balance(user).total_kobo
+    if adding_kobo > room:
+        from engine import format_naira
+        raise FlowError(f"Your account can hold up to {format_naira(lim['max_balance_kobo'])} for now. "
+                        + (f"You can add up to {format_naira(max(room, 0))}." if room > 0 else "Let some drips go out first."),
+                        code="over_limit")
+
+
 class CardStart(APIView):
     def post(self, request):
         acc.require_verified(request.user)
+        check_balance_limit(request.user, _amount(request))
         return Response(cards.start(request.user, _amount(request), save_card=bool(request.data.get("save_card", True))))
 
 
@@ -547,6 +564,7 @@ class SavedCardTopUp(APIView):
 
     def post(self, request):
         acc.require_verified(request.user)
+        check_balance_limit(request.user, _amount(request))
         card = request.user.cards.filter(pk=request.data.get("card_id"), active=True).first()
         if not card:
             raise FlowError("That card isn't saved any more.", status=404)

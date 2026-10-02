@@ -10,7 +10,9 @@ export interface Me {
   signup?: { step: SignupStep; email_masked?: string } | null;
   user?: {
     first_name: string; last_name: string; email: string; email_masked: string; phone_masked: string;
-    kyc_status: 'not_started' | 'nin_verified' | 'doc_uploaded' | 'verified' | 'rejected' | 'needs_review'; kyc_id_type: 'nin' | 'bvn';
+    kyc_status: 'not_started' | 'bvn_pending' | 'nin_verified' | 'doc_uploaded' | 'verified' | 'rejected' | 'needs_review'; kyc_id_type: 'nin' | 'bvn';
+    kyc_message: string; kyc_tier: number; kyc_mode: 'live' | 'mock'; bank_transfer_funding: boolean;
+    limits: { max_balance_kobo: number; max_drip_kobo: number } | null;
     nin_last4: string; has_name: boolean;
     has_pin: boolean; pin_locked: boolean; has_face_id: boolean; look: Look; daily_cap_kobo: number | null; paused_all: boolean;
     notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean; notify_email: boolean;

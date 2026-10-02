@@ -89,6 +89,7 @@ class MockMessenger:
 
 class MockKycProvider:
     name = "mock"
+    mode = "mock"
 
     def lookup_nin(self, nin: str) -> dict | None:
         if len(nin) != 11 or not nin.isdigit() or nin == "00000000000":
@@ -101,7 +102,7 @@ class MockKycProvider:
             return None
         return {"first_name": "ADAEZE", "last_name": "OKONKWO", "date_of_birth": "1994-03-14", "phone": "081" + bvn[-8:]}
 
-    def check_document(self, image_bytes: bytes, *, id_type: str, expected_name: str) -> dict:
+    def check_document(self, image_bytes: bytes, *, id_type: str, expected_first: str = "", expected_last: str = "", **_) -> dict:
         return {"passed": len(image_bytes) > 0, "checks": ["corners_visible", "text_readable", "name_matches"]}
 
     def match_selfie(self, image_bytes: bytes) -> dict:

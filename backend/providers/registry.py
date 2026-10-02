@@ -61,8 +61,11 @@ def get_messenger():
     return MockMessenger()  # real WhatsApp provider comes later (docs/PLAN.md §2)
 
 
-@lru_cache(maxsize=1)
-def get_kyc_provider():
+def get_kyc_provider():  # not cached: cheap, and it follows KYC_PROVIDER at runtime
+    """KYC_PROVIDER=live: BVN via Paystack, ID photo and selfie read by Claude. Anything else: the mock."""
+    if settings.SPENDRIP.get("KYC_PROVIDER") == "live":
+        from .kyc_live import LiveKycProvider
+        return LiveKycProvider(_paystack_client)
     from .mock import MockKycProvider
     return MockKycProvider()
 

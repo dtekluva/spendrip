@@ -24,6 +24,7 @@ urlpatterns = [
     # verify identity, later in the app: NIN or BVN → ID photo → selfie
     path("kyc/lookup", auth.KycLookup.as_view()),
     path("kyc/confirm", auth.KycConfirm.as_view()),
+    path("kyc/bvn", auth.KycBvn.as_view()),
     path("kyc/document", auth.KycDocument.as_view()),
     path("kyc/selfie", auth.KycSelfie.as_view()),
     # PIN, lock, sign-in, Face ID

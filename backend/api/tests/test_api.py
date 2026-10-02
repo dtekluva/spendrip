@@ -420,3 +420,122 @@ def test_finished_plan_releases_priority_and_can_be_extended(demo, dev):
     from datetime import date
     ext = c.patch(f"/api/plans/{upkeep.id}", {"end_mode": "date", "end_date": (date.today() + timedelta(days=30)).isoformat()}, format="json")
     assert ext.status_code == 200 and ext.json()["plan"]["state"] in ("active", "scheduled")
+
+
+# ------------------------------------------------------------------ live KYC, limits, safety
+
+@pytest.fixture
+def live_kyc(settings, monkeypatch):
+    """KYC_PROVIDER=live with Paystack and Claude stubbed out."""
+    settings.SPENDRIP = {**settings.SPENDRIP, "KYC_PROVIDER": "live", "BANK_TRANSFER_FUNDING": False}
+    calls = {"paystack": [], "claude": []}
+
+    class FakePS:
+        def call(self, method, path, **kw):
+            calls["paystack"].append((method, path, kw.get("json")))
+            if path == "/customer":
+                return 200, {"status": True, "data": {"customer_code": "CUS_test1"}}
+            return 202, {"status": True, "message": "Customer Identification in progress"}
+    monkeypatch.setattr("providers.registry._paystack_client", lambda: FakePS())
+    answers = {}
+
+    def fake_vision(prompt, image, **kw):
+        calls["claude"].append(prompt[:30])
+        return answers["selfie" if "selfie" in prompt else "doc"]
+    monkeypatch.setattr("providers.kyc_live.vision_json", fake_vision)
+    from providers import names
+    monkeypatch.setattr(names, "resolve", lambda code, number: names.Name("OKAFOR ADA CHIOMA"))
+    return calls, answers
+
+
+def test_live_verification_bvn_then_claude_id_and_selfie(dev, db, live_kyc):
+    from django.core.cache import cache
+    cache.clear()
+    calls, answers = live_kyc
+    c = APIClient()
+    sign_up(c)
+    assert c.get("/api/me").json()["user"]["kyc_mode"] == "live"
+    assert c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json").json()["code"] == "use_bvn"
+    bad = c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Tolu", "last_name": "Bello", "nip_bank_code": "000013",
+                                  "account_number": "0123456789"}, format="json")
+    assert bad.status_code == 400 and bad.json()["code"] == "name_mismatch"
+    me = c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Ada", "last_name": "Okafor", "nip_bank_code": "000013",
+                                 "account_number": "0123456789"}, format="json").json()
+    assert me["user"]["kyc_status"] == "bvn_pending"
+    assert ("POST", "/customer/CUS_test1/identification") == calls["paystack"][-1][:2]
+    assert calls["paystack"][-1][2]["bank_code"] == "058"  # GTBank's CBN code
+
+    from accounts import services as acc
+    assert acc.bvn_result({"customer_code": "CUS_test1", "email": "ada@example.com"}, ok=True)
+    u = User.objects.get(email="ada@example.com")
+    assert u.kyc_status == "nin_verified" and u.recipients.get(is_self=True).account_number == "0123456789"
+
+    answers["doc"] = {"is_identity_document": True, "document_type": "drivers_licence", "readable": True, "surname": "OKAFOR",
+                      "given_names": "BOLA", "date_of_birth": "1994-03-14", "document_number": "ABC12345678", "expiry_date": "2030-01-01",
+                      "looks_edited_or_screen": False}
+    wrong = c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"})
+    assert wrong.status_code == 400 and "doesn't match" in wrong.json()["error"]
+    answers["doc"]["given_names"] = "ADA CHIOMA"
+    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).json()["step"] == "selfie"
+    answers["selfie"] = {"faces": 2, "face_clear": True, "looks_live": True}
+    assert "just you" in c.post("/api/kyc/selfie", {"image": IMG()}).json()["error"]
+    answers["selfie"] = {"faces": 1, "face_clear": True, "looks_live": True}
+    me = c.post("/api/kyc/selfie", {"image": IMG()}).json()
+    assert me["user"]["kyc_status"] == "verified" and me["user"]["kyc_tier"] == 1
+    assert me["user"]["funding_account"] is None and me["user"]["bank_transfer_funding"] is False  # cards only
+    assert me["user"]["limits"] == {"max_balance_kobo": 30_000_000, "max_drip_kobo": 5_000_000}
+
+
+def test_failed_bvn_check_explains_and_lets_them_retry(dev, db, live_kyc):
+    from accounts import services as acc
+    c = APIClient()
+    sign_up(c)
+    c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Ada", "last_name": "Okafor", "nip_bank_code": "000013",
+                            "account_number": "0123456789"}, format="json")
+    acc.bvn_result({"customer_code": "CUS_test1", "reason": "Account number or BVN is incorrect"}, ok=False)
+    me = c.get("/api/me").json()["user"]
+    assert me["kyc_status"] == "not_started" and "Account number or BVN is incorrect" in me["kyc_message"]
+
+
+def test_tier1_limits_on_drips_and_top_ups(demo, dev, settings):
+    settings.SPENDRIP = {**settings.SPENDRIP, "KYC_PROVIDER": "live"}
+    c = unlocked_client(demo)
+    big = c.post("/api/plans", plan_body(demo, amount_kobo=6_000_000), format="json")
+    assert big.status_code == 400 and big.json()["code"] == "over_limit"
+    top = c.post("/api/funding/card/start", {"amount_kobo": 10_000_000}, format="json")  # demo already holds ₦250,000
+    assert top.status_code == 400 and "hold up to ₦300,000" in top.json()["error"]
+
+
+def test_payouts_switch_holds_every_drip(user, top_up, recipients, make_plan, settings):
+    from conftest import lagos
+    from drips.models import Run
+    from drips.worker import Worker
+    from providers.mock import MockMessenger, MockPaymentProvider
+    settings.SPENDRIP = {**settings.SPENDRIP, "PAYOUTS_ENABLED": False}
+    top_up(20_000)
+    p = make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00")
+    provider = MockPaymentProvider()
+    Worker(provider=provider, messenger=MockMessenger()).tick(lagos("2026-11-02T10:01"))
+    assert provider.transfer_calls == 0
+    assert Run.objects.get(plan=p, scheduled_for=lagos("2026-11-02T10:00")).status == Run.Status.SCHEDULED
+
+
+def test_new_accounts_get_the_default_daily_limit(dev, db):
+    c = APIClient()
+    sign_up(c, "new@example.com")
+    assert User.objects.get(email="new@example.com").daily_cap_kobo == 10_000_000
+
+
+def test_wipe_needs_the_flag_and_keeps_staff_and_waitlist(demo, dev):
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+    from accounts.models import WaitlistEntry
+    WaitlistEntry.objects.create(contact="w@example.com", kind="email")
+    staff = User.objects.create(username="admin1", is_staff=True, is_superuser=True)
+    demo.is_staff = demo.is_superuser = False
+    demo.save()
+    with pytest.raises(CommandError):
+        call_command("wipe_app_data")
+    call_command("wipe_app_data", "--yes-delete-everything")
+    assert list(User.objects.values_list("username", flat=True)) == [staff.username]
+    assert WaitlistEntry.objects.count() == 1
