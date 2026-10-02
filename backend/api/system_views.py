@@ -167,6 +167,7 @@ from django.core.cache import cache  # noqa: E402
 from django.core.validators import validate_email  # noqa: E402
 from django.core.exceptions import ValidationError  # noqa: E402
 
+from notifications import emails  # noqa: E402
 from accounts.models import WaitlistEntry  # noqa: E402
 from accounts.services import normalise_phone  # noqa: E402
 
@@ -202,6 +203,8 @@ class Waitlist(APIView):
                 raise FlowError("Enter a Nigerian phone number (like 0803 123 4567) or an email.")
         entry, created = WaitlistEntry.objects.get_or_create(contact=contact, defaults={"kind": kind, "name": name,
                                                                                         "source": str(request.data.get("source", "landing"))[:40]})
+        if created and kind == "email":
+            emails.waitlist_joined(entry)  # never fails the request; problems are logged
         return Response({"ok": True, "already": not created,
                          "message": "You're already on the list. We'll be in touch." if not created else "You're on the list! We'll invite you soon."},
                         status=200 if not created else 201)

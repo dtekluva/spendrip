@@ -182,3 +182,14 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
 }
+
+# ---- Email ----
+# With a Mailgun key, mail goes out through Mailgun's HTTP API; without one it's printed to the console.
+MAILGUN = {
+    "API_KEY": env("MAILGUN_API_KEY", ""),
+    "DOMAIN": env("MAILGUN_DOMAIN", "mg.spendrip.com"),
+    "API_BASE": env("MAILGUN_API_BASE", "https://api.mailgun.net").rstrip("/"),
+}
+EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
+                 else "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")

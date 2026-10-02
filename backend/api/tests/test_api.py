@@ -243,3 +243,62 @@ def test_waitlist_is_rate_limited(db):
     for i in range(10):
         c.post("/api/waitlist", {"contact": f"user{i}@example.com"}, format="json")
     assert c.post("/api/waitlist", {"contact": "one.more@example.com"}, format="json").status_code == 429
+
+
+def test_waitlist_emails_a_welcome_only_to_new_email_signups(db):
+    from django.core import mail
+    from django.core.cache import cache
+    cache.clear()
+    c = APIClient()
+    c.post("/api/waitlist", {"contact": "ada@example.com", "name": "Ada"}, format="json")
+    c.post("/api/waitlist", {"contact": "ada@example.com"}, format="json")  # already on the list: no second email
+    c.post("/api/waitlist", {"contact": "08031234567"}, format="json")  # phone: no email
+    assert len(mail.outbox) == 1
+    m = mail.outbox[0]
+    assert m.to == ["ada@example.com"] and "waitlist" in m.subject and "Hi Ada" in m.body
+    assert m.alternatives and "You're on the list" in m.alternatives[0][0].replace("&#x27;", "'")
+
+
+def test_waitlist_still_joins_when_email_fails(db, monkeypatch):
+    from django.core.cache import cache
+    from accounts.models import WaitlistEntry
+    cache.clear()
+
+    def boom(*a, **k):
+        raise RuntimeError("mail down")
+    monkeypatch.setattr("django.core.mail.EmailMultiAlternatives.send", boom)
+    r = APIClient().post("/api/waitlist", {"contact": "bo@example.com"}, format="json")
+    assert r.status_code == 201 and WaitlistEntry.objects.filter(contact="bo@example.com").exists()
+
+
+def test_admin_invite_action_emails_and_stamps(db):
+    from django.contrib.admin.sites import site
+    from django.core import mail
+    from django.test import RequestFactory
+    from accounts.models import WaitlistEntry
+    a = WaitlistEntry.objects.create(contact="ada@example.com", kind="email", name="Ada")
+    WaitlistEntry.objects.create(contact="08031234567", kind="phone")
+    model_admin = site._registry[WaitlistEntry]
+    req = RequestFactory().post("/")
+    model_admin.message_user = lambda *args, **kw: None
+    model_admin.send_invites(req, WaitlistEntry.objects.all())
+    assert [m.to for m in mail.outbox] == [["ada@example.com"]] and "invite" in mail.outbox[0].subject
+    a.refresh_from_db()
+    assert a.invited_at is not None
+
+
+def test_mailgun_backend_posts_to_the_api(settings, monkeypatch):
+    from django.core.mail import EmailMultiAlternatives
+    from notifications.mailgun import MailgunBackend
+    settings.MAILGUN = {"API_KEY": "k", "DOMAIN": "mg.example.com", "API_BASE": "https://api.mailgun.net"}
+    calls = []
+
+    class R:
+        def raise_for_status(self): pass
+    monkeypatch.setattr("notifications.mailgun.requests.post", lambda url, **kw: calls.append((url, kw)) or R())
+    m = EmailMultiAlternatives("Hi", "text", "SpenDrip <hello@mg.example.com>", ["a@b.com"])
+    m.attach_alternative("<b>html</b>", "text/html")
+    assert MailgunBackend().send_messages([m]) == 1
+    url, kw = calls[0]
+    assert url == "https://api.mailgun.net/v3/mg.example.com/messages" and kw["auth"] == ("api", "k")
+    assert kw["data"]["html"] == "<b>html</b>" and kw["data"]["to"] == ["a@b.com"]
