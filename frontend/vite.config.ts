@@ -27,7 +27,7 @@ export default defineConfig({
         ],
       },
       // Never cache API responses: balances must always be live. Do precache Kobo (kobo.riv + the Rive engine) for offline use.
-      workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [], globPatterns: ['**/*.{js,css,html,svg,png,riv,wasm}'], maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 },
+      workbox: { clientsClaim: true, cleanupOutdatedCaches: true, navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [], globPatterns: ['**/*.{js,css,html,svg,png,riv,wasm}'], maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 },
     }),
   ],
   server: { port: 5173, proxy: { '/api': { target, changeOrigin: false }, '/admin': { target, changeOrigin: false }, '/static': { target, changeOrigin: false } } },
