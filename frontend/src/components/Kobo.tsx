@@ -19,7 +19,8 @@ export type KoboMood =
   | 'send' // a droplet leaves its head and flies off
   | 'fill' // fills up and grows
   | 'sleep' // eyes shut, breathing, z z
-  | 'peek'; // rises into view and blinks
+  | 'peek' // rises into view and blinks
+  | 'point'; // one arm up, pointing at something above
 
 export const KOBO_MOODS: { mood: KoboMood; label: string; when: string }[] = [
   { mood: 'idle', label: 'Idle', when: 'Home, nothing to do' },
@@ -32,6 +33,7 @@ export const KOBO_MOODS: { mood: KoboMood; label: string; when: string }[] = [
   { mood: 'puddle', label: 'Oops', when: 'Something went wrong' },
   { mood: 'sleep', label: 'Asleep', when: 'Everything is paused' },
   { mood: 'peek', label: 'Peek', when: 'Lock screen, empty states' },
+  { mood: 'point', label: 'Pointing', when: 'Showing what to tap' },
 ];
 
 const BODY = 'M50 6C50 6 13 55 13 79a37 37 0 0 0 74 0C87 55 50 6 50 6Z';
@@ -43,7 +45,8 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title, 
 }) {
   const [riveReady, setRiveReady] = useState(false);
   // Eyes that follow your finger exist only in the SVG version, so Kobos with `follow` stay SVG.
-  const showRive = engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion());
+  // 'point' is only drawn in code (it has arms); the Rive file doesn't have it yet.
+  const showRive = mood !== 'point' && (engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion()));
   if (showRive) {
     return (
       <span className="kobo kobo-rive" style={{ width: size, height: size * 1.2, position: 'relative' }} role="img" aria-label={title ?? `Kobo, ${mood}`}>
@@ -106,6 +109,7 @@ function SvgKobo({ mood = 'idle', size = 72, follow = false, title }: {
     puddle: 'M44 92q6-4 12 0',
     sleep: 'M46 92q4 2 8 0',
     peek: 'M44 90q6 4 12 0',
+    point: 'M41 88q9 9 18 0Z',
   }[mood];
   const filled = mouth.endsWith('Z');
 
@@ -142,9 +146,19 @@ function SvgKobo({ mood = 'idle', size = 72, follow = false, title }: {
           <ellipse cx="29" cy="92" rx="6" ry="3.6" className="k-cheek" />
           <ellipse cx="71" cy="92" rx="6" ry="3.6" className="k-cheek" />
 
+          {mood === 'point' && (
+            <g className="k-arms">
+              <path className="k-arm" d="M17 86q-10 3-11 13" />
+              <g className="k-point-arm">
+                <path className="k-arm" d="M83 84q14-4 15-27" />
+                <circle className="k-hand" cx="98" cy="53" r="7" />
+                <path className="k-finger" d="M98 48V33" />
+              </g>
+            </g>
+          )}
           {mood === 'worried' && <g className="k-brows"><path d="M32 66l9-4" /><path d="M68 66l-9-4" /></g>}
 
-          <g className="k-eyes" style={{ transform: `translate(${look.x}px, ${look.y}px)` }}>
+          <g className="k-eyes" style={{ transform: mood === 'point' ? 'translate(2px, -3px)' : `translate(${look.x}px, ${look.y}px)` }}>
             {happyEyes ? (
               <g className="k-arc"><path d="M33 79q5-7 10 0" /><path d="M57 79q5-7 10 0" /></g>
             ) : closedEyes ? (

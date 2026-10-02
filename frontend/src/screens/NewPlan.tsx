@@ -55,6 +55,8 @@ export default function NewPlan() {
     try { localStorage.setItem('sd-chip-guides', String(guided + 1)); } catch { /* ignore */ }
   };
   const showKobo = !explored && guided < 3;
+  // A brand-new plan can't be started until a word has been tapped at least once. Edits and "Run it again" are already yours.
+  const touched = explored || !!editing || !!source;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewErr, setPreviewErr] = useState('');
   const { busy, error, run } = useAction();
@@ -160,7 +162,7 @@ export default function NewPlan() {
         </p>
         {!showKobo ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
           <div className="chip-hint" role="note">
-            <Kobo mood="happy" size={40} engine="svg" title="" />
+            <Kobo mood="point" size={56} engine="svg" title="" />
             <span className="bubble">Tap any yellow word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
           </div>
         )}
@@ -186,7 +188,10 @@ export default function NewPlan() {
           {recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b>On ✓</b></div>}
         </div>
         {error && <div className="error-card">{error}</div>}
-        <div className="cta-bar"><button className="btn btn-primary btn-block" style={{ height: 56, fontSize: 16 }} disabled={busy || !!previewErr} onClick={save}>{editing ? 'Save changes' : 'Start this plan'}</button></div>
+        <div className="cta-bar">
+          <button className="btn btn-primary btn-block" style={{ height: 56, fontSize: 16 }} disabled={busy || !!previewErr || !touched} onClick={save}>{editing ? 'Save changes' : 'Start this plan'}</button>
+          {!touched && <p className="small muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Tap a yellow word above to make this plan yours.</p>}
+        </div>
       </div></div>
     </div>
   );
