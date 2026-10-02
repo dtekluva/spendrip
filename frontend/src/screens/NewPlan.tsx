@@ -46,9 +46,15 @@ export default function NewPlan() {
   const startLocked = !!existing && existing.drips_done > 0;
   useEffect(() => { if (existing && params.get('extend')) window.setTimeout(() => openChip('end'), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [pulse, setPulse] = useState('');
-  // Until someone has tapped a word once (on this device), the sentence shows a gentle guided wave and Kobo's hint.
-  const [explored, setExplored] = useState(() => { try { return localStorage.getItem('sd-chips-explored') === '1'; } catch { return false; } });
-  const markExplored = () => { if (explored) return; setExplored(true); try { localStorage.setItem('sd-chips-explored', '1'); } catch { /* ignore */ } };
+  // Guide for new plans: the wave runs on every visit until the first tap; Kobo's bubble only on the first 3 visits (per device).
+  const [explored, setExplored] = useState(!!editing);
+  const [guided] = useState(() => { try { return Number(localStorage.getItem('sd-chip-guides') ?? 0); } catch { return 0; } });
+  const markExplored = () => {
+    if (explored) return;
+    setExplored(true);
+    try { localStorage.setItem('sd-chip-guides', String(guided + 1)); } catch { /* ignore */ }
+  };
+  const showKobo = !explored && guided < 3;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewErr, setPreviewErr] = useState('');
   const { busy, error, run } = useAction();
@@ -152,7 +158,7 @@ export default function NewPlan() {
           {chip('start', startText, d.start_date !== todayISO())} {chip('end', endText, d.end_mode !== 'ongoing')}.{' '}
           {chip('protect', shownRank ? `🛡 Priority ${shownRank}` : '＋ Protect it', !!shownRank)}
         </p>
-        {explored ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
+        {!showKobo ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
           <div className="chip-hint" role="note">
             <Kobo mood="happy" size={40} engine="svg" title="" />
             <span className="bubble">Tap any yellow word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
