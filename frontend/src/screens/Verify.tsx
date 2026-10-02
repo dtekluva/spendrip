@@ -95,36 +95,91 @@ const FileButton = ({ label, capture, onPick, primary }: { label: string; captur
   </label>
 );
 
-/* ---------------- step 2: ID ---------------- */
+/* ---------------- step 1: ID ---------------- */
+/** Back camera with an ID-card-shaped guide (85.6 × 54 mm). The photo is cropped to the guide, plus a small margin. */
+function IdCam({ onShot, onCancel }: { onShot: (b: Blob) => void; onCancel: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let s: MediaStream | null = null;
+    if (!navigator.mediaDevices?.getUserMedia) { setFailed(true); return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
+      .then((m) => { s = m; if (video.current) { video.current.srcObject = m; video.current.onloadedmetadata = () => setReady(true); } })
+      .catch(() => setFailed(true));
+    return () => s?.getTracks().forEach((t) => t.stop());
+  }, []);
+  const snap = () => {
+    const v = video.current, f = frame.current;
+    if (!v || !f || !v.videoWidth) return;
+    const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
+    const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);  // object-fit: cover
+    const offX = (vr.width - v.videoWidth * scale) / 2, offY = (vr.height - v.videoHeight * scale) / 2;
+    const pad = 0.07;
+    let w = fr.width / scale, h = fr.height / scale;
+    let x = (fr.left - vr.left - offX) / scale - w * pad, y = (fr.top - vr.top - offY) / scale - h * pad;
+    w *= 1 + 2 * pad; h *= 1 + 2 * pad;
+    x = Math.max(0, x); y = Math.max(0, y); w = Math.min(w, v.videoWidth - x); h = Math.min(h, v.videoHeight - y);
+    const k = Math.min(1, 1600 / w);
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d')!.drawImage(v, x, y, w, h, 0, 0, c.width, c.height);
+    c.toBlob((b) => b && onShot(b), 'image/jpeg', 0.9);
+  };
+  if (failed) return (
+    <div className="stack" style={{ gap: 10 }}>
+      <p className="small muted" style={{ margin: 0, textAlign: 'center' }}>We can't open the camera here. Use your phone's camera or pick a photo instead.</p>
+      <FileButton primary label="📷 Open camera" capture="environment" onPick={onShot} />
+      <FileButton label="Upload from gallery" onPick={onShot} />
+    </div>
+  );
+  return (
+    <div className="idcam">
+      <div className="idcam-view">
+        <video ref={video} autoPlay playsInline muted />
+        <div ref={frame} className="idcam-frame" aria-hidden="true">
+          <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
+        </div>
+        <span className="idcam-tip">Fit the front of your ID inside the frame</span>
+      </div>
+      <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ready} onClick={snap}>Take photo</button>
+      <button className="btn btn-soft btn-block" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
 function DocStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolean; onNext: () => void }) {
   const [idType, setIdType] = useState('nin');
+  const [cam, setCam] = useState(false);
   const up = useUpload('/kyc/document', { id_type: idType });
   const { busy, error, run } = useAction();
+  const shot = (b: Blob) => { setCam(false); up.take(b); };
   return (
     <>
       {header}
       <h2>Snap your ID</h2>
-      <p className="lead">A clear photo of the front. Lay it flat in good light, with all four corners in view.</p>
+      <p className="lead">The front of your ID. Lay it flat in good light, and fit it inside the frame.</p>
       <div className="id-types" role="group" aria-label="ID type">
         {ID_TYPES.map(([k, l]) => <button key={k} aria-pressed={idType === k} onClick={() => setIdType(k)}>{l}</button>)}
       </div>
-      <div className={`id-frame ${up.preview ? 'has' : ''}`}>
+      {cam ? <IdCam onShot={shot} onCancel={() => setCam(false)} /> : <div className={`id-frame ${up.preview ? 'has' : ''}`}>
         {up.preview ? <img src={up.preview} alt="Your ID" /> : (
           <><div className="ghost"><i className="ph" /><span className="ln"><i style={{ width: '80%' }} /><i /><i style={{ width: '60%' }} /><i style={{ width: '70%' }} /></span></div>
             <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" /></>
         )}
-      </div>
+      </div>}
       {busy && <Spinner label="Checking your ID…" />}
       {error && <div className="error-card">{error}</div>}
       <div className="kyc-actions">
         {up.preview ? (
           <>
             <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={busy} onClick={() => run(async () => { await up.send(); onNext(); })}>Use this photo</button>
-            <FileButton label="Retake" capture="environment" onPick={up.take} />
+            <button className="btn btn-soft btn-block" onClick={() => { up.reset(); setCam(true); }}>Retake</button>
           </>
-        ) : (
+        ) : cam ? null : (
           <>
-            <FileButton primary label="📷 Take a photo" capture="environment" onPick={up.take} />
+            <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={() => setCam(true)}>📷 Take a photo</button>
             <FileButton label="Upload from gallery" onPick={up.take} />
             {dev && <button className="demo-link" onClick={async () => up.take(await sampleBlob('id'))}>Use a sample ID (demo)</button>}
           </>
