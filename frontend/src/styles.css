@@ -755,3 +755,30 @@ a{color:inherit}
 .plan-card.done{grid-template-columns:auto 1fr;opacity:.92}
 .done-actions{display:flex;gap:8px;margin-top:8px}
 .done-actions .btn{height:38px;padding:0 14px;font-size:14px}
+
+/* plan sentence: make the chips read as tappable */
+.sentence .chip{cursor:pointer;transition:transform .15s ease,box-shadow .2s,background .2s}
+.sentence .chip:hover{transform:translateY(-2px);box-shadow:0 6px 16px -8px color-mix(in srgb,var(--cobalt) 70%,transparent)}
+.sentence .chip:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+.chip-caret{font-size:.62em;opacity:.7;margin-left:-1px;transform:translateY(1px)}
+.vis-sentence .chip-caret{display:none}
+/* first-time guided wave: each chip lifts and glows in turn, left to right */
+.sentence.tour .chip{animation:chip-wave 5.2s ease-in-out infinite}
+.sentence.tour .chip:nth-of-type(1){animation-delay:.4s}
+.sentence.tour .chip:nth-of-type(2){animation-delay:.75s}
+.sentence.tour .chip:nth-of-type(3){animation-delay:1.1s}
+.sentence.tour .chip:nth-of-type(4){animation-delay:1.45s}
+.sentence.tour .chip:nth-of-type(5){animation-delay:1.8s}
+.sentence.tour .chip:nth-of-type(6){animation-delay:2.15s}
+.sentence.tour .chip:nth-of-type(7){animation-delay:2.5s}
+.sentence.tour .chip:nth-of-type(8){animation-delay:2.85s}
+.sentence.tour .chip:nth-of-type(9){animation-delay:3.2s}
+.sentence.tour .chip:nth-of-type(10){animation-delay:3.55s}
+@keyframes chip-wave{
+  0%,10%,100%{transform:none;box-shadow:none}
+  4%{transform:translateY(-4px) scale(1.06);box-shadow:0 0 0 4px color-mix(in srgb,var(--cobalt) 30%,transparent),0 10px 22px -10px color-mix(in srgb,var(--cobalt) 80%,transparent)}
+}
+.chip-hint{display:flex;align-items:flex-end;gap:10px;margin:2px 0 0;animation:fadeup .4s ease both}
+.chip-hint .bubble{position:relative;background:var(--surface);border:1px solid color-mix(in srgb,var(--cobalt) 35%,var(--line));border-radius:16px 16px 16px 4px;padding:9px 13px;font-weight:700;font-size:14px;line-height:1.35}
+.chip-hint .bubble span{font-weight:500;font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.sentence.tour .chip{animation:none}}

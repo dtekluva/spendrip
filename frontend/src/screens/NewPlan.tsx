@@ -46,6 +46,9 @@ export default function NewPlan() {
   const startLocked = !!existing && existing.drips_done > 0;
   useEffect(() => { if (existing && params.get('extend')) window.setTimeout(() => openChip('end'), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [pulse, setPulse] = useState('');
+  // Until someone has tapped a word once (on this device), the sentence shows a gentle guided wave and Kobo's hint.
+  const [explored, setExplored] = useState(() => { try { return localStorage.getItem('sd-chips-explored') === '1'; } catch { return false; } });
+  const markExplored = () => { if (explored) return; setExplored(true); try { localStorage.setItem('sd-chips-explored', '1'); } catch { /* ignore */ } };
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewErr, setPreviewErr] = useState('');
   const { busy, error, run } = useAction();
@@ -69,7 +72,8 @@ export default function NewPlan() {
 
   const set = (k: string, patch: Partial<Draft>) => { setD((x) => ({ ...x, ...patch })); setPulse(k); closeSheet(); };
   const chip = (k: string, label: React.ReactNode, on = false) => (
-    <button className={`chip ${on ? 'on' : ''} ${pulse === k ? 'pulse' : ''}`} onClick={() => openChip(k)} key={k + String(label)}>{label}</button>
+    <button className={`chip ${on ? 'on' : ''} ${pulse === k ? 'pulse' : ''}`} onClick={() => { markExplored(); openChip(k); }} key={k + String(label)}
+      aria-haspopup="dialog">{label}<span className="chip-caret" aria-hidden="true">▾</span></button>
   );
 
   const openChip = (k: string) => {
@@ -143,12 +147,17 @@ export default function NewPlan() {
     <div className="stack">
       <div className="close-row"><div className="eyebrow">{editing ? 'Edit plan' : 'New plan'}</div><button className="icon-btn" aria-label="Close" onClick={() => nav(-1)}>{Icon.close}</button></div>
       <div className="cols cols-new"><div className="col stack">
-        <p className="sentence">
+        <p className={`sentence ${explored ? '' : 'tour'}`}>
           Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')} {when} at {chip('time', fmtTime(d.time_local))},{' '}
           {chip('start', startText, d.start_date !== todayISO())} {chip('end', endText, d.end_mode !== 'ongoing')}.{' '}
           {chip('protect', shownRank ? `🛡 Priority ${shownRank}` : '＋ Protect it', !!shownRank)}
         </p>
-        <p className="hint">👆 Tap any coloured word to change it.</p>
+        {explored ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
+          <div className="chip-hint" role="note">
+            <Kobo mood="happy" size={40} engine="svg" title="" />
+            <span className="bubble">Tap any yellow word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
+          </div>
+        )}
       </div><div className="col stack">
         <div className="card preview">
           <div className="eyebrow">Next drips</div>
