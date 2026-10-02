@@ -106,47 +106,11 @@ def kyc_mode() -> str:
 
 
 def limits(user: User) -> dict | None:
-    """Tier-1 limits for live-verified accounts (BVN + ID, no face match yet). None = no extra limits."""
+    """Tier-1 limits for live-verified accounts (ID + liveness, no face-to-ID match yet). None = no extra limits."""
     if kyc_mode() != "live":
         return None
     c = settings.SPENDRIP
     return {"max_balance_kobo": c["TIER1_MAX_BALANCE_KOBO"], "max_drip_kobo": c["TIER1_MAX_DRIP_KOBO"]}
-
-
-def bvn_result(data: dict, ok: bool) -> bool:
-    """Paystack's answer to a BVN check (customeridentification.success / .failed). Returns True if it changed a user."""
-    from drips.models import Recipient
-    from providers.banks import BY_NIP
-    from .models import KycCheck
-    code = (data.get("customer_code") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-    user = (User.objects.filter(paystack_customer_code=code).first() if code else None) or \
-        (User.objects.filter(email=email).first() if email else None)
-    if not user or user.kyc_status != User.Kyc.BVN_PENDING:
-        return False
-    pending = KycCheck.objects.filter(user=user, step=KycCheck.Step.NIN, provider="paystack", raw__pending=True).order_by("-created_at").first()
-    with transaction.atomic():
-        if ok:
-            user.kyc_status, user.kyc_message = User.Kyc.NIN_VERIFIED, ""
-            if pending and not user.recipients.filter(nip_bank_code=pending.raw["nip_bank_code"], account_number=pending.raw["account_number"]).exists():
-                bank = BY_NIP.get(pending.raw["nip_bank_code"], ("Bank", ""))
-                Recipient.objects.create(user=user, label="Me", is_self=not user.recipients.filter(is_self=True).exists(),
-                                         bank_name=bank[0], nip_bank_code=pending.raw["nip_bank_code"], cbn_bank_code=bank[1],
-                                         account_number=pending.raw["account_number"], verified_account_name=pending.raw["account_name"],
-                                         verified_at=timezone.now())
-        else:
-            reason = (data.get("reason") or "").strip()
-            user.kyc_status = User.Kyc.NOT_STARTED
-            user.nin_hash, user.nin_last4 = "", ""
-            user.kyc_message = ("Paystack couldn't match your BVN with that bank account and name"
-                                + (f": {reason}" if reason else ".") + " Check the details and try again.")[:240]
-        user.save()
-        KycCheck.objects.create(user=user, step=KycCheck.Step.NIN, passed=ok, provider="paystack", provider_ref=code,
-                                raw={"id_type": "bvn", "result": "success" if ok else "failed", "reason": data.get("reason", "")})
-        if pending:
-            pending.raw = {**pending.raw, "pending": False}
-            pending.save(update_fields=["raw"])
-    return True
 
 
 def require_verified(user: User) -> None:
@@ -157,7 +121,7 @@ def require_verified(user: User) -> None:
 
 @transaction.atomic
 def finish_verification(user: User) -> FundingAccount:
-    """NIN/BVN, ID and selfie all passed: verify the user and give them their account number."""
+    """ID and liveness passed: verify the user (and give them an account number when bank transfers are on)."""
     user.kyc_status, user.kyc_message = User.Kyc.VERIFIED, ""
     user.kyc_tier = max(user.kyc_tier, 1)
     user.save(update_fields=["kyc_status", "kyc_message", "kyc_tier"])

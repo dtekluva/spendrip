@@ -147,8 +147,6 @@ def paystack_webhook(request):
     ref = str(data.get("reference", ""))
     if kind == "charge.success" and CardCharge.objects.filter(reference=ref).exists():
         cards.complete(ref)  # verifies with Paystack before crediting, once
-    elif kind in ("customeridentification.success", "customeridentification.failed"):
-        acc.bvn_result(data, ok=kind.endswith("success"))
     elif kind.startswith("transfer.") and ref:
         # Ask the worker to check this transfer with Paystack on its next tick.
         Run.objects.filter(pk=ref if _is_uuid(ref) else None, status__in=Run.IN_FLIGHT).update(next_check_at=timezone.now())

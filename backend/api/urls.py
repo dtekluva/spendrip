@@ -21,12 +21,10 @@ urlpatterns = [
     path("signup/otp/resend", auth.SignupResendOtp.as_view()),
     path("signup/otp/verify", auth.SignupVerifyOtp.as_view()),
     path("signup/name", auth.SignupName.as_view()),
-    # verify identity, later in the app: NIN or BVN → ID photo → selfie
-    path("kyc/lookup", auth.KycLookup.as_view()),
-    path("kyc/confirm", auth.KycConfirm.as_view()),
-    path("kyc/bvn", auth.KycBvn.as_view()),
+    # verify identity, later in the app: ID photo → three face angles
     path("kyc/document", auth.KycDocument.as_view()),
-    path("kyc/selfie", auth.KycSelfie.as_view()),
+    path("kyc/liveness/start", auth.KycLivenessStart.as_view()),
+    path("kyc/liveness", auth.KycLiveness.as_view()),
     # PIN, lock, sign-in, Face ID
     path("auth/pin", auth.SetPin.as_view()),
     path("auth/pin/change", auth.ChangePin.as_view()),

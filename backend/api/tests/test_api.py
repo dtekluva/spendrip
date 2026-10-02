@@ -94,31 +94,27 @@ def test_skipping_steps_is_refused(dev, db):
 
 # ------------------------------------------------------------------ verify identity, later
 
-@pytest.mark.parametrize("id_type,phone_masked", [("nin", "0804 ••• 8901"), ("bvn", "0814 ••• 8901")])
-def test_verify_with_nin_or_bvn_then_id_then_selfie(dev, db, id_type, phone_masked):
+def verify(c):
+    """Mock-mode verification: ID photo, then the three liveness photos in the order asked."""
+    c.post("/api/kyc/document", {"image": IMG(), "id_type": "nin"})
+    order = c.post("/api/kyc/liveness/start").json()["order"]
+    return c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)}).json(), order
+
+
+def test_verify_with_id_photo_then_three_face_angles(dev, db):
     c = APIClient()
     sign_up(c)
-    assert c.post("/api/kyc/selfie", {"image": IMG()}).json()["code"] == "kyc_missing"
-    r = c.post("/api/kyc/lookup", {"id_type": id_type, "number": "123 4567 8901"}, format="json").json()
-    assert r["name"] == "ADAEZE OKONKWO" and r["phone_masked"] == phone_masked
-    assert c.post("/api/kyc/confirm").json() == {"step": "document"}
-    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "nin"}).json()["step"] == "selfie"
-    me = c.post("/api/kyc/selfie", {"image": IMG()}).json()
+    assert c.post("/api/kyc/liveness/start").json()["code"] == "kyc_missing"  # ID first
+    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "nin"}).json()["step"] == "liveness"
+    order = c.post("/api/kyc/liveness/start").json()["order"]
+    assert sorted(order) == ["front", "left", "right"]
+    short = c.post("/api/kyc/liveness", {"image_0": IMG(), "image_1": IMG()})
+    assert short.status_code == 400 and "all three" in short.json()["error"]
+    me = c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)}).json()
     u = me["user"]
-    assert u["kyc_status"] == "verified" and u["kyc_id_type"] == id_type and u["first_name"] == "Adaeze"
+    assert u["kyc_status"] == "verified" and u["first_name"] == "Adaeze"  # legal name from the ID
     assert u["funding_account"]["account_number"].startswith("8420")
-    assert c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json").status_code == 409
-
-
-def test_same_nin_cannot_verify_two_accounts(dev, db):
-    a, b = APIClient(), APIClient()
-    sign_up(a, "a@example.com")
-    sign_up(b, "b@example.com")
-    for c in (a, b):
-        c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json")
-    assert a.post("/api/kyc/confirm").status_code == 200
-    r = b.post("/api/kyc/confirm")
-    assert r.status_code == 409 and r.json()["code"] == "id_taken"
+    assert c.post("/api/kyc/document", {"image": IMG()}).status_code == 409  # already verified
 
 
 def test_unverified_users_plans_do_not_send(dev, db, settings):
@@ -426,75 +422,76 @@ def test_finished_plan_releases_priority_and_can_be_extended(demo, dev):
 
 @pytest.fixture
 def live_kyc(settings, monkeypatch):
-    """KYC_PROVIDER=live with Paystack and Claude stubbed out."""
+    """KYC_PROVIDER=live with Claude stubbed: answers["doc"] for the ID, answers["poses"][i] for each liveness photo."""
     settings.SPENDRIP = {**settings.SPENDRIP, "KYC_PROVIDER": "live", "BANK_TRANSFER_FUNDING": False}
-    calls = {"paystack": [], "claude": []}
-
-    class FakePS:
-        def call(self, method, path, **kw):
-            calls["paystack"].append((method, path, kw.get("json")))
-            if path == "/customer":
-                return 200, {"status": True, "data": {"customer_code": "CUS_test1"}}
-            return 202, {"status": True, "message": "Customer Identification in progress"}
-    monkeypatch.setattr("providers.registry._paystack_client", lambda: FakePS())
-    answers = {}
+    answers = {"poses": []}
+    seen = {"n": 0}
 
     def fake_vision(prompt, image, **kw):
-        calls["claude"].append(prompt[:30])
-        return answers["selfie" if "selfie" in prompt else "doc"]
+        if "liveness" in prompt:
+            r = answers["poses"][seen["n"] % 3]
+            seen["n"] += 1
+            return r
+        return answers["doc"]
     monkeypatch.setattr("providers.kyc_live.vision_json", fake_vision)
-    from providers import names
-    monkeypatch.setattr(names, "resolve", lambda code, number: names.Name("OKAFOR ADA CHIOMA"))
-    return calls, answers
+    return answers
 
 
-def test_live_verification_bvn_then_claude_id_and_selfie(dev, db, live_kyc):
-    from django.core.cache import cache
-    cache.clear()
-    calls, answers = live_kyc
+GOOD_ID = {"is_identity_document": True, "document_type": "drivers_licence", "readable": True, "surname": "OKAFOR",
+           "given_names": "ADA CHIOMA", "date_of_birth": "1994-03-14", "document_number": "ABC12345678", "expiry_date": "2030-01-01",
+           "looks_edited_or_screen": False}
+
+
+def poses_for(order, flip=False):
+    turn = {"left": "towards_image_right", "right": "towards_image_left"}
+    if flip:
+        turn = {"left": "towards_image_left", "right": "towards_image_left"}
+    return [{"faces": 1, "face_clear": True, "looks_live": True, "direction": "front" if p == "front" else turn[p]} for p in order]
+
+
+def test_live_id_then_liveness(dev, db, live_kyc):
     c = APIClient()
     sign_up(c)
     assert c.get("/api/me").json()["user"]["kyc_mode"] == "live"
-    assert c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json").json()["code"] == "use_bvn"
-    bad = c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Tolu", "last_name": "Bello", "nip_bank_code": "000013",
-                                  "account_number": "0123456789"}, format="json")
-    assert bad.status_code == 400 and bad.json()["code"] == "name_mismatch"
-    me = c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Ada", "last_name": "Okafor", "nip_bank_code": "000013",
-                                 "account_number": "0123456789"}, format="json").json()
-    assert me["user"]["kyc_status"] == "bvn_pending"
-    assert ("POST", "/customer/CUS_test1/identification") == calls["paystack"][-1][:2]
-    assert calls["paystack"][-1][2]["bank_code"] == "058"  # GTBank's CBN code
-
-    from accounts import services as acc
-    assert acc.bvn_result({"customer_code": "CUS_test1", "email": "ada@example.com"}, ok=True)
+    live_kyc["doc"] = {**GOOD_ID, "expiry_date": "2020-01-01"}
+    assert "expired" in c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).json()["error"]
+    live_kyc["doc"] = {**GOOD_ID, "looks_edited_or_screen": True}
+    assert "not a screen" in c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).json()["error"]
+    live_kyc["doc"] = GOOD_ID
+    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).json()["step"] == "liveness"
     u = User.objects.get(email="ada@example.com")
-    assert u.kyc_status == "nin_verified" and u.recipients.get(is_self=True).account_number == "0123456789"
+    assert (u.first_name, u.last_name, u.kyc_id_type, u.nin_last4) == ("ADA", "OKAFOR", "dl", "5678")
 
-    answers["doc"] = {"is_identity_document": True, "document_type": "drivers_licence", "readable": True, "surname": "OKAFOR",
-                      "given_names": "BOLA", "date_of_birth": "1994-03-14", "document_number": "ABC12345678", "expiry_date": "2030-01-01",
-                      "looks_edited_or_screen": False}
-    wrong = c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"})
-    assert wrong.status_code == 400 and "doesn't match" in wrong.json()["error"]
-    answers["doc"]["given_names"] = "ADA CHIOMA"
-    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).json()["step"] == "selfie"
-    answers["selfie"] = {"faces": 2, "face_clear": True, "looks_live": True}
-    assert "just you" in c.post("/api/kyc/selfie", {"image": IMG()}).json()["error"]
-    answers["selfie"] = {"faces": 1, "face_clear": True, "looks_live": True}
-    me = c.post("/api/kyc/selfie", {"image": IMG()}).json()
+    order = c.post("/api/kyc/liveness/start").json()["order"]
+    live_kyc["poses"] = poses_for(order, flip=True)  # both turns the same way: a replayed half-turn
+    bad = c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)})
+    assert bad.status_code == 400 and "one way, then the other" in bad.json()["error"]
+    order = c.post("/api/kyc/liveness/start").json()["order"]
+    live_kyc["poses"] = [{**p, "looks_live": False} for p in poses_for(order)]
+    assert "not of a screen" in c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)}).json()["error"]
+    order = c.post("/api/kyc/liveness/start").json()["order"]
+    live_kyc["poses"] = poses_for(order)
+    me = c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)}).json()
     assert me["user"]["kyc_status"] == "verified" and me["user"]["kyc_tier"] == 1
-    assert me["user"]["funding_account"] is None and me["user"]["bank_transfer_funding"] is False  # cards only
-    assert me["user"]["limits"] == {"max_balance_kobo": 30_000_000, "max_drip_kobo": 5_000_000}
+    assert me["user"]["funding_account"] is None and me["user"]["limits"]["max_drip_kobo"] == 5_000_000
 
 
-def test_failed_bvn_check_explains_and_lets_them_retry(dev, db, live_kyc):
-    from accounts import services as acc
+def test_same_id_cannot_verify_two_accounts(dev, db, live_kyc):
+    live_kyc["doc"] = GOOD_ID
+    a, b = APIClient(), APIClient()
+    sign_up(a, "a@example.com")
+    sign_up(b, "b@example.com")
+    assert a.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"}).status_code == 200
+    r = b.post("/api/kyc/document", {"image": IMG(), "id_type": "dl"})
+    assert r.status_code == 409 and r.json()["code"] == "id_taken"
+
+
+def test_liveness_needs_a_fresh_start(dev, db):
     c = APIClient()
     sign_up(c)
-    c.post("/api/kyc/bvn", {"bvn": "22222222222", "first_name": "Ada", "last_name": "Okafor", "nip_bank_code": "000013",
-                            "account_number": "0123456789"}, format="json")
-    acc.bvn_result({"customer_code": "CUS_test1", "reason": "Account number or BVN is incorrect"}, ok=False)
-    me = c.get("/api/me").json()["user"]
-    assert me["kyc_status"] == "not_started" and "Account number or BVN is incorrect" in me["kyc_message"]
+    c.post("/api/kyc/document", {"image": IMG()})
+    r = c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)})
+    assert r.status_code == 409 and r.json()["code"] == "liveness_expired"
 
 
 def test_tier1_limits_on_drips_and_top_ups(demo, dev, settings):

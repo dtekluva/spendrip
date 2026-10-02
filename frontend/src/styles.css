@@ -782,3 +782,21 @@ a{color:inherit}
 .chip-hint .bubble{position:relative;background:var(--surface);border:1px solid color-mix(in srgb,var(--cobalt) 35%,var(--line));border-radius:16px 16px 16px 4px;padding:9px 13px;font-weight:700;font-size:14px;line-height:1.35}
 .chip-hint .bubble span{font-weight:500;font-size:12.5px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.sentence.tour .chip{animation:none}}
+
+/* liveness camera */
+.facecam{display:flex;flex-direction:column;gap:12px}
+.facecam-view{position:relative;border-radius:28px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:58vh;width:100%;max-width:420px;margin:0 auto}
+.facecam-view video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.facecam-view .oval{position:absolute;inset:12% 18%;border-radius:50%;border:4px solid var(--sun);box-shadow:0 0 0 999px rgba(6,8,40,.45);transition:transform .3s}
+.facecam-view .oval.pose-left{transform:translateX(-6%)}
+.facecam-view .oval.pose-right{transform:translateX(6%)}
+.turn-arrow{position:absolute;top:44%;font-size:44px;font-weight:800;color:var(--sun);text-shadow:0 2px 12px rgba(0,0,0,.6);animation:nudge 1.1s ease-in-out infinite}
+.turn-arrow.left{left:6%}
+.turn-arrow.right{right:6%}
+@keyframes nudge{50%{transform:translateX(var(--d,0))}}
+.turn-arrow.left{--d:-10px}.turn-arrow.right{--d:10px}
+.pose-steps{display:flex;gap:10px;justify-content:center}
+.pose-steps span{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;border:2px solid var(--line);color:var(--muted)}
+.pose-steps span.now{border-color:var(--sun);color:var(--ink)}
+.pose-steps span.done{background:var(--mint);border-color:var(--mint);color:#fff}
+@media (prefers-reduced-motion:reduce){.turn-arrow{animation:none}}

@@ -322,12 +322,16 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 | WhatsApp | Mocked (outbox and an in-app preview). |
 | Paystack | Card top-ups on Paystack's checkout, with saved cards (token stored encrypted) for one-tap top-ups. The card fee is passed on and shown first (switchable). Payouts and name checks can run through Paystack (`PAYOUT_PROVIDER=paystack`). Webhooks are signature-checked, and every event is re-verified with Paystack. |
 | Sign-up | (Changed 2026-10-02.) Email → 6-digit code by email (Mailgun) → name → PIN → Face ID (optional). No ID checks at sign-up. |
-| Identity checks | Later, inside the app: NIN **or** BVN → ID photo → selfie. Required before money moves: the account number is issued on verification, card top-ups and dev top-ups are refused, and the worker skips unverified users' runs. |
+| Identity checks | (Changed 2 Oct 2026) Inside the app, before money moves: **ID photo** (Claude reads type, name, DOB, number, expiry; refuses expired, unreadable, screens/photocopies; same ID can't verify two accounts; the ID's name becomes the legal name) then **liveness**: three live-camera photos (front, left, right) in a shuffled order, camera only (no gallery). No face-to-ID match yet, so live accounts get Tier-1 limits (₦50k per drip, ₦300k balance). The Paystack BVN check was removed. |
 | Sign-in | Face ID or PIN on a known device. New device: emailed code, then PIN. |
 | Email | Mailgun, sending domain `mg.spendrip.com`. Waitlist welcome on join; invites from the admin action. |
 | Plan start and end | (2 Oct 2026) Start today or on a date; keep going, for 1–36 months, or until a date (inclusive). Pausing doesn't move the end. Finished plans release their priority and lower ones move up. The last drip's delivery email says so. Details: docs/plans/plan-start-end.md. |
 | Fees | (2 Oct 2026) ₦50 SpenDrip fee + Paystack transfer fee (₦10/₦25/₦50) + ₦50 stamp duty from ₦10,000, passed through and shown line by line. Fees ledger in admin. |
 | Payout to "me" | To your own bank account, saved as a verified recipient. |
+
+### Backlog
+- **Dojah identity checks.** Look up NIN/BVN against the government record (NIMC/NIBSS), get the official photo, and match the selfie to it (face match + liveness). This proves the person is the ID's owner, so the Tier-1 limits can go up. Keep the current ID read and three-angle liveness as the first layer. Needs a Dojah account and API keys.
+- **Liberty bank-transfer funding.** Real virtual account numbers; turn `BANK_TRANSFER_FUNDING` back on.
 
 ### Still open (none of these block Phase 0–2)
 1. **Allocation auto-refill:** on or off by default?

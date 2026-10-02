@@ -1,5 +1,7 @@
-"""Sign-up (email → code → name → PIN → Face ID), identity checks later in the app (NIN/BVN → ID → selfie),
+"""Sign-up (email → code → name → PIN → Face ID), identity checks later in the app (ID photo → three face angles),
 sign-in, unlock and passkeys."""
+import secrets
+
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.db import transaction
@@ -144,7 +146,7 @@ class SignupVerifyOtp(APIView):
 
 
 class SignupName(APIView):
-    """What should we call you? (Your legal name comes from your NIN/BVN when you verify.)"""
+    """What should we call you? (Your legal name comes from your ID when you verify.)"""
 
     def post(self, request):
         first = " ".join(str(request.data.get("first_name", "")).split())[:60]
@@ -156,10 +158,13 @@ class SignupName(APIView):
         return Response(me_json(request))
 
 
-# ------------------------------------------------------------------ verify identity (in the app, before money moves)
+# ------------------------------------------------------------------ verify identity (in the app, before money moves):
+# a photo of an ID, then three face angles in a shuffled order (liveness)
 
-KYC = "kyc"  # session key holding the looked-up NIN/BVN record until the person confirms it's them
-ID_LOOKUPS = {"nin": "lookup_nin", "bvn": "lookup_bvn"}
+LIVENESS = "liveness"  # session: the pose order asked for in this attempt
+POSES = ("front", "left", "right")
+LIVENESS_TTL_SECONDS = 600
+ID_TYPE_CODES = {"nin": "nin", "drivers_licence": "dl", "voters_card": "vc", "passport": "pp"}
 
 
 def kyc_user(request) -> User:
@@ -169,149 +174,81 @@ def kyc_user(request) -> User:
     return u
 
 
-class KycLookup(APIView):
-    def post(self, request):
-        kyc_user(request)
-        if get_kyc_provider().mode == "live":
-            raise FlowError("Verify with your BVN and your bank account.", code="use_bvn", status=409)
-        id_type = str(request.data.get("id_type", "nin")).lower()
-        if id_type not in ID_LOOKUPS:
-            raise FlowError("Choose NIN or BVN.")
-        label = id_type.upper()
-        number = "".join(c for c in str(request.data.get("number", "")) if c.isdigit())
-        if len(number) != 11:
-            raise FlowError(f"Your {label} has 11 digits.")
-        record = getattr(get_kyc_provider(), ID_LOOKUPS[id_type])(number)
-        if not record:
-            raise FlowError(f"We couldn't find that {label}. Check the 11 digits and try again.", code="id_not_found")
-        phone = acc.normalise_phone(record["phone"])
-        request.session[KYC] = {"id_type": id_type, "hash": acc.nin_fingerprint(f"{id_type}:{number}"), "last4": number[-4:],
-                                "phone": phone, "first_name": record["first_name"], "last_name": record["last_name"],
-                                "dob": record["date_of_birth"]}
-        return Response({"name": f"{record['first_name']} {record['last_name']}", "date_of_birth": record["date_of_birth"],
-                         "phone_masked": acc.mask_phone(phone)})
-
-
-class KycConfirm(APIView):
-    """The person said "Yes, that's me"."""
-
-    def post(self, request):
-        u = kyc_user(request)
-        k = request.session.get(KYC)
-        if not k:
-            raise FlowError("Enter your NIN or BVN again.", code="kyc_missing", status=409)
-        if User.objects.filter(nin_hash=k["hash"]).exclude(pk=u.pk).exists():
-            raise FlowError(f"This {k['id_type'].upper()} is already linked to another SpenDrip account.", code="id_taken", status=409)
-        if User.objects.filter(phone=k["phone"]).exclude(pk=u.pk).exists():
-            raise FlowError("The phone number on this record is already linked to another SpenDrip account.", code="id_taken", status=409)
-        u.first_name, u.last_name, u.phone = k["first_name"], k["last_name"], k["phone"]
-        u.nin_hash, u.nin_last4, u.kyc_id_type, u.kyc_status = k["hash"], k["last4"], k["id_type"], User.Kyc.NIN_VERIFIED
-        u.save()
-        KycCheck.objects.create(user=u, step=KycCheck.Step.NIN, passed=True, provider=get_kyc_provider().name,
-                                raw={"dob": k["dob"], "id_type": k["id_type"]})
-        request.session.pop(KYC, None)
-        return Response({"step": "document"})
-
-
-class KycBvn(APIView):
-    """Live mode: check the BVN with Paystack against the person's own bank account and name. The answer comes by webhook."""
-
-    def post(self, request):
-        from ledger.cards import customer_email
-        from providers import names
-        from providers.kyc_live import names_match
-        u = kyc_user(request)
-        provider = get_kyc_provider()
-        if provider.mode != "live":
-            raise FlowError("BVN checks with your bank only run in live mode.", code="not_live", status=409)
-        if u.kyc_status == User.Kyc.BVN_PENDING:
-            return Response(me_json(request))
-        d = request.data
-        bvn = "".join(c for c in str(d.get("bvn", "")) if c.isdigit())
-        first = " ".join(str(d.get("first_name", "")).split())[:60]
-        last = " ".join(str(d.get("last_name", "")).split())[:60]
-        code, number = str(d.get("nip_bank_code", "")), str(d.get("account_number", ""))
-        if len(bvn) != 11:
-            raise FlowError("Your BVN has 11 digits.")
-        if not first or not last:
-            raise FlowError("Enter your first and last name as they are on your BVN.")
-        if not (len(number) == 10 and number.isdigit()):
-            raise FlowError("Choose your bank and enter your 10-digit account number.")
-        try:
-            account_name = names.resolve(code, number).account_name
-        except names.NameCheckFailed as e:
-            raise FlowError(e.message, code=e.code, status=e.status)
-        if not names_match(first, last, account_name):
-            raise FlowError(f"That account is in the name {account_name}. Use your own account, and your name as it is on your BVN.",
-                            code="name_mismatch")
-        fingerprint = acc.nin_fingerprint(f"bvn:{bvn}")
-        if User.objects.filter(nin_hash=fingerprint).exclude(pk=u.pk).exists():
-            raise FlowError("This BVN is already linked to another SpenDrip account.", code="id_taken", status=409)
-        try:
-            if not u.paystack_customer_code:
-                u.paystack_customer_code = provider.ensure_customer(email=customer_email(u), first_name=first, last_name=last)
-                u.save(update_fields=["paystack_customer_code"])
-            provider.start_bvn_check(customer_code=u.paystack_customer_code, bvn=bvn, first_name=first, last_name=last,
-                                     nip_bank_code=code, account_number=number)
-        except ValueError as e:
-            raise FlowError(str(e), code="bvn_failed")
-        except ProviderError:
-            raise FlowError("We couldn't reach Paystack to check your BVN. Try again in a minute.", code="check_unavailable", status=503)
-        u.first_name, u.last_name = first.upper(), last.upper()
-        u.nin_hash, u.nin_last4, u.kyc_id_type = fingerprint, bvn[-4:], "bvn"
-        u.kyc_status, u.kyc_message = User.Kyc.BVN_PENDING, ""
-        u.save()
-        KycCheck.objects.create(user=u, step=KycCheck.Step.NIN, passed=False, provider="paystack", provider_ref=u.paystack_customer_code,
-                                raw={"pending": True, "nip_bank_code": code, "account_number": number, "account_name": account_name})
-        return Response(me_json(request))
-
-
-def needs_id_number(u: User) -> None:
-    if u.kyc_status in (User.Kyc.NOT_STARTED, User.Kyc.BVN_PENDING):
-        raise FlowError("Start with your NIN or BVN.", code="kyc_missing", status=409)
-
-
 class KycDocument(APIView):
     def post(self, request):
         user = kyc_user(request)
-        needs_id_number(user)
         image = request.FILES.get("image")
         id_type = request.data.get("id_type", "nin")
         if not image:
             raise FlowError("Add a photo of the front of your ID.")
         if image.size > 8 * 1024 * 1024:
             raise FlowError("That photo is too big. Use one under 8 MB.")
+        provider = get_kyc_provider()
         try:
-            result = get_kyc_provider().check_document(image.read(), id_type=id_type, expected_first=user.first_name,
-                                                       expected_last=user.last_name)
+            result = provider.check_document(image.read(), id_type=id_type)
         except (ProviderError, ValueError):
             raise FlowError("We couldn't check your ID just now. Use a JPEG or PNG photo, or try again in a minute.", code="check_unavailable", status=503)
-        KycCheck.objects.create(user=user, step=KycCheck.Step.DOCUMENT, passed=result["passed"], provider=get_kyc_provider().name,
+        number = "".join(ch for ch in str(result.pop("document_number", "")) if ch.isalnum()).upper()
+        KycCheck.objects.create(user=user, step=KycCheck.Step.DOCUMENT, passed=result["passed"], provider=provider.name,
                                 raw={"id_type": id_type, **result})
         if not result["passed"]:
             raise FlowError(result.get("message") or "We couldn't read that ID. Lay it flat in good light with all four corners showing.",
                             code="doc_unreadable")
-        user.kyc_status = User.Kyc.DOC_UPLOADED
-        user.save(update_fields=["kyc_status"])
-        return Response({"step": "selfie", "checks": result["checks"]})
+        if number:
+            fingerprint = acc.nin_fingerprint(f"doc:{result.get('document_type', '')}:{number}")
+            if User.objects.filter(nin_hash=fingerprint).exclude(pk=user.pk).exists():
+                raise FlowError("This ID is already linked to another SpenDrip account.", code="id_taken", status=409)
+            user.nin_hash, user.nin_last4 = fingerprint, number[-4:]
+        given, surname = str(result.get("given_names") or "").strip(), str(result.get("surname") or "").strip()
+        if given and surname:  # the ID's name becomes the legal name
+            user.first_name, user.last_name = given.split()[0].upper()[:60], surname.upper()[:60]
+        user.kyc_id_type = ID_TYPE_CODES.get(result.get("document_type", ""), str(id_type)[:3])
+        user.kyc_status, user.kyc_message = User.Kyc.DOC_UPLOADED, ""
+        user.save()
+        request.session.pop(LIVENESS, None)
+        return Response({"step": "liveness", "checks": result.get("checks", [])})
 
 
-class KycSelfie(APIView):
+def _doc_done(user: User) -> None:
+    if user.kyc_status != User.Kyc.DOC_UPLOADED:
+        raise FlowError("Add a photo of your ID first.", code="kyc_missing", status=409)
+
+
+class KycLivenessStart(APIView):
+    """The pose order for this attempt, shuffled so a recording can't simply be replayed."""
+
+    def post(self, request):
+        _doc_done(kyc_user(request))
+        order = list(POSES)
+        secrets.SystemRandom().shuffle(order)
+        request.session[LIVENESS] = {"order": order, "at": timezone.now().timestamp()}
+        return Response({"order": order})
+
+
+class KycLiveness(APIView):
+    """Three photos, in the order given by /kyc/liveness/start: each must be one clear, live face in the asked pose."""
+
     def post(self, request):
         user = kyc_user(request)
-        if user.kyc_status != User.Kyc.DOC_UPLOADED:
-            raise FlowError("Add a photo of your ID first.", code="kyc_missing", status=409)
-        image = request.FILES.get("image")
-        if not image:
-            raise FlowError("Take a selfie to continue.")
+        _doc_done(user)
+        ch = request.session.get(LIVENESS)
+        if not ch or timezone.now().timestamp() - ch["at"] > LIVENESS_TTL_SECONDS:
+            raise FlowError("Start the face check again.", code="liveness_expired", status=409)
+        images = [request.FILES.get(f"image_{i}") for i in range(len(ch["order"]))]
+        if not all(images):
+            raise FlowError("Take all three photos to continue.")
+        if any(img.size > 8 * 1024 * 1024 for img in images):
+            raise FlowError("One of the photos is too big. Try again.")
+        provider = get_kyc_provider()
         try:
-            result = get_kyc_provider().match_selfie(image.read())
+            result = provider.check_liveness([img.read() for img in images], ch["order"])
         except (ProviderError, ValueError):
-            raise FlowError("We couldn't check your selfie just now. Try again in a minute.", code="check_unavailable", status=503)
-        KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=result["passed"], provider=get_kyc_provider().name, raw=result)
+            raise FlowError("We couldn't check your photos just now. Try again in a minute.", code="check_unavailable", status=503)
+        KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=result["passed"], provider=provider.name,
+                                raw={"order": ch["order"], **result})
+        request.session.pop(LIVENESS, None)
         if not result["passed"]:
-            raise FlowError(result.get("message") or "Your selfie didn't match your ID. Try again in good light, looking straight at the camera.",
-                            code="face_mismatch")
+            raise FlowError(result.get("message") or "That didn't work. Try again in good light, following each step.", code="liveness_failed")
         acc.finish_verification(user)
         return Response(me_json(request))
 
