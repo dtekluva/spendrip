@@ -351,9 +351,19 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .splash{position:absolute;inset:0;z-index:80;background:var(--splash-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--splash-ink);overflow:hidden;transition:opacity .45s ease,transform .6s cubic-bezier(.7,0,.3,1)}
 .splash.out{opacity:0;transform:scale(1.08);pointer-events:none}
 .splash .stagewrap{position:relative;display:flex;flex-direction:column;align-items:center}
-.splash .fall{position:absolute;top:-34px;left:50%;width:34px;height:44px;margin-left:-17px;fill:var(--splash-drop);animation:fall .62s cubic-bezier(.55,0,.9,.45) both}
-.splash .ripple{position:absolute;top:0;left:50%;width:60px;height:22px;margin:-11px 0 0 -30px;border:3px solid var(--splash-drop);border-radius:50%;opacity:0;animation:ripple 1s ease-out .6s both}
-.splash .ripple.r2{animation-delay:.78s;border-color:color-mix(in srgb,var(--splash-ink) 55%,transparent)}
+.splash .sk-wrap{position:relative;width:84px;height:101px;display:flex;justify-content:center}
+.splash .sk-hop{width:100%;height:100%;animation:sk-hop .5s cubic-bezier(.3,0,.3,1) 1.75s both}
+.splash .sk{width:100%;height:100%;overflow:visible;animation:sk-fall .5s cubic-bezier(.55,0,.85,.4) both}
+.splash .sk-body{transform-box:view-box;transform-origin:50px 116px;animation:sk-land .62s cubic-bezier(.3,0,.3,1) .5s both}
+.splash .sk-open{animation:sk-show 2.9s steps(1) both}
+.splash .sk-happy{opacity:0;animation:sk-hide 2.9s steps(1) both}
+.splash .sk-o{opacity:0;animation:sk-early 2.9s steps(1) both}
+.splash .sk-smile{animation:sk-late 2.9s steps(1) both}
+.splash .sk-blink{transform-box:view-box;transform-origin:50px 77px;animation:sk-blink .28s ease 2.2s both}
+.splash .sk-glow{position:absolute;left:50%;bottom:-6px;width:220px;height:220px;margin-left:-110px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--splash-drop) 45%,transparent),transparent);opacity:0;transform:translateY(50%) scale(.3);animation:sk-glow 1.4s ease-out .5s both;pointer-events:none}
+.splash .ripple{position:absolute;bottom:-11px;left:50%;width:70px;height:22px;margin-left:-35px;border:3px solid var(--splash-drop);border-radius:50%;opacity:0;animation:ripple 1s ease-out .5s both}
+.splash .ripple.r2{animation-delay:.66s;border-color:color-mix(in srgb,var(--splash-ink) 55%,transparent)}
+.splash .sk-drop{position:absolute;bottom:2px;left:50%;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#FFD23F;opacity:0;animation:sk-splash .62s cubic-bezier(.2,.6,.4,1) both}
 .splash .word{font-family:var(--display);font-weight:800;font-size:46px;letter-spacing:-.035em;display:flex;margin-top:18px}
 .splash .word span{display:inline-block;animation:rise .55s cubic-bezier(.2,1.4,.4,1) both}
 .splash .word .i svg{animation:pop .5s cubic-bezier(.3,1.8,.5,1) 1.45s both;transform-origin:50% 100%}
@@ -362,7 +372,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .splash .b1{width:280px;height:280px;background:var(--hibiscus);bottom:-120px;left:-110px;animation:float 6s ease-in-out infinite}
 .splash .b2{width:200px;height:200px;background:var(--sun);top:-80px;right:-70px;animation:float 7s ease-in-out infinite reverse}
 .splash .skip{position:absolute;bottom:30px;font-size:13px;font-weight:700;color:color-mix(in srgb,var(--splash-ink) 65%,transparent)}
-@keyframes fall{0%{transform:translateY(-60vh) scaleY(1.15)}85%{transform:translateY(0) scaleY(1.1)}100%{transform:translateY(8px) scale(1.4,.2);opacity:0}}
+@keyframes sk-fall{0%{transform:translateY(-62vh) scale(.88,1.2)}97%{transform:translateY(0) scale(.9,1.16)}100%{transform:none}}
+@keyframes sk-land{0%{transform:scale(1.34,.66)}30%{transform:translateY(-22px) scale(.92,1.1)}55%{transform:translateY(-26px) scale(1)}78%{transform:scale(1.1,.9)}100%{transform:none}}
+@keyframes sk-hop{0%,100%{transform:none}45%{transform:translateY(-12px) rotate(-5deg)}}
+@keyframes sk-show{0%{opacity:1}20%{opacity:0}52%{opacity:1}}
+@keyframes sk-hide{0%{opacity:0}20%{opacity:1}52%{opacity:0}}
+@keyframes sk-early{0%{opacity:1}20%{opacity:0}}
+@keyframes sk-late{0%{opacity:0}20%{opacity:1}}
+@keyframes sk-blink{50%{transform:scaleY(.1)}}
+@keyframes sk-glow{0%{opacity:0;transform:translateY(50%) scale(.3)}25%{opacity:1}100%{opacity:0;transform:translateY(50%) scale(1.5)}}
+@keyframes sk-splash{0%{opacity:1;transform:translate(-50%,0) scale(.4)}45%{opacity:1;transform:translate(calc(-50% + var(--x)*.6),var(--h)) scale(1)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),12px) scale(.6)}}
 @keyframes ripple{0%{opacity:1;transform:scale(.2)}100%{opacity:0;transform:scale(4.2)}}
 @keyframes rise{from{opacity:0;transform:translateY(26px) scale(.8)}to{opacity:1;transform:none}}
 @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
@@ -545,6 +564,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
   .kyc-inner{max-width:560px;margin:0 auto}
   .kyc h2{font-size:32px}
   .splash .word{font-size:72px}
+  .splash .sk-wrap{width:104px;height:125px}
   .splash .tag{font-size:20px}
 }
 
