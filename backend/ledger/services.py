@@ -84,11 +84,23 @@ def post(key: str, kind: str, lines: list[tuple[str, int]], *, memo: str = "", r
     try:
         with transaction.atomic():
             tx = LedgerTransaction.objects.create(idempotency_key=key, kind=kind, memo=memo, run=run)
-            accounts = {a.code: a for a in LedgerAccount.objects.filter(code__in=[c for c, _ in lines])}
-            missing = {c for c, _ in lines} - accounts.keys()
+            # Lock every account this posting touches (in a fixed order, so two postings can't deadlock),
+            # then record each entry's balance before and after.
+            codes = sorted({c for c, _ in lines})
+            accounts = {a.code: a for a in LedgerAccount.objects.select_for_update().filter(code__in=codes).order_by("code")}
+            missing = set(codes) - accounts.keys()
             if missing:
                 raise LedgerError(f"{key}: unknown accounts {sorted(missing)}")
-            LedgerEntry.objects.bulk_create([LedgerEntry(transaction=tx, account=accounts[c], amount_kobo=a) for c, a in lines])
+            entries = []
+            for c, a in lines:
+                acct = accounts[c]
+                before = acct.balance_kobo
+                acct.balance_kobo = before + a
+                entries.append(LedgerEntry(transaction=tx, account=acct, amount_kobo=a, balance_before_kobo=before,
+                                           balance_after_kobo=acct.balance_kobo))
+            LedgerEntry.objects.bulk_create(entries)
+            for acct in accounts.values():
+                LedgerAccount.objects.filter(pk=acct.pk).update(balance_kobo=acct.balance_kobo)
             return tx, True
     except IntegrityError:
         # Another process posted the same key at the same moment.
@@ -184,6 +196,12 @@ def release(user, run) -> bool:
     _, created = post(f"release:{run.pk}", "release", [(held_code(user.pk), -run.cost_kobo), (wallet_code(user.pk), run.cost_kobo)],
                       run=run, memo=f"{run.plan.label} returned")
     return created
+
+
+def unreconciled_accounts() -> list[str]:
+    """Accounts whose running balance doesn't match the sum of their entries. Should always be empty."""
+    sums = dict(LedgerEntry.objects.values_list("account__code").annotate(s=Sum("amount_kobo")))
+    return [a.code for a in LedgerAccount.objects.all() if a.balance_kobo != int(sums.get(a.code) or 0)]
 
 
 def trial_balance() -> int:

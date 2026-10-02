@@ -24,6 +24,8 @@ class LedgerAccount(models.Model):
     code = models.CharField(max_length=80, unique=True)
     kind = models.CharField(max_length=10, choices=Kind.choices)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="ledger_accounts")
+    # Running balance, moved only by ledger.services.post() under a row lock. Always equals the sum of its entries.
+    balance_kobo = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -45,9 +47,13 @@ class LedgerEntry(models.Model):
     transaction = models.ForeignKey(LedgerTransaction, on_delete=models.PROTECT, related_name="entries")
     account = models.ForeignKey(LedgerAccount, on_delete=models.PROTECT, related_name="entries")
     amount_kobo = models.BigIntegerField()
+    # The account's balance just before and just after this entry, recorded when it was posted.
+    balance_before_kobo = models.BigIntegerField(null=True)
+    balance_after_kobo = models.BigIntegerField(null=True)
 
     class Meta:
         indexes = [models.Index(fields=["account"])]
+        verbose_name_plural = "ledger entries"
 
     def save(self, *args, **kwargs):
         if self.pk:

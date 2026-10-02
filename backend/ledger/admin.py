@@ -1,25 +1,159 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import FundingAccount, Inflow, LedgerAccount, LedgerEntry, LedgerTransaction
+
+
+def naira(kobo):
+    if kobo is None:
+        return "—"
+    sign = "−" if kobo < 0 else ""
+    return f"{sign}₦{abs(kobo) / 100:,.2f}"
 
 
 class EntryInline(admin.TabularInline):
     model = LedgerEntry
     extra = 0
     can_delete = False
-    readonly_fields = ("account", "amount_kobo")
+    fields = ("account", "amount", "before", "after")
+    readonly_fields = fields
+
+    @admin.display(description="Amount")
+    def amount(self, obj):
+        return naira(obj.amount_kobo)
+
+    @admin.display(description="Balance before")
+    def before(self, obj):
+        return naira(obj.balance_before_kobo)
+
+    @admin.display(description="Balance after")
+    def after(self, obj):
+        return naira(obj.balance_after_kobo)
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LedgerTransaction)
 class LedgerTransactionAdmin(admin.ModelAdmin):
-    list_display = ("idempotency_key", "kind", "created_at")
+    """Each posting, with the user's wallet before and after it."""
+
+    list_display = ("created_at", "kind", "memo", "who", "user_account", "wallet_change", "wallet_before", "wallet_after", "idempotency_key")
+    list_filter = ("kind", ("created_at", admin.DateFieldListFilter))
+    search_fields = ("idempotency_key", "memo", "entries__account__user__email")
+    date_hierarchy = "created_at"
     inlines = [EntryInline]
+
+    def _wallet_entry(self, obj):
+        if not hasattr(obj, "_wallet"):
+            obj._wallet = next((e for e in obj.entries.select_related("account__user").all() if e.account.kind in ("wallet", "held")
+                                and e.account.code.startswith("wallet:")), None) or \
+                next((e for e in obj.entries.select_related("account__user").all() if e.account.user_id), None)
+        return obj._wallet
+
+    @admin.display(description="User")
+    def who(self, obj):
+        e = self._wallet_entry(obj)
+        return (e.account.user.email or e.account.user.username) if e and e.account.user else "—"
+
+    @admin.display(description="Account")
+    def user_account(self, obj):
+        e = self._wallet_entry(obj)
+        if not e:
+            return "—"
+        return {"wallet": "Balance", "held": "Set aside"}.get(e.account.kind, e.account.code)
+
+    @admin.display(description="Change")
+    def wallet_change(self, obj):
+        e = self._wallet_entry(obj)
+        return naira(e.amount_kobo) if e else "—"
+
+    @admin.display(description="Before")
+    def wallet_before(self, obj):
+        e = self._wallet_entry(obj)
+        return naira(e.balance_before_kobo) if e else "—"
+
+    @admin.display(description="After")
+    def wallet_after(self, obj):
+        e = self._wallet_entry(obj)
+        return naira(e.balance_after_kobo) if e else "—"
 
     def has_change_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        return False
 
-admin.site.register(LedgerAccount)
+
+@admin.register(LedgerEntry)
+class LedgerEntryAdmin(admin.ModelAdmin):
+    """A statement: filter by account to see every movement with the running balance."""
+
+    list_display = ("posted", "account", "posting", "memo", "amount", "before", "after")
+    list_filter = ("account__kind", "transaction__kind")
+    search_fields = ("account__code", "account__user__email", "transaction__idempotency_key", "transaction__memo")
+    list_select_related = ("account", "transaction")
+    ordering = ("-transaction__created_at", "-id")
+
+    @admin.display(description="Posted", ordering="transaction__created_at")
+    def posted(self, obj):
+        return obj.transaction.created_at
+
+    @admin.display(description="Posting")
+    def posting(self, obj):
+        url = reverse("admin:ledger_ledgertransaction_change", args=[obj.transaction_id])
+        return format_html('<a href="{}">{}</a>', url, obj.transaction.idempotency_key)
+
+    @admin.display(description="Memo")
+    def memo(self, obj):
+        return obj.transaction.memo
+
+    @admin.display(description="Amount", ordering="amount_kobo")
+    def amount(self, obj):
+        return naira(obj.amount_kobo)
+
+    @admin.display(description="Balance before")
+    def before(self, obj):
+        return naira(obj.balance_before_kobo)
+
+    @admin.display(description="Balance after")
+    def after(self, obj):
+        return naira(obj.balance_after_kobo)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LedgerAccount)
+class LedgerAccountAdmin(admin.ModelAdmin):
+    list_display = ("code", "kind", "user", "balance", "statement")
+    list_filter = ("kind",)
+    search_fields = ("code", "user__email")
+    readonly_fields = ("code", "kind", "user", "balance_kobo", "created_at")
+
+    @admin.display(description="Balance", ordering="balance_kobo")
+    def balance(self, obj):
+        return naira(obj.balance_kobo)
+
+    @admin.display(description="")
+    def statement(self, obj):
+        url = reverse("admin:ledger_ledgerentry_changelist") + f"?account__id__exact={obj.pk}"
+        return format_html('<a href="{}">Statement →</a>', url)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 admin.site.register(FundingAccount)
 admin.site.register(Inflow)
 
@@ -30,8 +164,6 @@ import csv  # noqa: E402
 
 from django.db.models import Count, Sum  # noqa: E402
 from django.http import HttpResponse  # noqa: E402
-from django.urls import reverse  # noqa: E402
-from django.utils.html import format_html  # noqa: E402
 
 from .models import CardCharge, FeeLine  # noqa: E402
 

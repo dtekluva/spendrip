@@ -87,3 +87,13 @@ def test_two_runs_at_once_cannot_spend_the_same_naira(user, top_up, recipients, 
     [t.join() for t in threads]
     assert sorted(results) == ["insufficient", "ok"]
     assert ledger.balance(user).available_kobo == naira(950)
+
+
+def test_every_entry_records_balance_before_and_after(user, top_up):
+    from ledger import services as L
+    from ledger.models import LedgerEntry
+    top_up(10_000)
+    top_up(2_500)
+    w = list(LedgerEntry.objects.filter(account__code=L.wallet_code(user.pk)).order_by("id"))
+    assert [(e.balance_before_kobo, e.amount_kobo, e.balance_after_kobo) for e in w] == [(0, 1_000_000, 1_000_000), (1_000_000, 250_000, 1_250_000)]
+    assert L.unreconciled_accounts() == []
