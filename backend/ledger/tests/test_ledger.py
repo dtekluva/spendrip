@@ -97,3 +97,19 @@ def test_every_entry_records_balance_before_and_after(user, top_up):
     w = list(LedgerEntry.objects.filter(account__code=L.wallet_code(user.pk)).order_by("id"))
     assert [(e.balance_before_kobo, e.amount_kobo, e.balance_after_kobo) for e in w] == [(0, 1_000_000, 1_000_000), (1_000_000, 250_000, 1_250_000)]
     assert L.unreconciled_accounts() == []
+
+
+def test_statement_csv_export_follows_filters(user, top_up, admin_client):
+    from ledger import services as L
+    from ledger.models import LedgerAccount
+    top_up(10_000)
+    top_up(2_500)
+    wallet = LedgerAccount.objects.get(code=L.wallet_code(user.pk))
+    r = admin_client.get(f"/admin/ledger/ledgerentry/export/?account__id__exact={wallet.pk}")
+    assert r.status_code == 200 and r["Content-Type"] == "text/csv"
+    assert f"statement-wallet-{user.pk}-" in r["Content-Disposition"]
+    rows = b"".join(r.streaming_content).decode().strip().splitlines()
+    assert rows[0].startswith("posted_at,account,") and len(rows) == 3
+    assert rows[1].endswith(",10000.00,0.00,10000.00") and rows[2].endswith(",2500.00,10000.00,12500.00")
+    page = admin_client.get(f"/admin/ledger/ledgerentry/?account__id__exact={wallet.pk}")
+    assert b"Download CSV" in page.content and b"of the 2 entries" in page.content

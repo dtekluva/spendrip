@@ -1,5 +1,9 @@
+import csv
+
 from django.contrib import admin
-from django.urls import reverse
+from django.http import StreamingHttpResponse
+from django.urls import path, reverse
+from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import FundingAccount, Inflow, LedgerAccount, LedgerEntry, LedgerTransaction
@@ -95,6 +99,56 @@ class LedgerEntryAdmin(admin.ModelAdmin):
     search_fields = ("account__code", "account__user__email", "transaction__idempotency_key", "transaction__memo")
     list_select_related = ("account", "transaction")
     ordering = ("-transaction__created_at", "-id")
+    actions = ["export_csv"]
+
+    CSV_HEADER = ["posted_at", "account", "account_kind", "user_email", "posting_key", "posting_kind", "memo", "run_id",
+                  "amount_naira", "balance_before_naira", "balance_after_naira"]
+
+    @staticmethod
+    def _n(kobo):
+        return "" if kobo is None else f"{kobo / 100:.2f}"
+
+    def _csv_response(self, queryset, name):
+        class Echo:
+            def write(self, value):
+                return value
+        w = csv.writer(Echo())
+
+        def rows():
+            yield w.writerow(self.CSV_HEADER)
+            qs = queryset.select_related("account__user", "transaction").order_by("transaction__created_at", "id")
+            for e in qs.iterator(chunk_size=2000):
+                u = e.account.user
+                yield w.writerow([e.transaction.created_at.isoformat(), e.account.code, e.account.kind, (u.email or u.username) if u else "",
+                                  e.transaction.idempotency_key, e.transaction.kind, e.transaction.memo, e.transaction.run_id or "",
+                                  self._n(e.amount_kobo), self._n(e.balance_before_kobo), self._n(e.balance_after_kobo)])
+        resp = StreamingHttpResponse(rows(), content_type="text/csv")
+        resp["Content-Disposition"] = f'attachment; filename="{name}-{timezone.now():%Y%m%d-%H%M}.csv"'
+        return resp
+
+    @admin.action(description="Export selected entries as CSV")
+    def export_csv(self, request, queryset):
+        return self._csv_response(queryset, "spendrip-ledger")
+
+    def get_urls(self):
+        return [path("export/", self.admin_site.admin_view(self.export_view), name="ledger_ledgerentry_export")] + super().get_urls()
+
+    def export_view(self, request):
+        """Everything matching the filters and search currently applied to the statement."""
+        cl = self.get_changelist_instance(request)
+        account = request.GET.get("account__id__exact")
+        code = LedgerAccount.objects.filter(pk=account).values_list("code", flat=True).first() if account else None
+        return self._csv_response(cl.get_queryset(request), f"statement-{code.replace(':', '-')}" if code else "spendrip-ledger")
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context)
+        try:
+            n = response.context_data["cl"].result_count
+        except (AttributeError, KeyError):
+            return response
+        url = reverse("admin:ledger_ledgerentry_export") + (f"?{request.GET.urlencode()}" if request.GET else "")
+        self.message_user(request, format_html('<a href="{}"><b>Download CSV</b></a> of the {} entries in this view.', url, n))
+        return response
 
     @admin.display(description="Posted", ordering="transaction__created_at")
     def posted(self, obj):
