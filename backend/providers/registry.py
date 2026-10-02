@@ -65,3 +65,14 @@ def get_messenger():
 def get_kyc_provider():
     from .mock import MockKycProvider
     return MockKycProvider()
+
+
+def get_name_checker():
+    """Who answers "whose account is this?". The live-key Paystack checker when PAYSTACK_LIVE_NAME_CHECKS
+    is on, otherwise the payout provider."""
+    c = settings.PAYSTACK
+    if c.get("NAME_CHECK_SECRET_KEY"):
+        from .paystack import PaystackClient, PaystackNameChecker
+        return PaystackNameChecker(PaystackClient(secret_key=c["NAME_CHECK_SECRET_KEY"], base_url=c["BASE_URL"],
+                                                  timeout=c["TIMEOUT_SECONDS"]))
+    return get_payout_provider()

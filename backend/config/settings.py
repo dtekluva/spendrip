@@ -153,8 +153,18 @@ else:
     if _ps_secret.startswith("sk_live_"):
         _ps_secret = ""  # a live key put under the TEST_ name is ignored, never used
 
+# Account name checks can use the LIVE key even while everything else is in test mode: /bank/resolve only
+# reads a name and moves no money, and test mode allows just 3 real-bank checks a day. The live key is then
+# held by a checker that can do nothing but name lookups (providers.paystack.PaystackNameChecker).
+_live_names = env_bool("PAYSTACK_LIVE_NAME_CHECKS", False)
+_name_key = env("PAYSTACK_SECRET_KEY", "") if _live_names else ""
+if _live_names and not _name_key.startswith("sk_live_"):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("PAYSTACK_LIVE_NAME_CHECKS=true needs a live PAYSTACK_SECRET_KEY (sk_live_…).")
+
 PAYSTACK = {
     "MODE": PAYSTACK_MODE,
+    "NAME_CHECK_SECRET_KEY": _name_key,  # set only when name checks run live
     "SECRET_KEY": _ps_secret,  # never sent to the browser
     "PUBLIC_KEY": _ps_public,
     "BASE_URL": env("PAYSTACK_BASE_URL", "https://api.paystack.co"),

@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from .base import NameEnquiryError, ProviderError
 from .models import ResolvedAccount
-from .registry import get_payout_provider
+from .registry import get_name_checker
 
 log = logging.getLogger(__name__)
 REMEMBER_FOR = timedelta(days=30)
@@ -29,7 +29,8 @@ class NameCheckFailed(Exception):
 
 
 def _test_mode() -> bool:
-    return settings.SPENDRIP["DEV_TOOLS"] and getattr(settings, "PAYSTACK", {}).get("MODE") != "live"
+    ps = getattr(settings, "PAYSTACK", {})
+    return settings.SPENDRIP["DEV_TOOLS"] and ps.get("MODE") != "live" and not ps.get("NAME_CHECK_SECRET_KEY")
 
 
 def resolve(nip_bank_code: str, account_number: str) -> Name:
@@ -37,7 +38,7 @@ def resolve(nip_bank_code: str, account_number: str) -> Name:
                                            resolved_at__gte=timezone.now() - REMEMBER_FOR).first()
     if known:
         return Name(known.account_name)
-    provider = get_payout_provider()
+    provider = get_name_checker()
     try:
         r = provider.name_enquiry(nip_bank_code, account_number)
     except NameEnquiryError as e:

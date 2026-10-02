@@ -21,7 +21,7 @@ class Fake:
 def use(monkeypatch):
     def _use(outcome):
         f = Fake(outcome)
-        monkeypatch.setattr(names, "get_payout_provider", lambda: f)
+        monkeypatch.setattr(names, "get_name_checker", lambda: f)
         return f
     return _use
 
@@ -74,3 +74,13 @@ def dev_user_client(user):
     s["unlocked_at"] = s["last_seen"] = time.time()
     s.save()
     return c
+
+
+def test_live_name_checker_can_only_look_up_names(settings):
+    from providers import registry
+    from providers.paystack import PaystackNameChecker
+    settings.PAYSTACK = {**settings.PAYSTACK, "NAME_CHECK_SECRET_KEY": "sk_live_x"}
+    checker = registry.get_name_checker()
+    assert isinstance(checker, PaystackNameChecker)
+    assert not any(hasattr(checker, m) for m in ("transfer", "create_recipient", "query_transfer", "charge"))
+    assert registry.get_payout_provider() is not checker

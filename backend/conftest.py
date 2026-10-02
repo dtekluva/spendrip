@@ -18,7 +18,7 @@ def offline_providers(settings):
     from providers import registry
 
     settings.SPENDRIP = {**settings.SPENDRIP, "PAYMENT_PROVIDER": "mock", "PAYOUT_PROVIDER": ""}
-    settings.PAYSTACK = {**settings.PAYSTACK, "SECRET_KEY": "", "PUBLIC_KEY": ""}
+    settings.PAYSTACK = {**settings.PAYSTACK, "SECRET_KEY": "", "PUBLIC_KEY": "", "NAME_CHECK_SECRET_KEY": ""}
     for f in (registry.get_payment_provider, registry.get_payout_provider, registry.get_card_gateway):
         f.cache_clear()
     yield

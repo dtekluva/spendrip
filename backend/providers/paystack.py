@@ -87,6 +87,19 @@ class PaystackClient:
 
 # ---------------------------------------------------------------- payouts + name checks
 
+class PaystackNameChecker:
+    """Account name lookups only. Used with the live key while payouts and cards stay in test mode,
+    so on purpose it has no way to charge, register recipients or transfer."""
+
+    name = "paystack-live-names"
+
+    def __init__(self, client: PaystackClient):
+        self._p = PaystackProvider(client)
+
+    def name_enquiry(self, bank_code, account_number):
+        return self._p.name_enquiry(bank_code, account_number)
+
+
 class PaystackProvider:
     """Payout provider. Funding accounts (account numbers) still come from the accounts provider (Liberty)."""
 
