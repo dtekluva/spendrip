@@ -18,6 +18,7 @@ import Activity from './screens/Activity';
 import Profile from './screens/Profile';
 import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
+import Verify from './screens/Verify';
 
 const SEEN = 'sd-seen-splash';
 const seenBefore = () => { try { return localStorage.getItem(SEEN) === '1'; } catch { return false; } };
@@ -34,11 +35,11 @@ export default function App() {
   const boot = useCallback(() => refreshMe().catch((e) => setBootError(e.message)), [refreshMe]);
   useEffect(() => { boot(); return onAuthProblem(() => { refreshMe().catch(() => {}); }); }, [boot, refreshMe]);
 
-  const ready = !!me?.signed_in && !me.locked && !!me.user?.has_pin && !inSignup;
+  const ready = !!me?.signed_in && !me.locked && !!me.user?.has_pin && !!me.user?.has_name && !inSignup;
   useEffect(() => { if (ready) reload().catch(() => {}); }, [ready, reload]);
   useEffect(() => { if (me?.signup?.step) { setFlow('signup'); setInSignup(true); } }, [me?.signup?.step]);
-  // Signed in but no PIN yet (e.g. the app was reopened mid sign-up): finish PIN → Face ID → done before entering the app.
-  useEffect(() => { if (me?.signed_in && me.user && !me.user.has_pin) setInSignup(true); }, [me?.signed_in, me?.user?.has_pin]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Signed in but no name or PIN yet (e.g. the app was reopened mid sign-up): finish those before entering the app.
+  useEffect(() => { if (me?.signed_in && me.user && (!me.user.has_pin || !me.user.has_name)) setInSignup(true); }, [me?.signed_in, me?.user?.has_pin, me?.user?.has_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endSplash = useCallback(() => { setSplash(false); try { localStorage.setItem(SEEN, '1'); } catch { /* ignore */ } }, []);
   const signedIn = (m: Me) => { setMe(m); setFlow('welcome'); nav('/'); };
@@ -51,8 +52,8 @@ export default function App() {
     if (flow === 'signup') return <Signup onExit={() => setFlow('welcome')} onFinished={() => {}} />;
     return <Welcome onCreate={() => { setInSignup(true); setFlow('signup'); }} onSignIn={() => setFlow('signin')} />;
   }
-  if (inSignup || !me.user?.has_pin) {
-    return <Signup onExit={() => {}} onFinished={(to) => { setInSignup(false); nav(to === 'new' ? '/plans/new' : '/'); }} />;
+  if (inSignup || !me.user?.has_pin || !me.user?.has_name) {
+    return <Signup onExit={() => {}} onFinished={(to) => { setInSignup(false); nav(to === 'new' ? '/plans/new' : to === 'verify' ? '/verify' : '/'); }} />;
   }
   if (me.locked) {
     if (flow === 'forgot') return <SignIn forgot onBack={() => setFlow('welcome')} onDone={signedIn} />;
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="/activity" element={<Activity />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/kobo" element={<KoboGallery />} />
+            <Route path="/verify" element={<Verify />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </section>

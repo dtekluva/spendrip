@@ -21,7 +21,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         user, created = User.objects.get_or_create(
             username="demo",
-            defaults={"first_name": "ADAEZE", "last_name": "OKONKWO", "phone": "08031234417", "email": "demo@spendrip.local",
+            defaults={"first_name": "ADAEZE", "last_name": "OKONKWO", "phone": "08031234417", "email": "demo@spendrip.com",
                       "kyc_status": User.Kyc.VERIFIED, "nin_last4": "8901", "nin_hash": "demo-seed",
                       "is_staff": True, "is_superuser": True},
         )
@@ -29,6 +29,9 @@ class Command(BaseCommand):
             user.set_password("demo")  # dev only: lets you into /admin as demo/demo
             user.set_pin("2580")
             user.save()
+        if not user.email:  # demo users from before email sign-in
+            user.email = "demo@spendrip.com"
+            user.save(update_fields=["email"])
         ledger.ensure_user_accounts(user)
 
         provider = get_payment_provider()
@@ -68,5 +71,5 @@ class Command(BaseCommand):
         materialise_runs(timezone.now())
         bal = ledger.balance(user)
         self.stdout.write(self.style.SUCCESS(
-            f"Demo user ready: phone 08031234417 · PIN 2580 · admin login demo/demo · balance ₦{bal.available_kobo // 100:,} · "
+            f"Demo user ready: email demo@spendrip.com · PIN 2580 · admin login demo/demo · balance ₦{bal.available_kobo // 100:,} · "
             f"account {user.funding_accounts.first().account_number}"))

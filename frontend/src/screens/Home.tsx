@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
 import { openAppearance } from './Appearance';
+import { VerifyCard } from './Verify';
 
 export default function Home() {
   const store = useStore();
@@ -61,6 +62,7 @@ export default function Home() {
           {summary.balance.held_kobo > 0 && <p className="small" style={{ margin: '8px 0 0', color: 'var(--hero-muted)' }}>{N(summary.balance.held_kobo)} is on its way to someone right now.</p>}
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
+        <VerifyCard />
         {summary.paused_all ? (
           <div className="paused-banner"><span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Kobo mood="sleep" size={40} />All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>
         ) : shorts.length ? (

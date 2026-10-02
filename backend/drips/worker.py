@@ -81,6 +81,9 @@ class Worker:
         if plan.status != Plan.Status.ACTIVE or user.paused_all:
             self._set(run, Run.Status.SKIPPED_PAUSED)
             return
+        if not user.is_verified:  # money only moves once identity is verified
+            self._set(run, Run.Status.SKIPPED_PAUSED, last_error="not_verified")
+            return
         if now - run.scheduled_for > timedelta(hours=self.cfg["LATE_SEND_WINDOW_HOURS"]):
             self._set(run, Run.Status.MISSED)
             self._tell_self(run, "missed", copy.self_missed(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo))

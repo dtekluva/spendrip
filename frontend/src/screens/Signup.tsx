@@ -6,40 +6,35 @@ import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
 import Kobo from '../components/Kobo';
 
-type Step = 'nin' | 'document' | 'selfie' | 'otp' | 'pin' | 'face' | 'done';
-const KYC: Step[] = ['nin', 'document', 'selfie'];
-const SEC: Step[] = ['otp', 'pin', 'face'];
-const ID_TYPES = [['nin', 'NIN slip / ID card'], ['dl', "Driver's licence"], ['vc', "Voter's card"], ['pp', 'Passport']] as const;
+/** Sign-up: email → code → name → PIN → Face ID. Identity checks come later, from inside the app (see Verify). */
+type Step = 'email' | 'code' | 'name' | 'pin' | 'face' | 'done';
+const ACCOUNT: Step[] = ['email', 'code', 'name'];
+const SEC: Step[] = ['pin', 'face'];
 const WEAK = new Set(['0000', '1111', '1234', '4321', '1212', '2222', '9999']);
-const fmtNin = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/^(\d{3})(\d{0,4})(\d{0,4}).*/, (_, a, b, c) => [a, b, c].filter(Boolean).join(' '));
+export const looksLikeEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 
 function startStep(me: Me | null): Step {
+  if (me?.signed_in && me.user && !me.user.has_name) return 'name';
   if (me?.signed_in && !me.user?.has_pin) return 'pin';
-  const s = me?.signup?.step;
-  return s === 'document' ? 'document' : s === 'selfie' ? 'selfie' : s === 'otp' ? 'otp' : 'nin';
+  return me?.signup?.step === 'code' ? 'code' : 'email';
 }
 
-export default function Signup({ onExit, onFinished }: { onExit: () => void; onFinished: (goTo: 'home' | 'new') => void }) {
+export default function Signup({ onExit, onFinished }: { onExit: () => void; onFinished: (goTo: 'home' | 'new' | 'verify') => void }) {
   const { me, setMe, refreshMe, confetti, toast } = useStore();
   const [step, setStep] = useState<Step>(() => startStep(me));
-  const [phoneMasked, setPhoneMasked] = useState(me?.signup?.phone_masked ?? '');
+  const [emailMasked, setEmailMasked] = useState(me?.signup?.email_masked ?? '');
   const [devCode, setDevCode] = useState('');
-  const dev = !!me?.dev_tools;
 
-  const back = () => {
-    const order: Step[] = ['nin', 'document', 'selfie'];
-    const i = order.indexOf(step);
-    if (i > 0) setStep(order[i - 1]!); else onExit();
-  };
+  const back = () => (step === 'code' ? setStep('email') : onExit());
   const header = (canBack: boolean) => (
     <>
       <div className="kyc-top">
         {canBack ? <button className="icon-btn" aria-label="Back" onClick={back}>{Icon.back}</button> : <Wordmark />}
         <span className="small muted" style={{ fontWeight: 700 }}>
-          {KYC.includes(step) ? `Step ${KYC.indexOf(step) + 1} of 3` : SEC.includes(step) ? 'Secure your account' : ''}
+          {ACCOUNT.includes(step) ? `Step ${ACCOUNT.indexOf(step) + 1} of 3` : SEC.includes(step) ? 'Secure your account' : ''}
         </span>
       </div>
-      {KYC.includes(step) && <div className="kyc-prog">{KYC.map((s, i) => <i key={s} className={i <= KYC.indexOf(step) ? 'on' : ''} />)}</div>}
+      {ACCOUNT.includes(step) && <div className="kyc-prog">{ACCOUNT.map((s, i) => <i key={s} className={i <= ACCOUNT.indexOf(step) ? 'on' : ''} />)}</div>}
       {SEC.includes(step) && <div className="kyc-prog">{SEC.map((s, i) => <i key={s} className={i <= SEC.indexOf(step) ? 'on' : ''} />)}</div>}
     </>
   );
@@ -47,11 +42,10 @@ export default function Signup({ onExit, onFinished }: { onExit: () => void; onF
   return (
     <div className="kyc">
       <div className="kyc-inner" key={step}>
-        {step === 'nin' && <NinStep header={header(true)} onNext={() => setStep('document')} />}
-        {step === 'document' && <DocStep header={header(true)} dev={dev} onNext={() => setStep('selfie')} />}
-        {step === 'selfie' && <SelfieStep header={header(true)} dev={dev} onNext={(masked, code) => { setPhoneMasked(masked); setDevCode(code ?? ''); setStep('otp'); }} />}
-        {step === 'otp' && <OtpStep header={header(false)} phoneMasked={phoneMasked} devCode={devCode} setDevCode={setDevCode}
-          onNext={(m) => { setMe(m); setStep('pin'); }} />}
+        {step === 'email' && <EmailStep header={header(true)} onNext={(masked, code) => { setEmailMasked(masked); setDevCode(code ?? ''); setStep('code'); }} />}
+        {step === 'code' && <OtpStep header={header(true)} emailMasked={emailMasked} devCode={devCode} setDevCode={setDevCode}
+          onNext={(m) => { setMe(m); setStep(m.user?.has_name ? 'pin' : 'name'); }} />}
+        {step === 'name' && <NameStep header={header(false)} onNext={(m) => { setMe(m); setStep('pin'); }} />}
         {step === 'pin' && <PinStep header={header(false)} onNext={(m) => { setMe(m); setStep(passkeysSupported() ? 'face' : 'done'); if (!passkeysSupported()) confetti(); }} />}
         {step === 'face' && <FaceStep header={header(false)} onNext={async (on) => { await refreshMe(); if (on) toast('Face ID is on'); setStep('done'); confetti(); }} />}
         {step === 'done' && <DoneStep header={header(false)} onGo={onFinished} />}
@@ -60,159 +54,56 @@ export default function Signup({ onExit, onFinished }: { onExit: () => void; onF
   );
 }
 
-/* ---------------- step 1: NIN ---------------- */
-function NinStep({ header, onNext }: { header: React.ReactNode; onNext: () => void }) {
-  const [nin, setNin] = useState('');
-  const [found, setFound] = useState<{ name: string; date_of_birth: string; phone_masked: string } | null>(null);
+/* ---------------- step 1: email ---------------- */
+function EmailStep({ header, onNext }: { header: React.ReactNode; onNext: (masked: string, devCode?: string) => void }) {
+  const [email, setEmail] = useState('');
   const { busy, error, setError, run } = useAction();
-  const digits = nin.replace(/\D/g, '');
-  const check = () => run(async () => setFound(await api.post('/signup/nin', { nin: digits })));
-  const confirm = () => run(async () => { await api.post('/signup/confirm'); onNext(); });
-  const initials = found?.name.split(' ').map((w) => w[0]).join('').slice(0, 2);
-  const dob = found ? new Date(found.date_of_birth).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const ok = looksLikeEmail(email);
+  const start = () => ok && run(async () => {
+    try { const r = await api.post<any>('/signup/start', { email }); onNext(r.email_masked, r.dev_code); }
+    catch (e: any) { if (e.code === 'otp_wait') { onNext(email.trim().toLowerCase()); return; } throw e; }
+  });
   return (
     <>
       {header}
-      <h2>What's your NIN?</h2>
-      <p className="lead">Your 11-digit National Identification Number. We use it to check it's really you.</p>
-      <input className="nin-input" inputMode="numeric" autoComplete="off" placeholder="000 0000 0000" aria-label="NIN" autoFocus
-        value={fmtNin(nin)} readOnly={!!found} onChange={(e) => { setNin(e.target.value); setError(''); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' && digits.length === 11 && !found) check(); }} />
-      {!found && !busy && <p className="small muted" style={{ margin: '-6px 0 0', textAlign: 'center' }}>Don't know it? Dial <b>*346#</b> from the phone number linked to your NIN.</p>}
-      {busy && !found && <Spinner label="Checking your NIN…" />}
+      <h2>What's your email?</h2>
+      <p className="lead">We'll send you a 6-digit code to confirm it. You'll use this email to sign in.</p>
+      <div className="field"><label htmlFor="em">Email</label>
+        <input id="em" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" placeholder="you@example.com" value={email} autoFocus
+          onChange={(e) => { setEmail(e.target.value); setError(''); }} onKeyDown={(e) => e.key === 'Enter' && start()} /></div>
+      {busy && <Spinner label="Sending your code…" />}
       {error && <div className="error-card">{error}</div>}
-      {found && (
-        <div className="found">
-          <div className="who"><span className="av">{initials}</span>
-            <div><div className="eyebrow" style={{ color: 'var(--mint)' }}>We found you</div><b style={{ fontSize: 17 }}>{found.name}</b>
-              <div className="small muted">Born {dob} · Phone {found.phone_masked}</div></div></div>
-          <b>Is this you?</b>
-        </div>
-      )}
       <div className="kyc-actions">
-        {found ? (
-          <>
-            <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={busy} onClick={confirm}>Yes, that's me</button>
-            <button className="btn btn-soft btn-block" onClick={() => { setFound(null); setNin(''); }}>No, let me re-enter it</button>
-          </>
-        ) : (
-          <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={digits.length !== 11 || busy} onClick={check}>Check my NIN</button>
-        )}
-        <div className="lockline"><span>🔒</span><span>Your NIN is encrypted. We only use it to verify you, and the people you send money to never see it.</span></div>
+        <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ok || busy} onClick={start}>Email me a code</button>
+        <div className="lockline"><span>🔒</span><span>No spam. We only email you about your account and your drips.</span></div>
       </div>
     </>
   );
 }
 
-/* ---------------- photos ---------------- */
-function sampleBlob(kind: 'id' | 'selfie'): Promise<Blob> {
-  const c = document.createElement('canvas');
-  const x = c.getContext('2d')!;
-  if (kind === 'id') {
-    c.width = 640; c.height = 404;
-    x.fillStyle = '#E8F3EC'; x.fillRect(0, 0, 640, 404); x.fillStyle = '#0E7A4B'; x.fillRect(0, 0, 640, 70);
-    x.fillStyle = '#fff'; x.font = 'bold 26px sans-serif'; x.fillText('NATIONAL IDENTITY CARD (SAMPLE)', 26, 45);
-    x.fillStyle = '#C9D9CF'; x.fillRect(30, 100, 170, 210);
-    x.fillStyle = '#33473C'; x.font = 'bold 22px sans-serif'; x.fillText('OKONKWO ADAEZE', 230, 150); x.fillText('14 MAR 1994', 230, 210);
-  } else {
-    c.width = c.height = 400;
-    x.fillStyle = '#FFD9A0'; x.fillRect(0, 0, 400, 400); x.fillStyle = '#7A4A2A';
-    x.beginPath(); x.arc(200, 170, 92, 0, Math.PI * 2); x.fill(); x.beginPath(); x.ellipse(200, 420, 150, 120, 0, 0, Math.PI * 2); x.fill();
-  }
-  return new Promise((r) => c.toBlob((b) => r(b!), 'image/jpeg', 0.85));
-}
-
-function useUpload(path: string, extra: Record<string, string> = {}) {
-  const [preview, setPreview] = useState('');
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const take = (b: Blob) => { setBlob(b); setPreview(URL.createObjectURL(b)); };
-  const send = async () => {
-    const fd = new FormData();
-    fd.append('image', blob!, 'photo.jpg');
-    Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
-    return api.post<any>(path, fd);
-  };
-  return { preview, blob, take, send, reset: () => { setBlob(null); setPreview(''); } };
-}
-
-const FileButton = ({ label, capture, onPick, primary }: { label: string; capture?: 'user' | 'environment'; onPick: (b: Blob) => void; primary?: boolean }) => (
-  <label className={`btn ${primary ? 'btn-primary' : 'btn-soft'} btn-block file-btn`} style={primary ? { height: 56 } : undefined}>
-    {label}<input type="file" accept="image/*" capture={capture} onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
-  </label>
-);
-
-/* ---------------- step 2: ID ---------------- */
-function DocStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolean; onNext: () => void }) {
-  const [idType, setIdType] = useState('nin');
-  const up = useUpload('/signup/document', { id_type: idType });
+/* ---------------- step 3: name ---------------- */
+function NameStep({ header, onNext }: { header: React.ReactNode; onNext: (me: Me) => void }) {
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
   const { busy, error, run } = useAction();
+  const save = () => first.trim() && run(async () => onNext(await api.post<Me>('/signup/name', { first_name: first, last_name: last })));
   return (
     <>
       {header}
-      <h2>Snap your ID</h2>
-      <p className="lead">A clear photo of the front. Lay it flat in good light, with all four corners in view.</p>
-      <div className="id-types" role="group" aria-label="ID type">
-        {ID_TYPES.map(([k, l]) => <button key={k} aria-pressed={idType === k} onClick={() => setIdType(k)}>{l}</button>)}
-      </div>
-      <div className={`id-frame ${up.preview ? 'has' : ''}`}>
-        {up.preview ? <img src={up.preview} alt="Your ID" /> : (
-          <><div className="ghost"><i className="ph" /><span className="ln"><i style={{ width: '80%' }} /><i /><i style={{ width: '60%' }} /><i style={{ width: '70%' }} /></span></div>
-            <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" /></>
-        )}
-      </div>
-      {busy && <Spinner label="Checking your ID…" />}
+      <h2>What should we call you?</h2>
+      <p className="lead">This is how you'll appear in the app and in messages to the people you pay.</p>
+      <div className="field"><label htmlFor="fn">First name</label>
+        <input id="fn" autoComplete="given-name" placeholder="Adaeze" value={first} autoFocus onChange={(e) => setFirst(e.target.value)} /></div>
+      <div className="field"><label htmlFor="ln">Last name</label>
+        <input id="ln" autoComplete="family-name" placeholder="Okonkwo" value={last} onChange={(e) => setLast(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()} /></div>
       {error && <div className="error-card">{error}</div>}
-      <div className="kyc-actions">
-        {up.preview ? (
-          <>
-            <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={busy} onClick={() => run(async () => { await up.send(); onNext(); })}>Use this photo</button>
-            <FileButton label="Retake" capture="environment" onPick={up.take} />
-          </>
-        ) : (
-          <>
-            <FileButton primary label="📷 Take a photo" capture="environment" onPick={up.take} />
-            <FileButton label="Upload from gallery" onPick={up.take} />
-            {dev && <button className="demo-link" onClick={async () => up.take(await sampleBlob('id'))}>Use a sample ID (demo)</button>}
-          </>
-        )}
-      </div>
+      <div className="kyc-actions"><button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!first.trim() || busy} onClick={save}>Continue</button></div>
     </>
   );
 }
 
-/* ---------------- step 3: selfie ---------------- */
-function SelfieStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolean; onNext: (phoneMasked: string, devCode?: string) => void }) {
-  const up = useUpload('/signup/selfie');
-  const { busy, error, run } = useAction();
-  const submit = () => run(async () => { const r = await up.send(); onNext(r.phone_masked, r.dev_code); });
-  return (
-    <>
-      {header}
-      <h2>Now a quick selfie</h2>
-      <p className="lead">We match your face to your ID. It takes a second.</p>
-      <div className={`selfie-frame ${up.preview ? 'has' : ''}`}>{up.preview ? <img src={up.preview} alt="Your selfie" /> : Icon.person}</div>
-      {busy ? <Spinner label="Matching your face to your ID…" /> : !up.preview && (
-        <div className="tips"><span>💡 Good light</span><span>🧢 No cap or shades</span><span>🙂 Look straight</span></div>
-      )}
-      {error && <div className="error-card">{error}</div>}
-      <div className="kyc-actions">
-        {up.preview ? (
-          <>
-            <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={busy} onClick={submit}>Use this selfie</button>
-            <FileButton label="Retake" capture="user" onPick={up.take} />
-          </>
-        ) : (
-          <>
-            <FileButton primary label="🤳 Take selfie" capture="user" onPick={up.take} />
-            {dev && <button className="demo-link" onClick={async () => up.take(await sampleBlob('selfie'))}>Use a sample selfie (demo)</button>}
-          </>
-        )}
-      </div>
-    </>
-  );
-}
-
-/* ---------------- SMS code ---------------- */
+/* ---------------- step 2: email code ---------------- */
 export function OtpBoxes({ value, onChange, ok }: { value: string; onChange: (v: string) => void; ok?: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { ref.current?.focus({ preventScroll: true }); }, []);
@@ -231,8 +122,8 @@ export function useResend(seconds = 30) {
   return { left, restart: (n: number = seconds) => setLeft(n) };
 }
 
-function OtpStep({ header, phoneMasked, devCode, setDevCode, onNext }: {
-  header: React.ReactNode; phoneMasked: string; devCode: string; setDevCode: (c: string) => void; onNext: (me: Me) => void;
+function OtpStep({ header, emailMasked, devCode, setDevCode, onNext }: {
+  header: React.ReactNode; emailMasked: string; devCode: string; setDevCode: (c: string) => void; onNext: (me: Me) => void;
 }) {
   const [code, setCode] = useState('');
   const [ok, setOk] = useState(false);
@@ -248,8 +139,8 @@ function OtpStep({ header, phoneMasked, devCode, setDevCode, onNext }: {
   return (
     <>
       {header}
-      <h2>Enter the code we texted you</h2>
-      <p className="lead">We sent a 6-digit code to <b style={{ color: 'var(--ink)' }}>{phoneMasked || 'your phone'}</b>, the number on your NIN record.</p>
+      <h2>Check your email</h2>
+      <p className="lead">We sent a 6-digit code to <b style={{ color: 'var(--ink)' }}>{emailMasked || 'your email'}</b>. It can take a minute, and sometimes lands in spam.</p>
       <OtpBoxes value={code} onChange={change} ok={ok} />
       {busy ? <Spinner label="Checking code…" /> : <p className="err">{error}</p>}
       <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>
@@ -257,7 +148,7 @@ function OtpStep({ header, phoneMasked, devCode, setDevCode, onNext }: {
           <button className="link" onClick={() => run(async () => { const r = await api.post<any>('/signup/otp/resend'); setDevCode(r.dev_code ?? ''); resend.restart(); })}>Resend code</button>
         )}
       </p>
-      {devCode && <div className="kyc-actions"><p className="dev-note">Test mode: SMS isn't connected yet. Your code is <b>{devCode}</b>.</p></div>}
+      {devCode && <div className="kyc-actions"><p className="dev-note">Test mode: your code is <b>{devCode}</b>.</p></div>}
     </>
   );
 }
@@ -325,21 +216,18 @@ function FaceStep({ header, onNext }: { header: React.ReactNode; onNext: (on: bo
 }
 
 /* ---------------- done ---------------- */
-function DoneStep({ header, onGo }: { header: React.ReactNode; onGo: (to: 'home' | 'new') => void }) {
+function DoneStep({ header, onGo }: { header: React.ReactNode; onGo: (to: 'home' | 'new' | 'verify') => void }) {
   const { me } = useStore();
-  const fa = me?.user?.funding_account;
   return (
     <>
       {header}
       <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
-      <h2 style={{ textAlign: 'center' }}>You're verified, {me?.user?.first_name ?? 'friend'} 🎉</h2>
-      <p className="lead" style={{ textAlign: 'center' }}>Your SpenDrip account is ready. Send money to it any time to fund your plans.</p>
-      {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
-        <span className="acct-no num">{fa.account_number.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}</span>
-        <span style={{ fontWeight: 700 }}>{fa.bank_name} · {fa.account_name}</span></div>}
+      <h2 style={{ textAlign: 'center' }}>You're in, {me?.user?.first_name ?? 'friend'} 🎉</h2>
+      <p className="lead" style={{ textAlign: 'center' }}>Set up your plans now. When you're ready to add money, verify your identity. It takes about two minutes.</p>
       <div className="kyc-actions">
         <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={() => onGo('new')}>Create my first plan</button>
-        <button className="btn btn-soft btn-block" onClick={() => onGo('home')}>Go to Home</button>
+        <button className="btn btn-soft btn-block" onClick={() => onGo('verify')}>Verify my identity now</button>
+        <button className="link small" style={{ alignSelf: 'center' }} onClick={() => onGo('home')}>Go to Home</button>
       </div>
     </>
   );

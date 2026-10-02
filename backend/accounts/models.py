@@ -16,6 +16,8 @@ class User(AbstractUser):
         REJECTED = "rejected"
         NEEDS_REVIEW = "needs_review"
 
+    # Email is how people sign up and sign in. The phone comes from their NIN/BVN record when they verify.
+    email = models.EmailField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     kyc_status = models.CharField(max_length=20, choices=Kyc.choices, default=Kyc.NOT_STARTED)
     # The full NIN is never stored in plain text. We keep the last 4 digits for display and a
@@ -23,6 +25,7 @@ class User(AbstractUser):
     # the real KYC provider (see docs/PLAN.md §6b).
     nin_last4 = models.CharField(max_length=4, blank=True)
     nin_hash = models.CharField(max_length=128, blank=True)
+    kyc_id_type = models.CharField(max_length=3, default="nin")  # which number nin_* holds: nin | bvn
 
     pin_hash = models.CharField(max_length=256, blank=True)
     failed_pin_attempts = models.PositiveSmallIntegerField(default=0)
@@ -82,14 +85,14 @@ class KycCheck(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-class PhoneOtp(models.Model):
-    """A one-time code texted to a phone. Only a hash is stored."""
+class OneTimeCode(models.Model):
+    """A one-time code sent to an email address (or a phone). Only a hash is stored."""
 
     class Purpose(models.TextChoices):
         SIGNUP = "signup"
         SIGNIN = "signin"
 
-    phone = models.CharField(max_length=20, db_index=True)
+    target = models.CharField(max_length=254, db_index=True)  # lower-case email, or a normalised phone
     purpose = models.CharField(max_length=10, choices=Purpose.choices)
     code_hash = models.CharField(max_length=256)
     expires_at = models.DateTimeField()

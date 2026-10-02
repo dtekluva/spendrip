@@ -34,44 +34,109 @@ def unlocked_client(user):
 
 # ------------------------------------------------------------------ sign-up
 
-def test_full_sign_up_nin_id_selfie_code_pin(dev, db):
+def sign_up(c, email="ada@example.com", first="Ada"):
+    r = c.post("/api/signup/start", {"email": email}, format="json").json()
+    me = c.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json").json()
+    c.post("/api/signup/name", {"first_name": first, "last_name": "Okafor"}, format="json")
+    c.post("/api/auth/pin", {"pin": "2580"}, format="json")
+    return me
+
+
+def test_sign_up_is_email_code_name_pin_with_no_id_checks(dev, db):
+    from django.core import mail
     c = APIClient()
     assert c.get("/api/me").json() == {"signed_in": False, "dev_tools": True, "signup": None}
 
-    r = c.post("/api/signup/nin", {"nin": "123 4567 8901"}, format="json").json()
-    assert r["name"] == "ADAEZE OKONKWO" and r["phone_masked"] == "0804 ••• 8901"
-    assert c.post("/api/signup/confirm").json() == {"step": "document"}
-    assert c.post("/api/signup/document", {"image": IMG(), "id_type": "nin"}).json()["step"] == "selfie"
-    otp = c.post("/api/signup/selfie", {"image": IMG()}).json()
-    assert otp["step"] == "otp" and len(otp["dev_code"]) == 6
+    bad = c.post("/api/signup/start", {"email": "not-an-email"}, format="json")
+    assert bad.status_code == 400 and "email" in bad.json()["error"]
+    r = c.post("/api/signup/start", {"email": " Ada@Example.com "}, format="json").json()
+    assert r["step"] == "code" and r["email_masked"] == "ad•@example.com" and len(r["dev_code"]) == 6
+    assert mail.outbox[-1].to == ["ada@example.com"] and r["dev_code"] in mail.outbox[-1].subject
+    assert c.get("/api/me").json()["signup"] == {"step": "code", "email_masked": "ad•@example.com"}
 
-    wrong = c.post("/api/signup/otp/verify", {"code": "000000" if otp["dev_code"] != "000000" else "111111"}, format="json")
+    wrong = c.post("/api/signup/otp/verify", {"code": "000000" if r["dev_code"] != "000000" else "111111"}, format="json")
     assert wrong.status_code == 400 and wrong.json()["code"] == "otp_wrong"
-    me = c.post("/api/signup/otp/verify", {"code": otp["dev_code"]}, format="json").json()
-    assert me["signed_in"] and not me["locked"] and me["user"]["kyc_status"] == "verified"
-    assert me["user"]["funding_account"]["account_number"].startswith("8420")
+    me = c.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json").json()
+    assert me["signed_in"] and not me["locked"] and me["step"] == "name"
+    assert me["user"]["kyc_status"] == "not_started" and me["user"]["funding_account"] is None
 
+    assert c.post("/api/signup/name", {"first_name": "  "}, format="json").status_code == 400
+    assert c.post("/api/signup/name", {"first_name": "Ada", "last_name": "Okafor"}, format="json").json()["user"]["first_name"] == "Ada"
     weak = c.post("/api/auth/pin", {"pin": "1234"}, format="json")
     assert weak.status_code == 400 and "too easy" in weak.json()["error"]
     assert c.post("/api/auth/pin", {"pin": "2580"}, format="json").json()["user"]["has_pin"] is True
+    # In the app straight away: plans and recipients work, money doesn't move yet.
+    assert c.get("/api/summary").status_code == 200
+    r = c.post("/api/funding/card/start", {"amount_kobo": 500_000}, format="json")
+    assert r.status_code == 403 and r.json()["code"] == "kyc_required"
 
 
-def test_same_nin_cannot_sign_up_twice(dev, db):
-    def sign_up():
-        c = APIClient()
-        c.post("/api/signup/nin", {"nin": "12345678901"}, format="json")
-        return c, c.post("/api/signup/confirm")
-    c, _ = sign_up()
-    c.post("/api/signup/document", {"image": IMG()})
-    code = c.post("/api/signup/selfie", {"image": IMG()}).json()["dev_code"]
-    c.post("/api/signup/otp/verify", {"code": code}, format="json")
-    _, again = sign_up()
+def test_same_email_cannot_sign_up_twice(dev, db):
+    sign_up(APIClient())
+    again = APIClient().post("/api/signup/start", {"email": "ADA@example.com"}, format="json")
     assert again.status_code == 409 and again.json()["code"] == "already_registered"
 
 
+def test_unfinished_sign_up_can_start_again(dev, db):
+    c = APIClient()
+    r = c.post("/api/signup/start", {"email": "ada@example.com"}, format="json").json()
+    c.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json")  # then closed the app before a PIN
+    c2 = APIClient()
+    r = c2.post("/api/signup/start", {"email": "ada@example.com"}, format="json").json()
+    me = c2.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json").json()
+    assert me["signed_in"] and User.objects.filter(email="ada@example.com").count() == 1
+
+
 def test_skipping_steps_is_refused(dev, db):
-    r = APIClient().post("/api/signup/selfie", {"image": IMG()})
+    r = APIClient().post("/api/signup/otp/verify", {"code": "123456"}, format="json")
     assert r.status_code == 409 and r.json()["code"] == "signup_missing"
+
+
+# ------------------------------------------------------------------ verify identity, later
+
+@pytest.mark.parametrize("id_type,phone_masked", [("nin", "0804 ••• 8901"), ("bvn", "0814 ••• 8901")])
+def test_verify_with_nin_or_bvn_then_id_then_selfie(dev, db, id_type, phone_masked):
+    c = APIClient()
+    sign_up(c)
+    assert c.post("/api/kyc/selfie", {"image": IMG()}).json()["code"] == "kyc_missing"
+    r = c.post("/api/kyc/lookup", {"id_type": id_type, "number": "123 4567 8901"}, format="json").json()
+    assert r["name"] == "ADAEZE OKONKWO" and r["phone_masked"] == phone_masked
+    assert c.post("/api/kyc/confirm").json() == {"step": "document"}
+    assert c.post("/api/kyc/document", {"image": IMG(), "id_type": "nin"}).json()["step"] == "selfie"
+    me = c.post("/api/kyc/selfie", {"image": IMG()}).json()
+    u = me["user"]
+    assert u["kyc_status"] == "verified" and u["kyc_id_type"] == id_type and u["first_name"] == "Adaeze"
+    assert u["funding_account"]["account_number"].startswith("8420")
+    assert c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json").status_code == 409
+
+
+def test_same_nin_cannot_verify_two_accounts(dev, db):
+    a, b = APIClient(), APIClient()
+    sign_up(a, "a@example.com")
+    sign_up(b, "b@example.com")
+    for c in (a, b):
+        c.post("/api/kyc/lookup", {"id_type": "nin", "number": "12345678901"}, format="json")
+    assert a.post("/api/kyc/confirm").status_code == 200
+    r = b.post("/api/kyc/confirm")
+    assert r.status_code == 409 and r.json()["code"] == "id_taken"
+
+
+def test_unverified_users_plans_do_not_send(dev, db, settings):
+    from datetime import timedelta
+    from django.utils import timezone
+    from drips.models import Recipient, Run
+    from drips.worker import Worker
+    c = APIClient()
+    sign_up(c)
+    u = User.objects.get(email="ada@example.com")
+    rec = Recipient.objects.create(user=u, label="Me", is_self=True, bank_name="GTBank", nip_bank_code="000013",
+                                   account_number="0123456789", verified_account_name="ADA OKAFOR")
+    plan = Plan.objects.create(user=u, label="Data", amount_kobo=100_000, recipient=rec, frequency="daily", time_local="09:00",
+                               starts_at=timezone.now() - timedelta(days=1))
+    run = Run.objects.create(plan=plan, user=u, scheduled_for=timezone.now() - timedelta(minutes=1), amount_kobo=100_000, fee_kobo=5000)
+    Worker().process_due(timezone.now())
+    run.refresh_from_db()
+    assert run.status == Run.Status.SKIPPED_PAUSED and run.last_error == "not_verified"
 
 
 # ------------------------------------------------------------------ lock, unlock, sign-in
@@ -90,7 +155,7 @@ def test_app_locks_after_idle_and_pin_unlocks(demo, dev):
     assert c.get("/api/summary").status_code == 200
 
 
-def test_five_wrong_pins_lock_until_sms_reset(demo, dev):
+def test_five_wrong_pins_lock_until_email_reset(demo, dev):
     c = APIClient()
     c.force_login(demo)
     for _ in range(5):
@@ -98,22 +163,22 @@ def test_five_wrong_pins_lock_until_sms_reset(demo, dev):
     assert r.status_code == 423 and r.json()["code"] == "pin_locked"
 
     new = APIClient()
-    code = new.post("/api/auth/signin/start", {"phone": "+234 803 123 4417"}, format="json").json()["dev_code"]
-    me = new.post("/api/auth/signin/verify", {"phone": "08031234417", "code": code, "new_pin": "3698"}, format="json").json()
+    code = new.post("/api/auth/signin/start", {"email": "Demo@SpenDrip.com"}, format="json").json()["dev_code"]
+    me = new.post("/api/auth/signin/verify", {"email": "demo@spendrip.com", "code": code, "new_pin": "3698"}, format="json").json()
     assert me["signed_in"] and not me["locked"] and not me["user"]["pin_locked"]
 
 
 def test_sign_in_on_a_new_device_needs_code_and_pin(demo, dev):
     c = APIClient()
-    code = c.post("/api/auth/signin/start", {"phone": "08031234417"}, format="json").json()["dev_code"]
-    bad = c.post("/api/auth/signin/verify", {"phone": "08031234417", "code": code, "pin": "0000"}, format="json")
+    code = c.post("/api/auth/signin/start", {"email": "demo@spendrip.com"}, format="json").json()["dev_code"]
+    bad = c.post("/api/auth/signin/verify", {"email": "demo@spendrip.com", "code": code, "pin": "0000"}, format="json")
     assert bad.status_code == 400 and bad.json()["code"] == "pin_wrong"
-    code = c.post("/api/auth/signin/start", {"phone": "08031234417"}, format="json").json()["dev_code"]
-    assert c.post("/api/auth/signin/verify", {"phone": "08031234417", "code": code, "pin": "2580"}, format="json").json()["signed_in"]
+    code = c.post("/api/auth/signin/start", {"email": "demo@spendrip.com"}, format="json").json()["dev_code"]
+    assert c.post("/api/auth/signin/verify", {"email": "demo@spendrip.com", "code": code, "pin": "2580"}, format="json").json()["signed_in"]
 
 
-def test_unknown_number_gets_a_plain_message(dev, db):
-    r = APIClient().post("/api/auth/signin/start", {"phone": "08000000000"}, format="json")
+def test_unknown_email_gets_a_plain_message(dev, db):
+    r = APIClient().post("/api/auth/signin/start", {"email": "nobody@example.com"}, format="json")
     assert r.status_code == 404 and "Create one instead" in r.json()["error"]
 
 

@@ -16,13 +16,16 @@ urlpatterns = [
     # who am I
     path("me", auth.Me.as_view()),
     path("me/settings", auth.MeUpdate.as_view()),
-    # sign-up: NIN → ID → selfie → SMS code → PIN → Face ID
-    path("signup/nin", auth.SignupNin.as_view()),
-    path("signup/confirm", auth.SignupConfirm.as_view()),
-    path("signup/document", auth.SignupDocument.as_view()),
-    path("signup/selfie", auth.SignupSelfie.as_view()),
+    # sign-up: email → code → name → PIN → Face ID
+    path("signup/start", auth.SignupStart.as_view()),
     path("signup/otp/resend", auth.SignupResendOtp.as_view()),
     path("signup/otp/verify", auth.SignupVerifyOtp.as_view()),
+    path("signup/name", auth.SignupName.as_view()),
+    # verify identity, later in the app: NIN or BVN → ID photo → selfie
+    path("kyc/lookup", auth.KycLookup.as_view()),
+    path("kyc/confirm", auth.KycConfirm.as_view()),
+    path("kyc/document", auth.KycDocument.as_view()),
+    path("kyc/selfie", auth.KycSelfie.as_view()),
     # PIN, lock, sign-in, Face ID
     path("auth/pin", auth.SetPin.as_view()),
     path("auth/pin/change", auth.ChangePin.as_view()),

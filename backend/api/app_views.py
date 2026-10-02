@@ -10,6 +10,7 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts import services as acc
 from accounts.services import FlowError
 from drips.models import Plan, Recipient, Run
 from drips.services import engine_plans, fee_kobo, reschedule, sent_today_kobo, user_forecast
@@ -409,6 +410,7 @@ class CardQuote(APIView):
 
 class CardStart(APIView):
     def post(self, request):
+        acc.require_verified(request.user)
         return Response(cards.start(request.user, _amount(request), save_card=bool(request.data.get("save_card", True))))
 
 
@@ -429,6 +431,7 @@ class SavedCardTopUp(APIView):
     """One-tap top-up with a saved card."""
 
     def post(self, request):
+        acc.require_verified(request.user)
         card = request.user.cards.filter(pk=request.data.get("card_id"), active=True).first()
         if not card:
             raise FlowError("That card isn't saved any more.", status=404)

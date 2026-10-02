@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts import services as acc
 from accounts.services import FlowError
 from drips.worker import Worker
 from engine import naira
@@ -100,6 +101,7 @@ class DevTopUp(APIView):
             raise FlowError("amount_naira must be a number.")
         if amount <= 0:
             raise FlowError("amount_naira must be more than 0.")
+        acc.require_verified(request.user)
         inflow = Inflow.objects.create(provider="mock", reference=f"dev-{uuid.uuid4()}", user=request.user, amount_kobo=amount,
                                        sender_name="DEV TOP-UP", raw={"dev": True})
         ledger.credit_inflow(inflow)

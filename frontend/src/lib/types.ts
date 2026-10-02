@@ -7,15 +7,17 @@ export interface Me {
   signed_in: boolean;
   dev_tools: boolean;
   locked?: boolean;
-  signup?: { step: SignupStep; phone_masked?: string } | null;
+  signup?: { step: SignupStep; email_masked?: string } | null;
   user?: {
-    first_name: string; last_name: string; phone_masked: string; kyc_status: string; nin_last4: string;
+    first_name: string; last_name: string; email: string; email_masked: string; phone_masked: string;
+    kyc_status: 'not_started' | 'nin_verified' | 'doc_uploaded' | 'verified' | 'rejected' | 'needs_review'; kyc_id_type: 'nin' | 'bvn';
+    nin_last4: string; has_name: boolean;
     has_pin: boolean; pin_locked: boolean; has_face_id: boolean; look: Look; daily_cap_kobo: number | null; paused_all: boolean;
     notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean;
     funding_account: FundingAccount | null;
   };
 }
-export type SignupStep = 'confirm' | 'document' | 'selfie' | 'otp' | 'pin';
+export type SignupStep = 'code';
 
 export interface Recipient {
   id: number; label: string; is_self: boolean; bank_name: string; nip_bank_code: string; account_last4: string;

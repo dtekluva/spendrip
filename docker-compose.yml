@@ -5,6 +5,8 @@ x-backend: &backend
   env_file: .env
   environment:
     DATABASE_URL: postgresql://spendrip:spendrip@db:5432/spendrip
+    # Local emails print to the backend log. Set LOCAL_MAILGUN_API_KEY to really send (needs this machine's IP allowed in Mailgun).
+    MAILGUN_API_KEY: ${LOCAL_MAILGUN_API_KEY:-}
   volumes:
     - ./backend:/app
   depends_on:

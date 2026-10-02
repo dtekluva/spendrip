@@ -3,6 +3,7 @@ import { lagos, MONL, N } from '../lib/format';
 import { useStore } from '../lib/store';
 import { useAction } from '../components/ui';
 import { CardPanel } from './CardTopUp';
+import { VerifyCard } from './Verify';
 
 export default function Fund() {
   const { summary, plans, me, reload, confetti, koboSay, toast } = useStore();
@@ -12,6 +13,7 @@ export default function Fund() {
   const fee = summary.fee_kobo;
   const month = MONL[lagos(new Date()).m - 1];
   const fa = summary.funding_account;
+  const verified = me?.user?.kyc_status === 'verified';
   const counts = new Map<number, number>();
   f.events.forEach((e) => counts.set(e.plan_id, (counts.get(e.plan_id) ?? 0) + 1));
   const prio = plans.filter((p) => p.priority_rank).sort((a, b) => a.priority_rank! - b.priority_rank!);
@@ -45,9 +47,9 @@ export default function Fund() {
             </div>
             <span className="small muted">Transfers usually land in under a minute. We'll notify you.</span>
           </div>
-        ) : <div className="card">Your account number appears here once you're verified.</div>}
-        <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>
-        {me?.dev_tools && (
+        ) : <VerifyCard />}
+        {verified && <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>}
+        {me?.dev_tools && verified && (
           <div className="demo">
             <div className="eyebrow">Test mode</div>
             <span className="small muted">No real money moves yet. Pretend a transfer just arrived in your SpenDrip account.</span>

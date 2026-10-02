@@ -719,3 +719,10 @@ a{color:inherit}
 
 /* Column headings that sit on one line across a two-column screen */
 .col-head{margin:0;min-height:24px;line-height:24px}
+
+/* verify-your-identity nudge */
+.verify-card{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;border:1.5px dashed color-mix(in srgb,var(--cobalt) 45%,transparent)}
+.verify-card .vc-ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:20px;background:color-mix(in srgb,var(--cobalt) 14%,transparent)}
+.verify-card .btn{height:40px;padding:0 16px}
+@media (max-width:420px){.verify-card{grid-template-columns:auto 1fr}.verify-card .btn{grid-column:1 / -1}}
+.kyc .seg{margin:2px 0 4px}

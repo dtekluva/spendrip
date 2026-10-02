@@ -9,7 +9,10 @@ log = logging.getLogger(__name__)
 
 
 def _html(heading: str, paragraphs: list[str], button: tuple[str, str] | None = None) -> str:
-    body = "".join(f'<p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#3b4070">{escape(p)}</p>' for p in paragraphs)
+    body = "".join(
+        f'<p style="margin:6px 0 20px;font-size:34px;font-weight:800;letter-spacing:8px;color:#0B1040;font-family:Menlo,Consolas,monospace">{p}</p>'
+        if p.isdigit() and len(p) == 6 else
+        f'<p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#3b4070">{escape(p)}</p>' for p in paragraphs)
     cta = ""
     if button:
         label, url = button
@@ -57,3 +60,12 @@ def waitlist_invite(entry, fail_silently: bool = True) -> bool:
         "Your spot is ready. Sign up with your NIN, a photo of your ID and a quick selfie. It takes about two minutes.",
         "Then set up your first drip and let SpenDrip handle the rest.",
     ], button=("Open SpenDrip", url), fail_silently=fail_silently)
+
+
+def sign_in_code(to: str, code: str, purpose: str) -> bool:
+    if purpose == "signup":
+        subject, heading, first = f"{code} is your SpenDrip code", "Confirm your email", "Use this code to finish creating your SpenDrip account:"
+    else:
+        subject, heading, first = f"{code} is your SpenDrip sign-in code", "Sign in to SpenDrip", "Use this code to sign in:"
+    return send(to, subject, heading, [first, code, "It expires in 10 minutes. Never share it with anyone, including SpenDrip staff.",
+                                       "Didn't ask for this? You can ignore this email."])

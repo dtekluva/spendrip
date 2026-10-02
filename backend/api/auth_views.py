@@ -1,7 +1,8 @@
-"""Sign-up (NIN → ID → selfie → SMS code → PIN → Face ID), sign-in, unlock and passkeys."""
+"""Sign-up (email → code → name → PIN → Face ID), identity checks later in the app (NIN/BVN → ID → selfie),
+sign-in, unlock and passkeys."""
 from django.conf import settings
 from django.contrib.auth import login, logout
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 from accounts.models import KycCheck, User, WebAuthnCredential
 from accounts import services as acc
 from accounts.services import FlowError
+from ledger import services as ledger
 from providers import get_kyc_provider
 
 from .permissions import SignedIn, Unlocked
@@ -21,7 +23,7 @@ BACKEND = "django.contrib.auth.backends.ModelBackend"
 
 
 def dev_code(code: str) -> dict:
-    """Only dev builds get the SMS code back in the response, so the flow can be tried without a phone."""
+    """Only dev builds get the code back in the response, so the flow can be tried without an inbox."""
     return {"dev_code": code} if settings.SPENDRIP["DEV_TOOLS"] else {}
 
 
@@ -31,15 +33,16 @@ def me_json(request) -> dict:
     if not u.is_authenticated:
         s = request.session.get(SIGNUP) or {}
         return {"signed_in": False, "dev_tools": dev,
-                "signup": {"step": s.get("step"), "phone_masked": s.get("phone_masked")} if s else None}
+                "signup": {"step": s.get("step"), "email_masked": s.get("email_masked")} if s else None}
     fa = u.funding_accounts.first()
     return {
         "signed_in": True,
         "dev_tools": dev,
         "locked": not acc.is_unlocked(request),
         "user": {
-            "first_name": u.first_name.title(), "last_name": u.last_name.title(), "phone_masked": acc.mask_phone(u.phone or ""),
-            "kyc_status": u.kyc_status, "nin_last4": u.nin_last4, "has_pin": bool(u.pin_hash), "pin_locked": bool(u.locked_at),
+            "first_name": u.first_name.title(), "last_name": u.last_name.title(), "email": u.email or "",
+            "email_masked": acc.mask_email(u.email or ""), "phone_masked": acc.mask_phone(u.phone or ""),
+            "kyc_status": u.kyc_status, "kyc_id_type": u.kyc_id_type, "nin_last4": u.nin_last4, "has_name": bool(u.first_name), "has_pin": bool(u.pin_hash), "pin_locked": bool(u.locked_at),
             "has_face_id": u.passkeys.exists(), "look": u.look, "daily_cap_kobo": u.daily_cap_kobo, "paused_all": u.paused_all,
             "notify_push": u.notify_push, "notify_whatsapp_recipients": u.notify_whatsapp_recipients,
             "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance,
@@ -83,82 +86,137 @@ class MeUpdate(APIView):
         return Response(me_json(request))
 
 
-# ------------------------------------------------------------------ sign-up
+# ------------------------------------------------------------------ sign-up: email → code → (signed in) name → PIN → Face ID
 
 def signup_state(request) -> dict:
     s = request.session.get(SIGNUP)
     if not s:
-        raise FlowError("Start again with your NIN.", code="signup_missing", status=409)
+        raise FlowError("Start again with your email.", code="signup_missing", status=409)
     return s
 
 
-def signup_user(request) -> User:
-    s = signup_state(request)
-    user = User.objects.filter(pk=s.get("user_id")).first()
-    if not user:
-        raise FlowError("Start again with your NIN.", code="signup_missing", status=409)
-    return user
-
-
-def save_state(request, **changes):
-    s = dict(request.session.get(SIGNUP) or {})
-    s.update(changes)
-    request.session[SIGNUP] = s
-
-
-class SignupNin(APIView):
+class SignupStart(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        nin = "".join(c for c in str(request.data.get("nin", "")) if c.isdigit())
-        if len(nin) != 11:
-            raise FlowError("Your NIN has 11 digits.")
-        record = get_kyc_provider().lookup_nin(nin)
-        if not record:
-            raise FlowError("We couldn't find that NIN. Check the 11 digits and try again.", code="nin_not_found")
-        phone = acc.normalise_phone(record["phone"])
-        request.session[SIGNUP] = {
-            "step": "confirm", "nin_hash": acc.nin_fingerprint(nin), "nin_last4": nin[-4:], "phone": phone,
-            "phone_masked": acc.mask_phone(phone), "first_name": record["first_name"], "last_name": record["last_name"],
-            "dob": record["date_of_birth"],
-        }
-        return Response({"name": f"{record['first_name']} {record['last_name']}", "date_of_birth": record["date_of_birth"],
-                         "phone_masked": acc.mask_phone(phone)})
+        email = acc.normalise_email(str(request.data.get("email", "")))
+        existing = User.objects.filter(email=email).first()
+        if existing and existing.pin_hash:
+            raise FlowError("That email already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
+        code = acc.send_otp(email, "signup")
+        request.session[SIGNUP] = {"step": "code", "email": email, "email_masked": acc.mask_email(email)}
+        return Response({"step": "code", "email_masked": acc.mask_email(email), **dev_code(code)})
 
 
-class SignupConfirm(APIView):
-    """The person said "Yes, that's me"."""
+class SignupResendOtp(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        s = signup_state(request)
+        code = acc.send_otp(s["email"], "signup")
+        return Response({"email_masked": s["email_masked"], **dev_code(code)})
+
+
+class SignupVerifyOtp(APIView):
+    """The email is confirmed: create the account (or pick up an unfinished one) and sign in."""
 
     permission_classes = [AllowAny]
 
     def post(self, request):
         s = signup_state(request)
-        if s.get("user_id"):
-            return Response({"step": s["step"]})
-        if User.objects.filter(nin_hash=s["nin_hash"], kyc_status=User.Kyc.VERIFIED).exists():
-            raise FlowError("This NIN already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
+        acc.check_otp(s["email"], "signup", str(request.data.get("code", "")))
         with transaction.atomic():
-            user = User.objects.filter(nin_hash=s["nin_hash"]).first()  # an earlier unfinished sign-up
+            user = User.objects.filter(email=s["email"]).first()
+            if user and user.pin_hash:
+                raise FlowError("That email already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
             if not user:
-                try:
-                    user = User.objects.create(username=f"u{s['phone']}", phone=s["phone"], first_name=s["first_name"],
-                                               last_name=s["last_name"], nin_hash=s["nin_hash"], nin_last4=s["nin_last4"],
-                                               kyc_status=User.Kyc.NIN_VERIFIED)
-                except IntegrityError:
-                    raise FlowError("This phone number already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
+                user = User(username=s["email"], email=s["email"])
                 user.set_unusable_password()
                 user.save()
-            KycCheck.objects.create(user=user, step=KycCheck.Step.NIN, passed=True, provider=get_kyc_provider().name,
-                                    raw={"dob": s["dob"]})
-        save_state(request, user_id=user.pk, step="document")
+            ledger.ensure_user_accounts(user)
+        request.session.pop(SIGNUP, None)
+        login(request, user, backend=BACKEND)
+        acc.mark_unlocked(request)
+        return Response({**me_json(request), "step": "name" if not user.first_name else "pin"})
+
+
+class SignupName(APIView):
+    """What should we call you? (Your legal name comes from your NIN/BVN when you verify.)"""
+
+    def post(self, request):
+        first = " ".join(str(request.data.get("first_name", "")).split())[:60]
+        last = " ".join(str(request.data.get("last_name", "")).split())[:60]
+        if not first:
+            raise FlowError("Add your first name.")
+        request.user.first_name, request.user.last_name = first.upper(), last.upper()
+        request.user.save(update_fields=["first_name", "last_name"])
+        return Response(me_json(request))
+
+
+# ------------------------------------------------------------------ verify identity (in the app, before money moves)
+
+KYC = "kyc"  # session key holding the looked-up NIN/BVN record until the person confirms it's them
+ID_LOOKUPS = {"nin": "lookup_nin", "bvn": "lookup_bvn"}
+
+
+def kyc_user(request) -> User:
+    u = request.user
+    if u.is_verified:
+        raise FlowError("You're already verified.", code="already_verified", status=409)
+    return u
+
+
+class KycLookup(APIView):
+    def post(self, request):
+        kyc_user(request)
+        id_type = str(request.data.get("id_type", "nin")).lower()
+        if id_type not in ID_LOOKUPS:
+            raise FlowError("Choose NIN or BVN.")
+        label = id_type.upper()
+        number = "".join(c for c in str(request.data.get("number", "")) if c.isdigit())
+        if len(number) != 11:
+            raise FlowError(f"Your {label} has 11 digits.")
+        record = getattr(get_kyc_provider(), ID_LOOKUPS[id_type])(number)
+        if not record:
+            raise FlowError(f"We couldn't find that {label}. Check the 11 digits and try again.", code="id_not_found")
+        phone = acc.normalise_phone(record["phone"])
+        request.session[KYC] = {"id_type": id_type, "hash": acc.nin_fingerprint(f"{id_type}:{number}"), "last4": number[-4:],
+                                "phone": phone, "first_name": record["first_name"], "last_name": record["last_name"],
+                                "dob": record["date_of_birth"]}
+        return Response({"name": f"{record['first_name']} {record['last_name']}", "date_of_birth": record["date_of_birth"],
+                         "phone_masked": acc.mask_phone(phone)})
+
+
+class KycConfirm(APIView):
+    """The person said "Yes, that's me"."""
+
+    def post(self, request):
+        u = kyc_user(request)
+        k = request.session.get(KYC)
+        if not k:
+            raise FlowError("Enter your NIN or BVN again.", code="kyc_missing", status=409)
+        if User.objects.filter(nin_hash=k["hash"]).exclude(pk=u.pk).exists():
+            raise FlowError(f"This {k['id_type'].upper()} is already linked to another SpenDrip account.", code="id_taken", status=409)
+        if User.objects.filter(phone=k["phone"]).exclude(pk=u.pk).exists():
+            raise FlowError("The phone number on this record is already linked to another SpenDrip account.", code="id_taken", status=409)
+        u.first_name, u.last_name, u.phone = k["first_name"], k["last_name"], k["phone"]
+        u.nin_hash, u.nin_last4, u.kyc_id_type, u.kyc_status = k["hash"], k["last4"], k["id_type"], User.Kyc.NIN_VERIFIED
+        u.save()
+        KycCheck.objects.create(user=u, step=KycCheck.Step.NIN, passed=True, provider=get_kyc_provider().name,
+                                raw={"dob": k["dob"], "id_type": k["id_type"]})
+        request.session.pop(KYC, None)
         return Response({"step": "document"})
 
 
-class SignupDocument(APIView):
-    permission_classes = [AllowAny]
+def needs_id_number(u: User) -> None:
+    if u.kyc_status == User.Kyc.NOT_STARTED:
+        raise FlowError("Start with your NIN or BVN.", code="kyc_missing", status=409)
 
+
+class KycDocument(APIView):
     def post(self, request):
-        user = signup_user(request)
+        user = kyc_user(request)
+        needs_id_number(user)
         image = request.FILES.get("image")
         id_type = request.data.get("id_type", "nin")
         if not image:
@@ -172,15 +230,14 @@ class SignupDocument(APIView):
             raise FlowError("We couldn't read that ID. Lay it flat in good light with all four corners showing.", code="doc_unreadable")
         user.kyc_status = User.Kyc.DOC_UPLOADED
         user.save(update_fields=["kyc_status"])
-        save_state(request, step="selfie")
         return Response({"step": "selfie", "checks": result["checks"]})
 
 
-class SignupSelfie(APIView):
-    permission_classes = [AllowAny]
-
+class KycSelfie(APIView):
     def post(self, request):
-        user = signup_user(request)
+        user = kyc_user(request)
+        if user.kyc_status != User.Kyc.DOC_UPLOADED:
+            raise FlowError("Add a photo of your ID first.", code="kyc_missing", status=409)
         image = request.FILES.get("image")
         if not image:
             raise FlowError("Take a selfie to continue.")
@@ -188,37 +245,14 @@ class SignupSelfie(APIView):
         KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=result["passed"], provider=get_kyc_provider().name, raw=result)
         if not result["passed"]:
             raise FlowError("Your selfie didn't match your ID. Try again in good light, looking straight at the camera.", code="face_mismatch")
-        code = acc.send_otp(user.phone, "signup", user=user)
-        save_state(request, step="otp")
-        return Response({"step": "otp", "phone_masked": acc.mask_phone(user.phone), **dev_code(code)})
-
-
-class SignupResendOtp(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        user = signup_user(request)
-        code = acc.send_otp(user.phone, "signup", user=user)
-        return Response({"phone_masked": acc.mask_phone(user.phone), **dev_code(code)})
-
-
-class SignupVerifyOtp(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        user = signup_user(request)
-        acc.check_otp(user.phone, "signup", str(request.data.get("code", "")))
-        acc.finish_signup(user)
-        request.session.pop(SIGNUP, None)
-        login(request, user, backend=BACKEND)
-        acc.mark_unlocked(request)
-        return Response({**me_json(request), "step": "pin"})
+        acc.finish_verification(user)
+        return Response(me_json(request))
 
 
 # ------------------------------------------------------------------ PIN
 
 class SetPin(APIView):
-    """First PIN right after sign-up (the session was just unlocked by the SMS code)."""
+    """First PIN right after sign-up (the session was just unlocked by the email code)."""
 
     def post(self, request):
         if request.user.pin_hash:
@@ -250,11 +284,11 @@ class Unlock(APIView):
     def post(self, request):
         u = request.user
         if u.locked_at:
-            raise FlowError("Too many wrong PINs. Sign in again with a code sent to your phone.", code="pin_locked", status=423)
+            raise FlowError("Too many wrong PINs. Sign in again with a code sent to your email.", code="pin_locked", status=423)
         if not u.check_pin(str(request.data.get("pin", ""))):
             u.refresh_from_db()
             if u.locked_at:
-                raise FlowError("Too many wrong PINs. Sign in again with a code sent to your phone.", code="pin_locked", status=423)
+                raise FlowError("Too many wrong PINs. Sign in again with a code sent to your email.", code="pin_locked", status=423)
             left = 5 - u.failed_pin_attempts
             raise FlowError(f"Wrong PIN. {left} {'try' if left == 1 else 'tries'} left.", code="pin_wrong")
         acc.mark_unlocked(request)
@@ -271,29 +305,32 @@ class Lock(APIView):
 
 # ------------------------------------------------------------------ sign-in on a new device / forgot PIN
 
+def signin_user(email: str) -> User:
+    user = User.objects.filter(email=email).exclude(pin_hash="").first()
+    if not user:
+        raise FlowError("We don't have a SpenDrip account for that email. Create one instead.", code="no_account", status=404)
+    return user
+
+
 class SigninStart(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        phone = acc.normalise_phone(str(request.data.get("phone", "")))
-        user = User.objects.filter(phone=phone, kyc_status=User.Kyc.VERIFIED).first()
-        if not user:
-            raise FlowError("We don't have a SpenDrip account for that number. Create one instead.", code="no_account", status=404)
-        code = acc.send_otp(phone, "signin", user=user)
-        return Response({"phone_masked": acc.mask_phone(phone), "pin_locked": bool(user.locked_at), **dev_code(code)})
+        email = acc.normalise_email(str(request.data.get("email", "")))
+        user = signin_user(email)
+        code = acc.send_otp(email, "signin", user=user)
+        return Response({"email_masked": acc.mask_email(email), "pin_locked": bool(user.locked_at), **dev_code(code)})
 
 
 class SigninVerify(APIView):
-    """SMS code plus PIN. If the PIN is locked or forgotten, the code plus a new PIN resets it."""
+    """Email code plus PIN. If the PIN is locked or forgotten, the code plus a new PIN resets it."""
 
     permission_classes = [AllowAny]
 
     def post(self, request):
-        phone = acc.normalise_phone(str(request.data.get("phone", "")))
-        user = User.objects.filter(phone=phone, kyc_status=User.Kyc.VERIFIED).first()
-        if not user:
-            raise FlowError("We don't have a SpenDrip account for that number.", code="no_account", status=404)
-        acc.check_otp(phone, "signin", str(request.data.get("code", "")))
+        email = acc.normalise_email(str(request.data.get("email", "")))
+        user = signin_user(email)
+        acc.check_otp(email, "signin", str(request.data.get("code", "")))
         new_pin = request.data.get("new_pin")
         if new_pin:
             try:
@@ -341,7 +378,7 @@ class PasskeyRegisterOptions(APIView):
     def post(self, request):
         u = request.user
         opts = generate_registration_options(
-            rp_id=WA["RP_ID"], rp_name=WA["RP_NAME"], user_id=str(u.pk).encode(), user_name=u.phone or u.username,
+            rp_id=WA["RP_ID"], rp_name=WA["RP_NAME"], user_id=str(u.pk).encode(), user_name=u.email or u.username,
             user_display_name=u.get_full_name().title() or "SpenDrip user",
             exclude_credentials=[PublicKeyCredentialDescriptor(id=base64url_to_bytes(c.credential_id)) for c in u.passkeys.all()],
             authenticator_selection=AuthenticatorSelectionCriteria(

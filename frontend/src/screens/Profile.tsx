@@ -10,6 +10,7 @@ import { openAppearance } from './Appearance';
 import { AddRecipient } from './NewPlan';
 import { cardLabel, type SavedCard } from './CardTopUp';
 import { useEffect } from 'react';
+import { VerifyCard } from './Verify';
 
 type Row = { icon: string; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
@@ -50,7 +51,7 @@ export default function Profile() {
   const peopleSheet = () => openSheet(<PeopleSheet />);
   const signOut = () => openSheet(<>
     <h3>Sign out?</h3>
-    <p className="muted" style={{ marginTop: -6 }}>Your plans keep running. To get back in on this device you'll need a texted code and your PIN.</p>
+    <p className="muted" style={{ marginTop: -6 }}>Your plans keep running. To get back in on this device you'll need a code from your email and your PIN.</p>
     <div style={{ display: 'flex', gap: 8 }}><button className="btn btn-soft" style={{ flex: 1 }} onClick={closeSheet}>Stay signed in</button>
       <button className="btn btn-danger" style={{ flex: 1 }} onClick={async () => { closeSheet(); await api.post('/auth/signout'); await refreshMe(); nav('/'); }}>Sign out</button></div></>);
 
@@ -61,18 +62,23 @@ export default function Profile() {
         <div className="card prof-head">
           <span className="avatar lg">{(u.first_name[0] ?? '') + (u.last_name[0] ?? '')}</span>
           <h1>{u.first_name} {u.last_name}</h1>
-          <span className="small muted">{u.phone_masked}</span>
-          <span className="verified-pill">✓ Verified</span>
+          <span className="small muted">{u.email}</span>
+          {u.kyc_status === 'verified' ? <span className="verified-pill">✓ Verified</span> : <span className="pill p-wait">Not verified yet</span>}
         </div>
+        <VerifyCard />
         {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
           <span className="acct-no num">{fa.account_number.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}</span><span style={{ fontWeight: 700 }}>{fa.bank_name}</span>
           <button className="btn btn-soft" style={{ marginTop: 6 }} onClick={async () => { try { await navigator.clipboard.writeText(fa.account_number); toast('Account number copied'); } catch { toast(fa.account_number); } }}>Copy number</button></div>}
       </div><div className="col stack">
         <div className="group-h">Identity</div>
         <div className="list">
-          <SetRow icon="🪪" title="NIN" sub={`•••• ••• ${u.nin_last4} · checked`} val={<span className="pill p-send">Verified</span>} />
-          <SetRow icon="📄" title="ID document" sub="Front of your ID" val={<span className="pill p-send">Verified</span>} />
-          <SetRow icon="🤳" title="Selfie" sub="Face matches your ID" val={<span className="pill p-send">Verified</span>} />
+          {u.kyc_status === 'verified' ? (<>
+            <SetRow icon="🪪" title={u.kyc_id_type === 'bvn' ? 'BVN' : 'NIN'} sub={`•••• ••• ${u.nin_last4} · checked`} val={<span className="pill p-send">Verified</span>} />
+            <SetRow icon="📄" title="ID document" sub="Front of your ID" val={<span className="pill p-send">Verified</span>} />
+            <SetRow icon="🤳" title="Selfie" sub="Face matches your ID" val={<span className="pill p-send">Verified</span>} />
+          </>) : (
+            <SetRow icon="🪪" title="Verify your identity" sub="NIN or BVN, a photo of your ID and a selfie" val={u.kyc_status === 'not_started' ? 'Start' : 'Continue'} onClick={() => nav('/verify')} />
+          )}
           <SetRow icon="📊" title="Account limits" sub="Set by your verification level" val="View" onClick={() => openSheet(<>
             <h3>Account limits</h3>
             <p className="muted">Your limits depend on your verification level. We're confirming the exact figures with our banking partner and will show them here.</p></>)} />

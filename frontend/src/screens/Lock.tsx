@@ -39,7 +39,7 @@ export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => 
       <Wordmark style={{ marginBottom: 6 }} />
       <Kobo mood={error ? 'puddle' : 'peek'} size={64} follow />
       <h2>Welcome back{me?.user?.first_name ? `, ${me.user.first_name}` : ''} 👋</h2>
-      {me?.user?.phone_masked && <p className="small muted" style={{ margin: '-6px 0 0' }}>{me.user.phone_masked}</p>}
+      {me?.user?.email_masked && <p className="small muted" style={{ margin: '-6px 0 0' }}>{me.user.email_masked}</p>}
       {mode === 'face' ? (
         <>
           <div className={`face-ic ${scanning ? 'scan' : ''}`}>{Icon.face}</div>

@@ -321,8 +321,10 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 | Runtime | Docker for everything (Node 22 in containers). |
 | WhatsApp | Mocked (outbox and an in-app preview). |
 | Paystack | Card top-ups on Paystack's checkout, with saved cards (token stored encrypted) for one-tap top-ups. The card fee is passed on and shown first (switchable). Payouts and name checks can run through Paystack (`PAYOUT_PROVIDER=paystack`). Webhooks are signature-checked, and every event is re-verified with Paystack. |
-| Sign-up | NIN → ID photo → selfie, then OTP to the NIN phone, then a PIN, then Face ID (optional). |
-| Sign-in | Face ID or PIN on a known device. New device: OTP, then PIN. |
+| Sign-up | (Changed 2026-10-02.) Email → 6-digit code by email (Mailgun) → name → PIN → Face ID (optional). No ID checks at sign-up. |
+| Identity checks | Later, inside the app: NIN **or** BVN → ID photo → selfie. Required before money moves: the account number is issued on verification, card top-ups and dev top-ups are refused, and the worker skips unverified users' runs. |
+| Sign-in | Face ID or PIN on a known device. New device: emailed code, then PIN. |
+| Email | Mailgun, sending domain `mg.spendrip.com`. Waitlist welcome on join; invites from the admin action. |
 | Payout to "me" | To your own bank account, saved as a verified recipient. |
 
 ### Still open (none of these block Phase 0–2)

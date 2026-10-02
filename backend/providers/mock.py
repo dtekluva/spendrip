@@ -96,6 +96,11 @@ class MockKycProvider:
         # A different phone per NIN, so several test sign-ups don't collide.
         return {"first_name": "ADAEZE", "last_name": "OKONKWO", "date_of_birth": "1994-03-14", "phone": "080" + nin[-8:]}
 
+    def lookup_bvn(self, bvn: str) -> dict | None:
+        if len(bvn) != 11 or not bvn.isdigit() or bvn == "00000000000":
+            return None
+        return {"first_name": "ADAEZE", "last_name": "OKONKWO", "date_of_birth": "1994-03-14", "phone": "081" + bvn[-8:]}
+
     def check_document(self, image_bytes: bytes, *, id_type: str, expected_name: str) -> dict:
         return {"passed": len(image_bytes) > 0, "checks": ["corners_visible", "text_readable", "name_matches"]}
 
