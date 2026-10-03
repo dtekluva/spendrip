@@ -50,10 +50,7 @@ Always add "money", "bank" or "wife/family".
 
 ## Backlog (from the research)
 
-1. **Search Console and Bing Webmaster Tools.**
-   - Verify the domain property: Search Console gives a DNS TXT value, and it can be added to the spendrip.com zone.
-   - Submit `https://spendrip.com/sitemap.xml`.
-   - Import into Bing from Search Console.
+1. **Search Console and Bing Webmaster Tools.** Done 3 Oct 2026: Search Console verified by DNS TXT, sitemap submitted, and Bing imported from Search Console. Still to do: watch the sitemap status in both.
 2. **App-by-app guide:** how to schedule a transfer on OPay, PalmPay, Kuda and Moniepoint. These are high-demand quick wins, but write them only with verified, current steps and screenshots.
 3. **Trust pages:** About (real team bios), Contact, Privacy and Terms. Privacy and Terms need a lawyer. These carry E-E-A-T signals for a finance site.
 4. **Entity building:** LinkedIn, X, Crunchbase, Instagram and TikTok profiles with the same name, logo and description, added to Organization `sameAs`. Wikidata only after press coverage.
