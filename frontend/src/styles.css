@@ -778,8 +778,9 @@ a{color:inherit}
   0%,10%,100%{transform:none;box-shadow:none}
   4%{transform:translateY(-4px) scale(1.06);box-shadow:0 0 0 4px color-mix(in srgb,var(--cobalt) 30%,transparent),0 10px 22px -10px color-mix(in srgb,var(--cobalt) 80%,transparent)}
 }
-.chip-hint{display:flex;align-items:flex-end;gap:14px;padding-top:10px;margin:2px 0 0;animation:fadeup .4s ease both}
-.chip-hint .bubble{position:relative;background:var(--surface);border:1px solid color-mix(in srgb,var(--cobalt) 35%,var(--line));border-radius:16px 16px 16px 4px;padding:9px 13px;font-weight:700;font-size:14px;line-height:1.35}
+.chip-hint{display:flex;align-items:flex-end;gap:14px;padding-top:10px;margin:2px 0 0;max-width:100%;animation:fadeup .4s ease both}
+.chip-hint>:first-child{flex:0 0 auto}
+.chip-hint .bubble{flex:1 1 0;min-width:0;position:relative;background:var(--surface);border:1px solid color-mix(in srgb,var(--cobalt) 35%,var(--line));border-radius:16px 16px 16px 4px;padding:9px 13px;font-weight:700;font-size:14px;line-height:1.35}
 .chip-hint .bubble span{font-weight:500;font-size:12.5px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.sentence.tour .chip{animation:none}}
 
