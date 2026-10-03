@@ -160,3 +160,29 @@ def test_materialising_twice_creates_nothing_new(user, recipients, make_group):
     assert materialise_runs(now) == 0
     assert (RunBatch.objects.count(), Run.objects.count()) == n
     assert Run.objects.filter(plan=staff, batch__isnull=True).count() == 0
+
+
+def test_turning_a_single_plan_into_a_group_drops_its_single_drips(user, recipients, make_plan, worker, provider, top_up):
+    from drips.services import reschedule
+    top_up(50_000)
+    plan = make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2)
+    now = lagos("2026-11-01T09:00")
+    reschedule(plan, now)
+    assert Run.objects.filter(plan=plan, batch__isnull=True, status=Run.Status.SCHEDULED).exists()
+    plan.kind = Plan.Kind.GROUP
+    plan.save()
+    save_lines(plan, [{"recipient": recipients["mum"], "amount_kobo": naira(10_000)}, {"recipient": recipients["me"], "amount_kobo": naira(5_000)}])
+    reschedule(plan, now)
+    assert not Run.objects.filter(plan=plan, batch__isnull=True, status=Run.Status.SCHEDULED).exists()
+    worker.tick(lagos("2026-11-02T09:00"))
+    assert provider.transfer_calls == 2  # Mum once (in the group), not twice
+
+
+def test_a_waiting_payout_counts_in_the_top_up(user, top_up, recipients, make_group, worker):
+    from drips.services import user_forecast
+    top_up(12_000)
+    make_group("Staff", [(recipients["mum"], 10_000), (recipients["me"], 5_000)])
+    t = lagos("2026-11-02T09:00")
+    worker.tick(t)
+    f = user_forecast(user, t + timedelta(minutes=5))
+    assert f.top_up_kobo == naira(15_100 - 12_000)

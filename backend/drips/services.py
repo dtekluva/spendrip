@@ -54,10 +54,18 @@ def sent_today_kobo(user, now: datetime) -> int:
 def user_forecast(user, now: datetime | None = None):
     now = now or timezone.now()
     bal = ledger.balance(user)
-    return forecast(
+    f = forecast(
         engine_plans(user), bal.available_kobo, now,
         fee_kobo=fee_schedule(), tz=user.tz, daily_cap_kobo=user.daily_cap_kobo, sent_today_kobo=sent_today_kobo(user, now),
     )
+    # A group payout that's already due but waiting for money isn't in the forecast (its time has passed), yet it
+    # needs that money now. Count it, so "top up" covers it.
+    waiting = RunBatch.objects.filter(user=user, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING], scheduled_for__lte=now)
+    owed = sum(b.cost_kobo for b in waiting)
+    if owed:
+        f.total_needed_kobo += owed
+        f.top_up_kobo = max(0, f.total_needed_kobo - bal.available_kobo)
+    return f
 
 
 def materialise_runs(now: datetime, *, days: int | None = None, plans=None) -> int:
@@ -123,6 +131,8 @@ def reschedule(plan: Plan, now: datetime | None = None) -> None:
     if plan.is_group:
         # Nothing in a scheduled or waiting batch has moved money yet, so rebuild them all (a waiting one keeps its time).
         RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).delete()
+        # A one-person plan that just became a group: its own scheduled drips must not go out as well.
+        Run.objects.filter(plan=plan, batch__isnull=True, status=Run.Status.SCHEDULED).delete()
     else:
         Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
     if plan.status == Plan.Status.ACTIVE:

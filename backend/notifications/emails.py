@@ -150,7 +150,7 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
                  f'<tr><td style="padding:14px 18px;font-size:14px;color:#2a2f66"><b style="color:#2436F2">Next up:</b> {e(nxt["emoji"])} {e(nxt["label"])} · '
                  f'<b>{N(nxt["amount_kobo"])}</b> on {e(_when(nxt["when"]))}</td></tr></table></td></tr>') if nxt else ""
 
-    html = f"""<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
 <body style="margin:0;padding:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">{e(preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 12px"><tr><td align="center">
@@ -249,7 +249,8 @@ def render_group(c: dict) -> tuple[str, str, str]:
     e = escape
     n, paid = len(c["people"]), c["paid_count"]
     everyone = paid == n
-    subject = f"{c['emoji']} {c['label']}: {'all ' + str(n) + ' people paid' if everyone else f'{paid} of {n} paid'} · {N(c['paid_kobo'])}"
+    who = (f"all {n} people paid" if n > 1 else "1 person paid") if everyone else f"{paid} of {n} paid"
+    subject = f"{c['emoji']} {c['label']}: {who} · {N(c['paid_kobo'])}"
     headline = "Everyone's paid! 🎉" if everyone else f"{paid} of {n} paid"
     hi = f"Hi {c['first_name']}," if c["first_name"] else "Hi there,"
     app = settings.SPENDRIP["PUBLIC_APP_URL"]
@@ -266,7 +267,7 @@ def render_group(c: dict) -> tuple[str, str, str]:
     fees = "".join(
         f'<tr><td style="padding:8px 0;color:#6b7099;font-size:14px">{e(f["label"])}</td>'
         f'<td style="padding:8px 0;text-align:right;color:#0E1233;font-size:14px;font-weight:700">{N(f["amount_kobo"])}</td></tr>' for f in c["fee_lines"])
-    html = f"""<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
 <body style="margin:0;padding:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">{e(subject)}. Balance: {N(c['balance_kobo'])}.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 12px"><tr><td align="center">
@@ -279,7 +280,7 @@ def render_group(c: dict) -> tuple[str, str, str]:
  </td></tr>
  <tr><td style="background:#FFF4CC;border-bottom:4px solid #FFD23F;padding:26px 28px 24px" align="center">
    {f'<img src="{kobo}" width="150" height="141" alt="Kobo, the SpenDrip drop, celebrating" style="display:block;border:0;margin:0 auto 6px">' if everyone else ''}
-   <div style="font-size:15px;font-weight:800;color:#0B1040;opacity:.75">{n} people · {e(c['emoji'])} {e(c['label'])}</div>
+   <div style="font-size:15px;font-weight:800;color:#0B1040;opacity:.75">{n} {'person' if n == 1 else 'people'} · {e(c['emoji'])} {e(c['label'])}</div>
    <div style="font-size:46px;line-height:1.05;font-weight:800;letter-spacing:-1.5px;color:#0B1040;margin:6px 0 4px">{N(c['paid_kobo'])}</div>
    <div style="font-size:19px;font-weight:800;color:#0B1040">{e(headline)}</div>
  </td></tr>
@@ -299,7 +300,7 @@ def render_group(c: dict) -> tuple[str, str, str]:
 </td></tr></table>
 </td></tr></table></body></html>"""
     text = "\n".join([
-        f"{headline} {c['emoji']} {c['label']}: {N(c['paid_kobo'])} to {paid} of {n} people.", "",
+        f"{headline} {c['emoji']} {c['label']}: {N(c['paid_kobo'])} to {paid} of {n} {'person' if n == 1 else 'people'}.", "",
         *[f"{'✓' if p['paid'] else '✗ returned'}  {p['label']} ({p['bank']} ••{p['last4']}): {N(p['amount_kobo'])}" for p in c["people"]], "",
         *[f"{f['label']}: {N(f['amount_kobo'])}" for f in c["fee_lines"]], f"Balance now: {N(c['balance_kobo'])}", "", f"Open SpenDrip: {app}",
     ])
