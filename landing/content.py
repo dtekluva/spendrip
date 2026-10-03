@@ -377,4 +377,60 @@ PAGES = [
 <h3 id="priority">Priority</h3><p>In SpenDrip, one of up to three ranked plans whose money is kept back for the rest of the month before lower plans can spend it. <a href="/priorities/">How priorities work</a>.</p>"""},
     ],
   },
+  # ------------------------------------------------------------------ company
+  {
+    "slug": "about", "short": "About", "nav": None, "footer": False, "page_type": "AboutPage", "eyebrow": "About SpenDrip",
+    "title": "About SpenDrip: Scheduled Transfers Built in Nigeria",
+    "description": "SpenDrip is a Nigerian app for scheduled transfers. Set money to go out on the day and time you choose, to yourself or the people you look after, with every fee shown first.",
+    "h1": "Money that shows up on time",
+    "lead": "SpenDrip is a Nigerian app for scheduled transfers. You top up one balance and set “drips”: payments that go out by themselves, daily, weekly or monthly, to your own account or to anyone with a Nigerian bank or wallet account.",
+    "updated": UPDATED, "related": ["security", "fees", "scheduled-transfers"],
+    "sections": [
+      {"id": "why", "h2": "Why we built it", "html": """
+<p>Most of us send the same money again and again: Mum’s monthly upkeep, a sibling’s school allowance, fuel for the week, money moved out of the salary account before it disappears. Banking apps can send money, but only when you remember to, and remembering is the hard part. A late transfer means a call asking “have you sent it?”, and a forgotten one means someone you look after goes without.</p>
+<p>SpenDrip does the remembering. You write the plan once, as one sentence:</p>
+<p class="plan">Send <span class="chip">₦30,000</span> to <span class="chip">Mum</span> every <span class="chip">month</span> on the <span class="chip">25th</span> at <span class="chip">9:00 AM</span>.</p>
+<p>The money goes out on time, and Mum gets a WhatsApp message when it lands.</p>"""},
+      {"id": "beliefs", "h2": "What we believe", "html": """
+<ul>
+<li><b>Show every naira.</b> Before a plan starts you see the SpenDrip fee, the transfer fee and stamp duty as separate lines. Nothing is added later. <a href="/fees/">Our fees</a>.</li>
+<li><b>Protect what matters most.</b> Rank up to three drips as priorities. Their money is set aside for the month, so smaller drips wait instead of spending it. <a href="/priorities/">How priorities work</a>.</li>
+<li><b>Count it as sent only when the bank says so.</b> If a transfer fails, the money goes back to your balance. <a href="/security/">Security</a>.</li>
+<li><b>Know who we’re dealing with.</b> Everyone verifies with an ID photo and live selfies before money moves, and every payee’s account name is checked before it’s saved.</li>
+</ul>"""},
+      {"id": "how", "h2": "How it works behind the scenes", "html": """
+<ul>
+<li><b>Card payments</b> are processed by Paystack. SpenDrip never sees your card number.</li>
+<li><b>Transfers</b> are sent through Paystack to Nigerian banks and wallets.</li>
+<li><b>Your balance</b> is recorded in a double-entry ledger, so every movement can be traced.</li>
+</ul>"""},
+      {"id": "team", "h2": "Who we are", "html": """
+<p>SpenDrip was founded by <b>Inyang Paul</b> and is built in Nigeria, for people who look after others with their money.</p>
+<p>Questions, feedback or press: <a href="/contact/">contact us</a>.</p>"""},
+    ],
+  },
+  {
+    "slug": "contact", "short": "Contact", "nav": None, "footer": False, "page_type": "ContactPage", "eyebrow": "Contact",
+    "title": "Contact SpenDrip: Phone, WhatsApp and Email",
+    "description": "Reach the SpenDrip team by phone, WhatsApp or email for help with drips, top-ups and transfers, or for press enquiries.",
+    "h1": "Talk to a person",
+    "lead": "Questions about a drip, a top-up or a transfer? Reach us directly.",
+    "updated": UPDATED, "related": ["security", "fees"],
+    "sections": [
+      {"id": "reach", "h2": "How to reach us", "html": """
+<ul class="contact-list">
+<li><b>WhatsApp:</b> <a href="https://wa.me/2348022448089" rel="noopener">0802 244 8089</a></li>
+<li><b>Phone:</b> <a href="tel:+2348022448089">0802 244 8089</a></li>
+<li><b>Email:</b> <a href="mailto:hello@spendrip.com">hello@spendrip.com</a></li>
+<li><b>Press:</b> <a href="mailto:hello@spendrip.com?subject=Press">hello@spendrip.com</a>, with “Press” in the subject</li>
+</ul>"""},
+      {"id": "first", "h2": "Before you get in touch", "html": """
+<ul>
+<li><b>A drip didn’t arrive?</b> Open the plan in the app. It shows whether the drip went out, is waiting for money or failed, and why. Failed transfers go back to your balance by themselves.</li>
+<li><b>Topped up but your balance didn’t change?</b> Card top-ups usually show within a minute. If it’s been longer, send us the time and the amount.</li>
+</ul>"""},
+      {"id": "safety", "h2": "Stay safe", "html": """
+<p>SpenDrip will never ask for your card number, PIN, OTP or password, by phone, email or WhatsApp. Anyone who asks isn’t us.</p>"""},
+    ],
+  },
 ]

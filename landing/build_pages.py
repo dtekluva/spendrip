@@ -59,6 +59,7 @@ def footer(pages: list[dict]) -> str:
         <div><b>Product</b><a href="/#how">How it works</a><a href="/#priorities">Priorities</a><a href="/#safety">Safety</a><a href="/fees/">Fees</a></div>
         <div><b>Guides</b>{guides}</div>
         <div><b>Get started</b><a href="{APP}">Create an account</a><a href="{APP}">Sign in</a><a href="/#faq">FAQ</a></div>
+        <div><b>Company</b><a href="/about/">About</a><a href="/contact/">Contact</a></div>
       </div>
     </div>
     <div class="legal"><span>© {date.today().year} SpenDrip. Built for Nigeria.</span><span>Card payments are processed by Paystack.</span></div>
@@ -70,7 +71,7 @@ def page_html(p: dict, pages: list[dict]) -> str:
     url = f"{SITE}/{p['slug']}/"
     crumbs = [{"name": "Home", "url": f"{SITE}/"}] + [{"name": p["short"], "url": url}]
     graph = [
-        {"@type": "WebPage", "@id": f"{url}#webpage", "url": url, "name": p["title"], "description": p["description"],
+        {"@type": p.get("page_type", "WebPage"), "@id": f"{url}#webpage", "url": url, "name": p["title"], "description": p["description"],
          "inLanguage": "en-NG", "isPartOf": {"@id": f"{SITE}/#website"}, "about": {"@id": f"{SITE}/#app"},
          "dateModified": p.get("updated", TODAY),
          "primaryImageOfPage": {"@type": "ImageObject", "url": f"{SITE}/og-image.png", "width": 1200, "height": 630}},
