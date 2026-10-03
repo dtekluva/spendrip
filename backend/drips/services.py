@@ -123,12 +123,12 @@ def _build_group_batches(plan: Plan, sched, start: datetime, end: datetime, Inte
         parts = sched.group_parts([a for _, a in paying])
         try:
             with transaction.atomic():
-            batch = RunBatch.objects.create(plan=plan, user_id=plan.user_id, scheduled_for=at, amount_kobo=sum(a for _, a in paying),
-                                            fee_kobo=sum(f.total_kobo for f in parts))
-            Run.objects.bulk_create([
-                Run(plan=plan, line=ln, batch=batch, user_id=plan.user_id, scheduled_for=at, amount_kobo=a, fee_kobo=f.total_kobo,
-                    service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
-                for (ln, a), f in zip(paying, parts)])
+                batch = RunBatch.objects.create(plan=plan, user_id=plan.user_id, scheduled_for=at, amount_kobo=sum(a for _, a in paying),
+                                                fee_kobo=sum(f.total_kobo for f in parts))
+                Run.objects.bulk_create([
+                    Run(plan=plan, line=ln, batch=batch, user_id=plan.user_id, scheduled_for=at, amount_kobo=a, fee_kobo=f.total_kobo,
+                        service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
+                    for (ln, a), f in zip(paying, parts)])
         except IntegrityError:
             continue  # someone else built this payout a moment ago; theirs stands
         created += len(paying)
