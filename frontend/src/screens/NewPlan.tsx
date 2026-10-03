@@ -7,6 +7,7 @@ import { feeLines, feeTotal } from '../lib/fees';
 import type { Draft, EndMode, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Spinner, useAction } from '../components/ui';
+import { track } from '../lib/analytics';
 import Kobo from '../components/Kobo';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
@@ -113,7 +114,7 @@ export default function NewPlan() {
       : await api.post<{ plan: Plan; dropped_priorities: string[] }>('/plans', body);
     await reload();
     nav('/plans');
-    if (!editing) confetti();
+    if (!editing) { confetti(); track('plan_created', { first: plans.length === 0, frequency: r.plan.frequency, ends: r.plan.end_mode }); }
     const first = r.plan.first_drip_at && r.plan.state === 'scheduled' ? `${dayLabelY(r.plan.first_drip_at)}, ${fmtTime(r.plan.time_local)}`
       : r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
     if (editing) toast(`${r.plan.label} updated`);

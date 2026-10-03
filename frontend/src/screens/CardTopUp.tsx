@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { N } from '../lib/format';
 import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
+import { track } from '../lib/analytics';
 import { Spinner, useAction } from '../components/ui';
 
 export interface SavedCard { id: number; brand: string; last4: string; bank: string; exp: string }
@@ -37,7 +38,7 @@ export function CardPanel({ suggested }: { suggested: number }) {
       closeSheet();
       const r = await api.post<ChargeResult>('/funding/card/charge', { card_id: card.id, amount_kobo: amount });
       await reload();
-      if (r.status === 'success') koboSay('fill', `${N(r.net_kobo)} added from ${cardLabel(card)}.`);
+      if (r.status === 'success') { track('topup_completed', { method: 'saved_card', naira: Math.round(r.net_kobo / 100) }); koboSay('fill', `${N(r.net_kobo)} added from ${cardLabel(card)}.`); }
       else if (r.status === 'failed') { setError(r.message || "The card was declined."); koboSay('puddle', "That card didn't go through."); }
       else toast('Still confirming with your bank. We\'ll tell you when it lands.');
     })} />,
@@ -108,7 +109,7 @@ export default function CardReturn() {
         if (stop) return;
         if (r.status === 'started' && tries++ < 6) { window.setTimeout(check, 2500); return; } // the bank is still confirming
         setResult(r);
-        if (r.status === 'success') { reload(); confetti(); }
+        if (r.status === 'success') { track('topup_completed', { method: 'card', naira: Math.round(r.net_kobo / 100) }); reload(); confetti(); }
       } catch (e: any) { if (!stop) setError(e.message); }
     };
     if (ref) check(); else setError("We couldn't find that payment.");

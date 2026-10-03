@@ -7,9 +7,11 @@ from .models import KycCheck, User, WaitlistEntry
 
 @admin.register(User)
 class SpenDripUserAdmin(UserAdmin):
-    list_display = ("username", "phone", "first_name", "last_name", "kyc_status", "paused_all")
+    list_display = ("username", "first_name", "last_name", "kyc_status", "signup_source", "signup_landing", "date_joined")
+    list_filter = ("kyc_status", "signup_source")
     fieldsets = UserAdmin.fieldsets + (
         ("SpenDrip", {"fields": ("phone", "kyc_status", "nin_last4", "tz", "daily_cap_kobo", "paused_all", "look")}),
+        ("Where they came from", {"fields": ("signup_source", "signup_landing")}),
     )
 
 

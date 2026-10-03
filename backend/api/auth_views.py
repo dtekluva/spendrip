@@ -100,6 +100,11 @@ def signup_state(request) -> dict:
     return s
 
 
+def _clean(v, n: int) -> str:
+    """Attribution labels from the browser: short, printable, no spaces at the ends."""
+    return "".join(ch for ch in str(v or "") if ch.isprintable()).strip()[:n]
+
+
 class SignupStart(APIView):
     permission_classes = [AllowAny]
 
@@ -109,7 +114,8 @@ class SignupStart(APIView):
         if existing and existing.pin_hash:
             raise FlowError("That email already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
         code = acc.send_otp(email, "signup")
-        request.session[SIGNUP] = {"step": "code", "email": email, "email_masked": acc.mask_email(email)}
+        request.session[SIGNUP] = {"step": "code", "email": email, "email_masked": acc.mask_email(email),
+                                   "source": _clean(request.data.get("source"), 80), "landing": _clean(request.data.get("landing"), 120)}
         return Response({"step": "code", "email_masked": acc.mask_email(email), **dev_code(code)})
 
 
@@ -135,7 +141,8 @@ class SignupVerifyOtp(APIView):
             if user and user.pin_hash:
                 raise FlowError("That email already has a SpenDrip account. Sign in instead.", code="already_registered", status=409)
             if not user:
-                user = User(username=s["email"], email=s["email"], daily_cap_kobo=settings.SPENDRIP.get("DEFAULT_DAILY_CAP_KOBO") or None)
+                user = User(username=s["email"], email=s["email"], daily_cap_kobo=settings.SPENDRIP.get("DEFAULT_DAILY_CAP_KOBO") or None,
+                            signup_source=s.get("source") or "direct", signup_landing=s.get("landing") or "")
                 user.set_unusable_password()
                 user.save()
             ledger.ensure_user_accounts(user)

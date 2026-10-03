@@ -536,3 +536,15 @@ def test_wipe_needs_the_flag_and_keeps_staff_and_waitlist(demo, dev):
     call_command("wipe_app_data", "--yes-delete-everything")
     assert list(User.objects.values_list("username", flat=True)) == [staff.username]
     assert WaitlistEntry.objects.count() == 1
+
+
+def test_signup_remembers_where_the_person_came_from(dev, db):
+    c = APIClient()
+    r = c.post("/api/signup/start", {"email": "src@example.com", "source": "google", "landing": "/black-tax-nigeria/"}, format="json").json()
+    c.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json")
+    u = User.objects.get(email="src@example.com")
+    assert (u.signup_source, u.signup_landing) == ("google", "/black-tax-nigeria/")
+    c2 = APIClient()
+    r = c2.post("/api/signup/start", {"email": "direct@example.com"}, format="json").json()
+    c2.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json")
+    assert User.objects.get(email="direct@example.com").signup_source == "direct"

@@ -5,6 +5,9 @@ import App from './App';
 import UpdateBar from './components/UpdateBar';
 import { StoreProvider } from './lib/store';
 import './styles.css';
+import { captureSource } from './lib/analytics';
+
+captureSource();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -133,6 +133,8 @@ def page_html(p: dict, pages: list[dict]) -> str:
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/article.css">
+<script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
+<script defer src="/track.js"></script>
 <script type="application/ld+json">
 {ld}
 </script>

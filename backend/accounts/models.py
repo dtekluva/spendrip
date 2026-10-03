@@ -30,6 +30,10 @@ class User(AbstractUser):
     kyc_tier = models.PositiveSmallIntegerField(default=0)  # 1 = BVN + ID checked (CBN Tier-1-style limits apply)
     kyc_message = models.CharField(max_length=240, blank=True)  # why the last check didn't pass, shown to the person
     paystack_customer_code = models.CharField(max_length=40, blank=True)
+    # Where the person came from before signing up (first touch, from spendrip.com links): e.g. "google", "whatsapp",
+    # "chatgpt", "utm:twitter/launch", "direct". signup_landing is the first spendrip.com page they saw.
+    signup_source = models.CharField(max_length=80, blank=True)
+    signup_landing = models.CharField(max_length=120, blank=True)
 
     pin_hash = models.CharField(max_length=256, blank=True)
     failed_pin_attempts = models.PositiveSmallIntegerField(default=0)

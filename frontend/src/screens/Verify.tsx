@@ -5,6 +5,7 @@ import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, Spinner, useAction } from '../components/ui';
 import Kobo, { KoboLoader } from '../components/Kobo';
+import { track } from '../lib/analytics';
 import { N } from '../lib/format';
 
 /** Verify your identity, from inside the app: a photo of your ID, then three face angles. Unlocks adding money and sending it. */
@@ -268,7 +269,7 @@ function LivenessStep({ header, dev, onNext }: { header: React.ReactNode; dev: b
   const submit = () => run(async () => {
     const fd = new FormData();
     shots.forEach((b, i) => fd.append(`image_${i}`, b, `pose-${i}.jpg`));
-    try { onNext(await api.post<Me>('/kyc/liveness', fd)); }
+    try { const m = await api.post<Me>('/kyc/liveness', fd); track('verified'); onNext(m); }
     catch (e) { start(); throw e; }
   });
   useEffect(() => { if (order && n === order.length && !busy) submit(); }, [n]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -124,3 +124,36 @@ When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks
 **Backups and rollback:**
 - Pre-live database backup: `/root/backups/spendrip-before-live-20261002-2146.dump`
 - Previous env file: `/etc/spendrip.env.bak-before-live`
+
+## Analytics (Umami at stats.spendrip.com)
+
+- **What it is:** cookieless, self-hosted analytics.
+  - Compose file: `deploy/docker-compose.umami.yml`, memory capped at 256 MB.
+  - Settings and secrets: `/etc/umami.env` (root only).
+  - Database: `umami` in the host Postgres, with its own role.
+  - nginx site: `deploy/nginx-stats.spendrip.com.conf`, with a certbot certificate.
+- **Login:** username `admin`. The password is `UMAMI_ADMIN_PASSWORD` in your local `.env.deploy`.
+- **The two Umami websites:**
+
+  | Website | Id |
+  |---|---|
+  | spendrip.com | `51431cff-9282-4431-aaf6-22c3d7e6e476` |
+  | SpenDrip app | `a84d4906-8f4a-43be-aaad-9a5546fa5570` |
+
+- **Tracker naming:** served as `https://stats.spendrip.com/k.js`, with events posted to `/api/k`, so ad blockers don't drop it. nginx proxies both without `X-Forwarded-Proto`, because Umami would otherwise call itself over HTTPS and fail.
+- **Funnel events (app):**
+  1. `signup_started`
+  2. `account_created`
+  3. `signup_completed`
+  4. `verified`
+  5. `plan_created` (`first`, `frequency`, `ends`)
+  6. `topup_completed` (`method`, `naira`)
+
+  Every event carries `source`. On spendrip.com the events are `get-started` and `sign-in`.
+- **Attribution:** `landing/track.js` stores the visitor's first source (search engine, AI assistant, social app, `utm:` campaign, or direct) and adds `?src=&lp=` to app links. The app saves them on the user (`signup_source`, `signup_landing`), and they show in admin under Users.
+- **Memory:** check with `docker stats --no-stream`. Resize the droplet to 2 GB before raising the cap.
+- **Restart:**
+
+  ```bash
+  cd /opt/spendrip && docker compose -f deploy/docker-compose.umami.yml up -d
+  ```

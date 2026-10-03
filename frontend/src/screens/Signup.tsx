@@ -4,6 +4,7 @@ import { createPasskey, passkeysSupported } from '../lib/passkey';
 import { useStore } from '../lib/store';
 import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
+import { source, track } from '../lib/analytics';
 import Kobo, { KoboLoader } from '../components/Kobo';
 
 /** Sign-up: email → code → name → PIN → Face ID. Identity checks come later, from inside the app (see Verify). */
@@ -60,7 +61,10 @@ function EmailStep({ header, onNext }: { header: React.ReactNode; onNext: (maske
   const { busy, error, setError, run } = useAction();
   const ok = looksLikeEmail(email);
   const start = () => ok && run(async () => {
-    try { const r = await api.post<any>('/signup/start', { email }); onNext(r.email_masked, r.dev_code); }
+    try {
+      const r = await api.post<any>('/signup/start', { email, source: source().s, landing: source().p });
+      track('signup_started'); onNext(r.email_masked, r.dev_code);
+    }
     catch (e: any) { if (e.code === 'otp_wait') { onNext(email.trim().toLowerCase()); return; } throw e; }
   });
   return (
@@ -139,7 +143,7 @@ function OtpStep({ header, emailMasked, devCode, setDevCode, onNext }: {
   const change = (v: string) => {
     setCode(v); setError('');
     if (v.length === 6) run(async () => {
-      try { const m = await api.post<Me>('/signup/otp/verify', { code: v }); setOk(true); window.setTimeout(() => onNext(m), 400); }
+      try { const m = await api.post<Me>('/signup/otp/verify', { code: v }); track('account_created'); setOk(true); window.setTimeout(() => onNext(m), 400); }
       catch (e) { setCode(''); throw e; }
     });
   };
@@ -226,6 +230,7 @@ function FaceStep({ header, onNext }: { header: React.ReactNode; onNext: (on: bo
 /* ---------------- done ---------------- */
 function DoneStep({ header, onGo }: { header: React.ReactNode; onGo: (to: 'home' | 'new' | 'verify') => void }) {
   const { me } = useStore();
+  useEffect(() => { track('signup_completed'); }, []);
   return (
     <>
       {header}
