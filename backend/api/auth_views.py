@@ -1,5 +1,6 @@
 """Sign-up (email → code → name → PIN → Face ID), identity checks later in the app (ID photo → three face angles),
 sign-in, unlock and passkeys."""
+import logging
 import secrets
 
 from django.conf import settings
@@ -20,6 +21,8 @@ from providers import get_kyc_provider
 from providers.base import ProviderError
 
 from .permissions import SignedIn, Unlocked
+
+log = logging.getLogger(__name__)
 
 SIGNUP = "signup"  # session key holding the in-progress sign-up
 BACKEND = "django.contrib.auth.backends.ModelBackend"
@@ -193,7 +196,8 @@ class KycDocument(APIView):
         provider = get_kyc_provider()
         try:
             result = provider.check_document(image.read(), id_type=id_type)
-        except (ProviderError, ValueError):
+        except (ProviderError, ValueError) as e:
+            log.warning("ID check failed for user %s: %s", user.pk, e)
             raise FlowError("We couldn't check your ID just now. Use a JPEG or PNG photo, or try again in a minute.", code="check_unavailable", status=503)
         number = "".join(ch for ch in str(result.pop("document_number", "")) if ch.isalnum()).upper()
         KycCheck.objects.create(user=user, step=KycCheck.Step.DOCUMENT, passed=result["passed"], provider=provider.name,
@@ -249,7 +253,8 @@ class KycLiveness(APIView):
         provider = get_kyc_provider()
         try:
             result = provider.check_liveness([img.read() for img in images], ch["order"])
-        except (ProviderError, ValueError):
+        except (ProviderError, ValueError) as e:
+            log.warning("liveness check failed for user %s: %s", user.pk, e)
             raise FlowError("We couldn't check your photos just now. Try again in a minute.", code="check_unavailable", status=503)
         KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=result["passed"], provider=provider.name,
                                 raw={"order": ch["order"], **result})

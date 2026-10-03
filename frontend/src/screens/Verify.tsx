@@ -194,8 +194,8 @@ function DocStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolea
 type Pose = 'front' | 'left' | 'right';
 const POSE_TEXT: Record<Pose, { title: string; hint: string; arrow: string }> = {
   front: { title: 'Look straight at the camera', hint: 'Face in the oval, chin level.', arrow: '' },
-  left: { title: 'Now turn your head to your left', hint: 'Slowly, until you see the side of the oval.', arrow: '←' },
-  right: { title: 'Now turn your head to your right', hint: 'Slowly, until you see the side of the oval.', arrow: '→' },
+  left: { title: 'Now turn your head to your left', hint: 'Turn well to the side, as if looking over your shoulder.', arrow: '←' },
+  right: { title: 'Now turn your head to your right', hint: 'Turn well to the side, as if looking over your shoulder.', arrow: '→' },
 };
 
 function samplePose(pose: Pose): Promise<Blob> {

@@ -26,7 +26,8 @@ Do not identify the person or describe who they are. Only judge the photo. Answe
 "faces": how many human faces are visible. "face_clear": one face is in focus, well lit and not covered (no sunglasses or mask).
 "looks_live": false if it looks like a photo of a screen, a printed picture or an ID card.
 "direction": where the nose points: "front" if looking at the camera, "towards_image_left" / "towards_image_right" if the head is
-clearly turned (about 30 degrees or more) towards that side of the image, otherwise "other"."""
+turned (about 20 degrees or more, so one cheek is clearly more visible than the other) towards that side of the image,
+otherwise "other"."""
 
 ALLOWED_DOCS = {"nin", "drivers_licence", "voters_card", "passport"}
 STEP_WORDS = {"front": "looking straight at the camera", "left": "turned to your left", "right": "turned to your right"}
@@ -61,7 +62,9 @@ class LiveKycProvider:
         return {**out, "passed": True, "checks": ["document_readable", "not_expired", "not_a_screen"]}
 
     def check_liveness(self, images: list[bytes], order: list[str]) -> dict:
-        reads = [vision_json(POSE_PROMPT, img, max_tokens=200) for img in images]
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=len(images)) as pool:  # side by side, so the person waits for one check, not three
+            reads = list(pool.map(lambda img: vision_json(POSE_PROMPT, img, max_tokens=200), images))
         steps = []
         for i, (pose, r) in enumerate(zip(order, reads), start=1):
             step = {"pose": pose, "faces": r.get("faces"), "face_clear": r.get("face_clear"), "looks_live": r.get("looks_live"),
@@ -75,6 +78,9 @@ class LiveKycProvider:
                 return {"passed": False, "steps": steps, "message": "Take the photos of yourself live, not of a screen or a printed picture."}
             wants_front = pose == "front"
             if wants_front != (r.get("direction") == "front") or (not wants_front and r.get("direction") == "other"):
+                if not wants_front and r.get("direction") == "front":
+                    return {"passed": False, "steps": steps,
+                            "message": f"Photo {i}: turn your head further to your {pose}, until we can see your ear. Let's try again."}
                 return {"passed": False, "steps": steps, "message": f"Photo {i} should be {STEP_WORDS[pose]}. Let's try again."}
         turns = [s["direction"] for s in steps if s["pose"] != "front"]
         if len(set(turns)) != 2:
