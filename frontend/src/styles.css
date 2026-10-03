@@ -872,3 +872,6 @@ a{color:inherit}
 .act-group>summary::-webkit-details-marker{display:none}
 .g-people{display:flex;flex-direction:column;gap:6px;padding:0 14px 14px 66px}
 @media (max-width:420px){.g-amt input{width:68px}.g-people{padding-left:14px}}
+.facecam-view .count{position:absolute;inset:0;display:grid;place-items:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.55);pointer-events:none;animation:count-pop 1s ease-out infinite}
+@keyframes count-pop{0%{transform:scale(1.25);opacity:.4}25%{transform:scale(1);opacity:1}100%{opacity:.85}}
+@media (prefers-reduced-motion:reduce){.facecam-view .count{animation:none}}

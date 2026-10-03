@@ -91,7 +91,7 @@ class LiveKycProvider:
             if wants_front != (r.get("direction") == "front") or (not wants_front and r.get("direction") == "other"):
                 if not wants_front and r.get("direction") == "front":
                     return {"passed": False, "steps": steps,
-                            "message": f"Photo {i}: turn your head further to your {pose}, until we can see your ear. Let's try again."}
+                            "message": f"Photo {i}: we need your head turned to your {pose}. Tap the button, turn until we can see your ear, and hold until the photo takes itself."}
                 return {"passed": False, "steps": steps, "message": f"Photo {i} should be {STEP_WORDS[pose]}. Let's try again."}
         turns = [s["direction"] for s in steps if s["pose"] != "front"]
         if len(set(turns)) != 2:

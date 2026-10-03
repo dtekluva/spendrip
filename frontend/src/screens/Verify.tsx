@@ -194,8 +194,8 @@ function DocStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolea
 type Pose = 'front' | 'left' | 'right';
 const POSE_TEXT: Record<Pose, { title: string; hint: string; arrow: string }> = {
   front: { title: 'Look straight at the camera', hint: 'Face in the oval, chin level.', arrow: '' },
-  left: { title: 'Now turn your head to your left', hint: 'Turn well to the side, as if looking over your shoulder.', arrow: '←' },
-  right: { title: 'Now turn your head to your right', hint: 'Turn well to the side, as if looking over your shoulder.', arrow: '→' },
+  left: { title: 'Now turn your head to your left', hint: "Tap the button, then turn well to your left and hold. The photo takes itself after 3 seconds, so you don't need to look back at the screen.", arrow: '←' },
+  right: { title: 'Now turn your head to your right', hint: "Tap the button, then turn well to your right and hold. The photo takes itself after 3 seconds, so you don't need to look back at the screen.", arrow: '→' },
 };
 
 function samplePose(pose: Pose): Promise<Blob> {
@@ -214,6 +214,9 @@ function FaceCam({ pose, onShot }: { pose: Pose; onShot: (b: Blob) => void }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [failed, setFailed] = useState<'' | 'denied' | 'unsupported'>('');
   const [attempt, setAttempt] = useState(0);
+  const [count, setCount] = useState(0);  // turn poses: seconds left before the photo takes itself
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
   useEffect(() => {
     let s: MediaStream | null = null;
     setFailed('');
@@ -231,6 +234,29 @@ function FaceCam({ pose, onShot }: { pose: Pose; onShot: (b: Blob) => void }) {
     c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
     c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height);  // un-mirrored, as the camera sees it
     c.toBlob((b) => b && onShot(b), 'image/jpeg', 0.88);
+  };
+  // A turned head can't see the screen, so turn poses use a countdown: tap, turn, hold, and the photo takes itself.
+  const buzz = (ms: number) => { try { navigator.vibrate?.(ms); } catch { /* not supported */ } };
+  const beep = (hz: number, ms: number) => {
+    try {
+      const a = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const o = a.createOscillator(); const g = a.createGain();
+      o.frequency.value = hz; g.gain.value = 0.08; o.connect(g); g.connect(a.destination);
+      o.start(); o.stop(a.currentTime + ms / 1000); o.onended = () => a.close();
+    } catch { /* no sound */ }
+  };
+  const take = () => {
+    if (pose === 'front') { snap(); return; }
+    if (timer.current) return;
+    let left = 3;
+    setCount(left); buzz(60); beep(660, 90);
+    timer.current = window.setInterval(() => {
+      left -= 1;
+      if (left > 0) { setCount(left); buzz(60); beep(660, 90); return; }
+      window.clearInterval(timer.current!); timer.current = null;
+      setCount(0); buzz(200); beep(990, 160);
+      snap();
+    }, 1000);
   };
   const t = POSE_TEXT[pose];
   if (failed) return (
@@ -251,8 +277,10 @@ function FaceCam({ pose, onShot }: { pose: Pose; onShot: (b: Blob) => void }) {
         <video ref={video} autoPlay playsInline muted />
         <div className={`oval pose-${pose}`} aria-hidden="true" />
         {t.arrow && <span className={`turn-arrow ${pose}`} aria-hidden="true">{t.arrow}</span>}
+        {count > 0 && <span className="count" aria-live="assertive">{count}</span>}
       </div>
-      <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!stream} onClick={snap}>Take photo</button>
+      <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!stream || count > 0} onClick={take}>
+        {pose === 'front' ? 'Take photo' : count > 0 ? `Keep turned… ${count}` : `Start, then turn ${pose}`}</button>
     </div>
   );
 }
