@@ -10,6 +10,7 @@ import { Icon, Spinner, useAction } from '../components/ui';
 import { track } from '../lib/analytics';
 import Kobo from '../components/Kobo';
 import GroupEditor from '../components/GroupEditor';
+import BankPicker from '../components/BankPicker';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
 const EMOJIS = ['🍔', '🍲', '⛽', '💛', '🤝', '🏠', '📱', '🚕', '💡', '🎓', '💪', '🐷'];
@@ -383,7 +384,7 @@ export function AddRecipient({ onSaved, self = false }: { onSaved: (r: Recipient
       <h3>{self ? 'Your own bank account' : 'Add someone'}</h3>
       <div className="stack" style={{ gap: 12 }}>
         {!self && <div className="field"><label htmlFor="rn">What do you call them?</label><input id="rn" placeholder="e.g. Sis Ada" value={label} onChange={(e) => setLabel(e.target.value)} /></div>}
-        <div className="field"><label htmlFor="rb">Bank</label><select id="rb" value={bank} onChange={(e) => setBank(e.target.value)}><option value="">Choose bank</option>{banks.map((b) => <option key={b.nip_code} value={b.nip_code}>{b.name}</option>)}</select></div>
+        <div className="field"><label htmlFor="rb">Bank or wallet</label><BankPicker id="rb" banks={banks} value={bank} onChange={setBank} /></div>
         <div className="field"><label htmlFor="ra">Account number</label><input id="ra" inputMode="numeric" maxLength={10} placeholder="10 digits" value={acct} onChange={(e) => setAcct(e.target.value.replace(/\D/g, ''))} /></div>
         {acct.length > 0 && acct.length < 10 && <span className="small muted">{10 - acct.length} more digit{10 - acct.length > 1 ? 's' : ''}…</span>}
         {checking && <Spinner label="Checking the account name…" />}

@@ -238,3 +238,32 @@ def save_lines(plan: Plan, lines: list[dict]) -> None:
 def clear_one_offs(plan: Plan) -> None:
     """A payout has gone out: one-off amounts and skips were for that payout only."""
     plan.lines.filter(active=True).update(next_amount_kobo=None, skip_next=False)
+
+
+def retry_batch(batch: RunBatch, now: datetime | None = None) -> RunBatch:
+    """
+    "Send again": a new payout, due now, for everyone on a finished batch who wasn't paid. Each person keeps the amount
+    they were due. Money rules are the usual ones (all or nothing, daily cap, priorities), so it waits like any payout
+    if the balance can't cover it. A batch can be sent again once; the retry can itself be retried.
+    """
+    from django.db import transaction
+    now = now or timezone.now()
+    with transaction.atomic():
+        batch = RunBatch.objects.select_for_update().select_related("plan").get(pk=batch.pk)
+        if batch.status not in (RunBatch.Status.DONE, RunBatch.Status.SKIPPED):
+            raise ValueError("still_going")
+        if hasattr(batch, "retry"):
+            raise ValueError("already_retried")
+        if batch.plan.status == Plan.Status.DELETED:
+            raise ValueError("plan_deleted")
+        unpaid = [r for r in batch.runs.select_related("line").order_by("line__position", "id") if r.status != Run.Status.SUCCESSFUL and r.line and r.line.active]
+        if not unpaid:
+            raise ValueError("nobody_unpaid")
+        parts = fee_schedule().group_parts([r.amount_kobo for r in unpaid])
+        new = RunBatch.objects.create(plan=batch.plan, user_id=batch.user_id, scheduled_for=now, retry_of=batch,
+                                      amount_kobo=sum(r.amount_kobo for r in unpaid), fee_kobo=sum(f.total_kobo for f in parts))
+        Run.objects.bulk_create([
+            Run(plan=batch.plan, line=r.line, batch=new, user_id=batch.user_id, scheduled_for=now, amount_kobo=r.amount_kobo,
+                fee_kobo=f.total_kobo, service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
+            for r, f in zip(unpaid, parts)])
+    return new

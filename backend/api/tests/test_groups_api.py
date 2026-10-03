@@ -95,3 +95,37 @@ def test_a_bad_recipient_id_is_a_clear_error(demo, dev):
     body["lines"][0]["recipient_id"] = "abc"
     r = unlocked_client(demo).post("/api/plans", body, format="json")
     assert r.status_code == 400 and "saved people" in r.json()["error"]
+
+
+def test_activity_lists_a_group_payout_and_send_again_works(demo, dev, settings):
+    from datetime import timedelta
+    from django.utils import timezone
+    from drips.models import RunBatch
+    from drips.services import reschedule
+    from drips.worker import Worker
+    from providers.mock import MockMessenger, MockPaymentProvider
+    settings.SPENDRIP = {**settings.SPENDRIP, "PAYOUTS_ENABLED": True}
+    c = unlocked_client(demo)
+    bad = Recipient.objects.create(user=demo, label="Bad", bank_name="GTBank", nip_bank_code="000013", account_number="1111110000",
+                                   verified_account_name="BAD ACCOUNT")  # the mock bank fails accounts ending 0000
+    body = group_body(demo, amounts=(500_000,))
+    body["lines"].append({"recipient_id": bad.id, "amount_kobo": 200_000})
+    plan = c.post("/api/plans", body, format="json").json()["plan"]
+    p = Plan.objects.get(pk=plan["id"])
+    now = timezone.now()
+    b = RunBatch.objects.filter(plan=p).order_by("scheduled_for").first()
+    RunBatch.objects.filter(pk=b.pk).update(scheduled_for=now - timedelta(minutes=1))
+    b.runs.update(scheduled_for=now - timedelta(minutes=1))
+    w = Worker(provider=MockPaymentProvider(), messenger=MockMessenger())
+    w.tick(now)
+    w.tick(now + timedelta(seconds=40))
+    item = next(a for a in c.get("/api/activity").json() if a["kind"] == "group")
+    assert item["status"] == "partial" and item["paid"] == 1 and item["retried"] is False and item["is_retry"] is False
+
+    r = c.post(f"/api/payouts/{item['id']}/retry", format="json")
+    assert r.status_code == 201 and r.json()["people"] == 1 and r.json()["amount_kobo"] == 200_000
+    again = c.post(f"/api/payouts/{item['id']}/retry", format="json")
+    assert again.status_code == 409 and again.json()["code"] == "already_retried"
+    items = c.get("/api/activity").json()
+    assert [a.get("is_retry") for a in items if a["kind"] == "group"] == [True, False]
+    assert [a.get("retried") for a in items if a["kind"] == "group"] == [False, True]

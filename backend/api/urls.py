@@ -55,4 +55,5 @@ urlpatterns = [
     path("cards", app.Cards.as_view()),
     path("cards/<int:pk>", app.CardDetail.as_view()),
     path("activity", app.Activity.as_view()),
+    path("payouts/<uuid:pk>/retry", app.PayoutRetry.as_view()),
 ]

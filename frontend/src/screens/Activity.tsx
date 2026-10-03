@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { dayLabel, fmtTime, N } from '../lib/format';
 import type { ActivityItem } from '../lib/types';
-import { StatusPill } from '../components/ui';
+import { StatusPill, useAction } from '../components/ui';
+import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
 
 const GROUP_REASON: Record<string, string> = {
@@ -12,13 +13,22 @@ const GROUP_REASON: Record<string, string> = {
 };
 
 /** A group payout: one row with the total, opening to show each person. */
-function GroupRow({ a }: { a: ActivityItem }) {
+function GroupRow({ a, onRetried }: { a: ActivityItem; onRetried: () => void }) {
   const nav = useNavigate();
+  const { toast, koboSay } = useStore();
+  const { busy, error, run } = useAction();
   const people = a.people ?? [];
   const n = people.length;
   const title = a.status === 'sent' ? `${a.plan!.label}: all ${n} paid` : a.status === 'partial' ? `${a.plan!.label}: ${a.paid} of ${n} paid`
     : a.status === 'sending' ? `${a.plan!.label} is sending to ${n} people` : `${a.plan!.label} (${n} people) ${a.status === 'waited' ? 'waited' : a.status === 'missed' ? 'was missed' : 'was paused'}`;
   const out = a.status === 'sent' || a.status === 'partial' || a.status === 'sending';
+  const unpaid = people.filter((p) => p.status !== 'sent').length;
+  const canRetry = !a.retried && a.status !== 'sending' && unpaid > 0;
+  const retry = () => run(async () => {
+    const r = await api.post<{ people: number; amount_kobo: number }>(`/payouts/${a.id}/retry`, {});
+    koboSay('fill', `Sending again to ${r.people} ${r.people === 1 ? 'person' : 'people'} (${N(r.amount_kobo)}). Watch Activity.`);
+    onRetried();
+  }).catch((e: any) => toast(e.message));
   return (
     <details className="act act-group">
       <summary>
@@ -37,6 +47,14 @@ function GroupRow({ a }: { a: ActivityItem }) {
             <span className="num" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{N(p.amount_kobo)} <StatusPill status={p.status} /></span></div>
         ))}
         {a.status === 'partial' && <p className="small muted" style={{ margin: '6px 0 0' }}>Money for the transfers that didn't go through is back in your balance. Check their account details in the plan.</p>}
+        {a.is_retry && <p className="small muted" style={{ margin: '6px 0 0' }}>This was a "send again" of an earlier payout.</p>}
+        {a.retried && <p className="small muted" style={{ margin: '6px 0 0' }}>Sent again: see the newer payout above.</p>}
+        {canRetry && (
+          <button className="btn btn-primary" style={{ marginTop: 10 }} disabled={busy} onClick={retry}>
+            {busy ? 'Starting…' : `Send again to ${unpaid} ${unpaid === 1 ? 'person' : 'people'}`}
+          </button>
+        )}
+        {error && <div className="error-card" style={{ marginTop: 8 }}>{error}</div>}
       </div>
     </details>
   );
@@ -66,7 +84,7 @@ export default function Activity() {
         </div>
         {shown.map((a, i) => {
           const lbl = dayLabel(a.at); const head = lbl !== last ? <div className="day-h">{lbl}</div> : null; last = lbl;
-          if (a.kind === 'group') return <div key={i}>{head}<GroupRow a={a} /></div>;
+          if (a.kind === 'group') return <div key={i}>{head}<GroupRow a={a} onRetried={() => api.get<ActivityItem[]>('/activity').then(setItems)} /></div>;
           const isIn = a.kind === 'inflow';
           const title = isIn ? `${N(a.amount_kobo)} added` : `${a.plan!.label} ${({ sent: 'sent', waited: 'waited', failed: "didn't go through", missed: 'was missed', sending: 'is sending', paused: 'was paused' } as Record<string, string>)[a.status] ?? a.status}`;
           const sub = isIn ? `Bank transfer${a.sender ? ` from ${a.sender}` : ''}` : a.status === 'waited' ? REASON[a.reason ?? ''] ?? 'Waited for a top-up.' : `To ${a.recipient!.label} · ${a.recipient!.bank_name} ••${a.recipient!.account_last4}`;

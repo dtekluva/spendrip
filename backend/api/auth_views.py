@@ -70,7 +70,7 @@ class Me(APIView):
 class MeUpdate(APIView):
     """Profile settings. Needs the app unlocked."""
 
-    FIELDS = {"look": {"themed", "light", "dark"}, "paused_all": bool, "daily_cap_kobo": "cap",
+    FIELDS = {"look": {"themed", "light", "dark", "auto"}, "paused_all": bool, "daily_cap_kobo": "cap",
               "notify_push": bool, "notify_whatsapp_recipients": bool, "notify_daily_summary": bool, "notify_low_balance": bool, "notify_email": bool}
 
     def patch(self, request):

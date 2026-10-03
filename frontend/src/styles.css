@@ -249,7 +249,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .cal-legend .wait-mark{width:14px;height:3px;border-radius:2px;background:var(--amber)}
 
 /* appearance */
-.look-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.look-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 10px}
 .look-opt{display:flex;flex-direction:column;gap:8px;align-items:stretch;text-align:center;font-weight:800;font-size:14px}
 .look-prev{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:18px;background:var(--surface-2);border:2px solid var(--line);color:var(--ink)}
 .look-opt[aria-pressed="true"] .look-prev{border-color:var(--cobalt);box-shadow:0 0 0 3px color-mix(in srgb,var(--cobalt) 25%,transparent)}
@@ -875,3 +875,20 @@ a{color:inherit}
 .facecam-view .count{position:absolute;inset:0;display:grid;place-items:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.55);pointer-events:none;animation:count-pop 1s ease-out infinite}
 @keyframes count-pop{0%{transform:scale(1.25);opacity:.4}25%{transform:scale(1);opacity:1}100%{opacity:.85}}
 @media (prefers-reduced-motion:reduce){.facecam-view .count{animation:none}}
+.bank-pick{position:relative}
+.bank-pick input{width:100%;height:50px;border-radius:14px;border:2px solid var(--line);background:var(--surface-2);color:var(--ink);padding:0 40px 0 14px;font:inherit;font-weight:600;font-size:16px}
+.bank-pick input:focus{border-color:var(--cobalt);outline:none}
+.bank-ok{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--mint);font-weight:900}
+.bank-list{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 6px);margin:0;padding:6px;list-style:none;max-height:260px;overflow-y:auto;background:var(--surface);border:2px solid var(--line);border-radius:16px;box-shadow:0 14px 40px -18px rgba(14,18,51,.4)}
+.bank-list li{padding:10px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+.bank-list li.hi{background:color-mix(in srgb,var(--cobalt) 12%,var(--surface))}
+.bank-list li.none{color:var(--muted);cursor:default;font-weight:500}
+
+/* Appearance: each look has an ⓘ that opens a short explanation (one at a time). */
+.look-cell{position:relative;display:flex;flex-direction:column;gap:6px}
+.look-cell .look-opt{width:100%}
+.look-prev{position:relative}
+.look-badge{position:absolute;top:6px;right:8px;font-size:14px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.look-info{position:absolute;top:6px;left:6px;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--surface);color:var(--muted);font:italic 800 13px/1 Georgia,"Times New Roman",serif;display:grid;place-items:center;z-index:1}
+.look-info[aria-expanded="true"]{border-color:var(--cobalt);color:var(--cobalt)}
+.look-hint{grid-column:1/-1;margin:0;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--cobalt) 10%,var(--surface));font-size:13px;line-height:1.5;color:var(--ink)}

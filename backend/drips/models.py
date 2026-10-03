@@ -159,6 +159,8 @@ class RunBatch(models.Model):
     fee_kobo = models.BigIntegerField(default=0)
     reason = models.CharField(max_length=40, blank=True)  # why it's waiting or was skipped
     short_by_kobo = models.BigIntegerField(default=0)
+    # "Send again" after a failed or skipped payout: a fresh batch for the people who weren't paid, pointing back here.
+    retry_of = models.OneToOneField("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="retry")
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

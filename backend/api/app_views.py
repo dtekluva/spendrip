@@ -13,8 +13,8 @@ from rest_framework.views import APIView
 from accounts import services as acc
 from accounts.services import FlowError
 from drips.models import Plan, Recipient, Run, RunBatch
-from drips.services import (engine_plans, fee_schedule, plan_fee_kobo, plan_progress, reschedule, save_lines, sent_today_kobo,
-                            user_forecast)
+from drips.services import (engine_plans, fee_schedule, plan_fee_kobo, plan_progress, reschedule, retry_batch, save_lines,
+                            sent_today_kobo, user_forecast)
 from engine import (
     MAX_PLAN_MONTHS,
     PlanLike,
@@ -585,8 +585,12 @@ class Calendar(APIView):
 class Activity(APIView):
     def get(self, request):
         user = request.user
-        runs = (Run.objects.filter(user=user).exclude(status__in=[Run.Status.SCHEDULED, Run.Status.CANCELLED])
-                .select_related("plan", "plan__recipient", "line__recipient", "batch").order_by("-scheduled_for")[:300])
+        from django.db.models import Q
+        now = timezone.now()
+        # Future runs stay out, except a group payout that's due now (e.g. just sent again): it shows as sending straight away.
+        runs = (Run.objects.filter(user=user).exclude(status=Run.Status.CANCELLED)
+                .exclude(Q(status=Run.Status.SCHEDULED) & (Q(batch__isnull=True) | Q(batch__scheduled_for__gt=now)))
+                .select_related("plan", "plan__recipient", "line__recipient", "batch", "batch__retry").order_by("-scheduled_for")[:300])
         runs = list(runs)
         wa = {m.run_id: m for m in OutboxMessage.objects.filter(user=user, channel=OutboxMessage.Channel.WHATSAPP, run_id__in=[r.id for r in runs])}
         items, groups = [], {}
@@ -598,10 +602,11 @@ class Activity(APIView):
                     b = r.batch
                     g = groups[r.batch_id] = {
                         "kind": "group", "id": str(b.pk), "batch_status": b.status, "at": b.completed_at or b.scheduled_for,
+                        "retried": hasattr(b, "retry"), "is_retry": b.retry_of_id is not None,  # retry is the reverse side
                         "amount_kobo": 0, "fee_kobo": 0, "reason": b.reason if b.status in (RunBatch.Status.SKIPPED, RunBatch.Status.WAITING) else "",
                         "plan": {"id": r.plan_id, "label": r.plan.label, "emoji": r.plan.emoji, "tint": r.plan.tint}, "people": []}
                     items.append(g)
-                st = RUN_STATUS.get(r.status, r.status)
+                st = "sending" if r.status == Run.Status.SCHEDULED else RUN_STATUS.get(r.status, r.status)
                 g["people"].append({"label": rec.label, "bank_name": rec.bank_name, "account_last4": rec.account_number[-4:],
                                     "amount_kobo": r.amount_kobo, "status": st, "position": r.line.position if r.line_id else 0})
                 if r.status == Run.Status.SUCCESSFUL or r.status in Run.IN_FLIGHT:
@@ -626,6 +631,28 @@ class Activity(APIView):
                           "sender": i.sender_name})
         items.sort(key=lambda x: x["at"], reverse=True)
         return Response(items[:100])
+
+
+class PayoutRetry(APIView):
+    """Send a failed or skipped group payout again, to the people who weren't paid. Goes out on the next worker tick."""
+
+    MESSAGES = {
+        "still_going": "This payout is still going out. Give it a minute.",
+        "already_retried": "This payout has already been sent again. Check the newer one in Activity.",
+        "plan_deleted": "That plan has been deleted.",
+        "nobody_unpaid": "Everyone on this payout was paid.",
+    }
+
+    def post(self, request, pk):
+        batch = RunBatch.objects.filter(pk=pk, user=request.user).first()
+        if not batch:
+            raise FlowError("That payout doesn't exist.", status=404)
+        acc.require_verified(request.user)
+        try:
+            new = retry_batch(batch)
+        except ValueError as e:
+            raise FlowError(self.MESSAGES.get(str(e), "This payout can't be sent again."), code=str(e), status=409)
+        return Response({"id": str(new.pk), "people": new.runs.count(), "amount_kobo": new.amount_kobo, "fee_kobo": new.fee_kobo}, status=201)
 
 
 # ------------------------------------------------------------------ card top-ups and saved cards

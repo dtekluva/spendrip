@@ -548,3 +548,9 @@ def test_signup_remembers_where_the_person_came_from(dev, db):
     r = c2.post("/api/signup/start", {"email": "direct@example.com"}, format="json").json()
     c2.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json")
     assert User.objects.get(email="direct@example.com").signup_source == "direct"
+
+
+def test_time_aware_look_is_a_valid_setting(demo, dev):
+    c = unlocked_client(demo)
+    assert c.patch("/api/me/settings", {"look": "auto"}, format="json").json()["user"]["look"] == "auto"
+    assert c.patch("/api/me/settings", {"look": "neon"}, format="json").status_code == 400

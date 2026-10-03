@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from './api';
-import type { Look, Me, Plan, Recipient, Summary } from './types';
+import type { Look, Me, Plan, Recipient, ShownLook, Summary } from './types';
 import { KoboMoment, type KoboMood } from '../components/Kobo';
 
 interface Store {
@@ -12,7 +12,8 @@ interface Store {
   refreshMe: () => Promise<Me>;
   reload: () => Promise<void>;
   setMe: (m: Me) => void;
-  look: Look;
+  look: Look;  // what the person chose
+  shownLook: ShownLook;  // what's on screen right now (auto resolves by the clock)
   setLook: (l: Look) => void;
   // UI helpers
   toast: (msg: string, action?: { label: string; run: () => void }) => void;
@@ -27,7 +28,10 @@ const Ctx = createContext<Store>(null as unknown as Store);
 export const useStore = () => useContext(Ctx);
 
 const LOOK_KEY = 'sd-look';
-const readLook = (): Look => { try { const v = localStorage.getItem(LOOK_KEY); if (v === 'light' || v === 'dark' || v === 'themed') return v; } catch { /* storage blocked */ } return 'themed'; };
+const readLook = (): Look => { try { const v = localStorage.getItem(LOOK_KEY); if (v === 'light' || v === 'dark' || v === 'themed' || v === 'auto') return v; } catch { /* storage blocked */ } return 'themed'; };
+/** Time-aware: light from 6 AM to 7 PM on the phone's clock, dark otherwise. */
+export const DAY_FROM = 6, NIGHT_FROM = 19;
+export const resolveLook = (l: Look, d = new Date()): ShownLook => l === 'auto' ? (d.getHours() >= DAY_FROM && d.getHours() < NIGHT_FROM ? 'light' : 'dark') : l;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
@@ -36,6 +40,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [look, setLookState] = useState<Look>(readLook);
+  const [clock, setClock] = useState(0);  // bumps each minute while time-aware is on, so the look flips at 7 PM / 6 AM without a reload
+  useEffect(() => { if (look !== 'auto') return; const t = window.setInterval(() => setClock((n) => n + 1), 60_000); return () => window.clearInterval(t); }, [look]);
+  const shownLook = useMemo(() => resolveLook(look), [look, clock]); // eslint-disable-line react-hooks/exhaustive-deps
   const [toastState, setToast] = useState<{ msg: string; action?: { label: string; run: () => void } } | null>(null);
   const [sheet, setSheet] = useState<ReactNode>(null);
   const [bursts, setBursts] = useState<number[]>([]);
@@ -60,10 +67,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { if (me?.user?.look && me.user.look !== look) setLookState(me.user.look); }, [me?.user?.look]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    document.documentElement.dataset.look = look;
-    const color = { themed: '#0B1040', light: '#EFF1F5', dark: '#0E0F13' }[look];
+    document.documentElement.dataset.look = shownLook;
+    const color = { themed: '#0B1040', light: '#EFF1F5', dark: '#0E0F13' }[shownLook];
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
-  }, [look]);
+  }, [shownLook]);
 
   const toast = useCallback((msg: string, action?: { label: string; run: () => void }) => {
     setToast({ msg, action });
@@ -86,12 +93,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const value = useMemo<Store>(() => ({ me, summary, plans, recipients, loading, refreshMe, reload, setMe, look, setLook, toast, openSheet: setSheet, closeSheet, confetti, koboSay }),
-    [me, summary, plans, recipients, loading, refreshMe, reload, look, setLook, toast, closeSheet, confetti, koboSay]);
+  const value = useMemo<Store>(() => ({ me, summary, plans, recipients, loading, refreshMe, reload, setMe, look, shownLook, setLook, toast, openSheet: setSheet, closeSheet, confetti, koboSay }),
+    [me, summary, plans, recipients, loading, refreshMe, reload, look, shownLook, setLook, toast, closeSheet, confetti, koboSay]);
 
   return (
     <Ctx.Provider value={value}>
-      <div className="phone" data-look={look}>
+      <div className="phone" data-look={shownLook}>
         <div className="device">
           {children}
           <div className={`scrim ${sheet ? 'show' : ''}`} onClick={closeSheet} />

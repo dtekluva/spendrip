@@ -1,4 +1,5 @@
-export type Look = 'themed' | 'light' | 'dark';
+export type Look = 'themed' | 'light' | 'dark' | 'auto';  // auto = time-aware: light by day, dark by night
+export type ShownLook = Exclude<Look, 'auto'>;
 export type Tint = 'cobalt' | 'sun' | 'hibiscus' | 'mint';
 
 export interface FundingAccount { account_number: string; bank_name: string; account_name: string }
@@ -77,7 +78,7 @@ export interface Preview {
 
 export interface ActivityPerson { label: string; bank_name: string; account_last4: string; amount_kobo: number; status: string }
 export interface ActivityItem {
-  kind: 'run' | 'inflow' | 'group'; people?: ActivityPerson[]; paid?: number; status: string; at: string; amount_kobo: number; fee_kobo?: number; fee_lines?: FeeLineT[]; reason?: string; sender?: string;
+  kind: 'run' | 'inflow' | 'group'; people?: ActivityPerson[]; paid?: number; id?: string; retried?: boolean; is_retry?: boolean; status: string; at: string; amount_kobo: number; fee_kobo?: number; fee_lines?: FeeLineT[]; reason?: string; sender?: string;
   plan?: { id: number; label: string; emoji: string; tint: Tint };
   recipient?: { label: string; bank_name: string; account_last4: string };
   whatsapp?: { to: string; body: string; status: string } | null;

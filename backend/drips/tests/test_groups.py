@@ -197,3 +197,39 @@ def test_a_skipped_payout_uses_up_the_one_off_changes(user, top_up, recipients, 
     worker.tick(t + timedelta(hours=7))  # still short: skipped
     assert batch_at(staff, "2026-11-02T09:00").status == RunBatch.Status.SKIPPED
     assert not PlanLine.objects.filter(plan=staff, skip_next=True).exists()
+
+
+def test_send_again_pays_only_the_people_who_were_missed(user, top_up, recipients, make_group, worker, provider):
+    from drips.services import retry_batch
+    top_up(50_000)
+    staff = make_group("Staff", [(recipients["mum"], 10_000), (recipients["bad"], 5_000)])  # "bad" fails at the mock bank
+    t = lagos("2026-11-02T09:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(seconds=31))
+    first = batch_at(staff, "2026-11-02T09:00")
+    assert first.status == RunBatch.Status.DONE and provider.transfer_calls == 2
+    again = retry_batch(first, now=t + timedelta(hours=1))
+    assert again.retry_of_id == first.pk and again.amount_kobo == naira(5_000)
+    assert [r.line.recipient.label for r in again.runs.all()] == ["Bad"]
+    with pytest.raises(ValueError, match="already_retried"):
+        retry_batch(first, now=t + timedelta(hours=2))
+    worker.tick(t + timedelta(hours=1))
+    assert provider.transfer_calls == 3  # Mum isn't paid twice
+
+
+def test_send_again_a_skipped_payout_after_topping_up(user, top_up, recipients, make_group, worker, provider):
+    from drips.services import retry_batch
+    top_up(1_000)
+    staff = make_group("Staff", [(recipients["mum"], 10_000), (recipients["me"], 5_000)])
+    t = lagos("2026-11-02T09:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(hours=7))
+    first = batch_at(staff, "2026-11-02T09:00")
+    assert first.status == RunBatch.Status.SKIPPED
+    top_up(20_000)
+    again = retry_batch(first, now=t + timedelta(hours=8))
+    worker.tick(t + timedelta(hours=8))
+    worker.tick(t + timedelta(hours=8, seconds=31))
+    again.refresh_from_db()
+    assert again.status == RunBatch.Status.DONE and provider.transfer_calls == 2
+    assert set(again.runs.values_list("status", flat=True)) == {Run.Status.SUCCESSFUL}
