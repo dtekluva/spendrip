@@ -14,9 +14,11 @@ export default function Nav() {
       {icon}{label}
     </NavLink>
   );
-  if (loc.pathname.startsWith('/plans/new') || loc.pathname.endsWith('/edit')) return <nav className="nav" hidden />;
+  // The plan builder is a focused screen: no bottom tab bar on phones (it would sit on the Start button), but the
+  // desktop sidebar stays.
+  const focused = loc.pathname.startsWith('/plans/new') || loc.pathname.endsWith('/edit');
   return (
-    <nav className="nav" aria-label="Main">
+    <nav className={`nav ${focused ? 'nav-focused' : ''}`} aria-label="Main">
       <Wordmark className="nav-brand" />
       {tab('/', 'Home', Icon.home)}
       {tab('/plans', 'Plans', Icon.plans)}

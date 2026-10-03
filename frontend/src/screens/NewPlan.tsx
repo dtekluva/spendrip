@@ -163,7 +163,7 @@ export default function NewPlan() {
         {!showKobo ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
           <div className="chip-hint" role="note">
             <Kobo mood="point" size={56} title="Kobo pointing at the sentence" />
-            <span className="bubble">Tap any yellow word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
+            <span className="bubble">Tap any coloured word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
           </div>
         )}
       </div><div className="col stack">
@@ -190,7 +190,7 @@ export default function NewPlan() {
         {error && <div className="error-card">{error}</div>}
         <div className="cta-bar">
           <button className="btn btn-primary btn-block" style={{ height: 56, fontSize: 16 }} disabled={busy || !!previewErr || !touched} onClick={save}>{editing ? 'Save changes' : 'Start this plan'}</button>
-          {!touched && <p className="small muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Tap a yellow word above to make this plan yours.</p>}
+          {!touched && <p className="small muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Tap a coloured word above to make this plan yours.</p>}
         </div>
       </div></div>
     </div>

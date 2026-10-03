@@ -827,3 +827,7 @@ a{color:inherit}
 .kobo-point .k-body{animation:k-bob 2.6s ease-in-out infinite}
 @keyframes k-point{0%,100%{transform:rotate(0)}50%{transform:rotate(-7deg) translateY(-2px)}}
 @media (prefers-reduced-motion:reduce){.kobo .k-point-arm,.kobo-point .k-body{animation:none}}
+
+/* plan builder: hide the bottom tab bar on phones, keep the sidebar on wide screens */
+.nav.nav-focused{display:none}
+@container app (min-width: 860px){ .nav.nav-focused{display:flex} }
