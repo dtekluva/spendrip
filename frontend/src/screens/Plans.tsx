@@ -38,7 +38,11 @@ export default function Plans() {
     if (p) { openSheet(<PlanSheet plan={p} />); setParams({}, { replace: true }); }
   }, [params, plans]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const current = plans.filter((p) => p.state !== 'finished');
+  // Running plans first (in the order they were made), paused ones at the bottom; a filter narrows to either.
+  const [show, setShow] = useState<'all' | 'running' | 'paused'>('all');
+  const running = plans.filter((p) => p.state !== 'finished' && p.status !== 'paused');
+  const pausedPlans = plans.filter((p) => p.state !== 'finished' && p.status === 'paused');
+  const current = show === 'running' ? running : show === 'paused' ? pausedPlans : [...running, ...pausedPlans];
   const finished = plans.filter((p) => p.state === 'finished');
   const prio = plans.filter((p) => p.priority_rank).sort((a, b) => a.priority_rank! - b.priority_rank!);
   const total = summary?.forecast.total_needed_kobo ?? 0;
@@ -100,6 +104,13 @@ export default function Plans() {
         </div>
       </div><div className="col stack">
         <div className="eyebrow col-head">All plans</div>
+        {(pausedPlans.length > 0 || show !== 'all') && (
+          <div className="seg" role="group" aria-label="Show plans">
+            {([['all', 'All', running.length + pausedPlans.length], ['running', 'Running', running.length], ['paused', 'Paused', pausedPlans.length]] as const).map(([k, l, n]) => (
+              <button key={k} aria-pressed={show === k} onClick={() => setShow(k)}>{l} <span className="seg-n">{n}</span></button>
+            ))}
+          </div>
+        )}
         <div className="plan-list">
           {current.map((p) => {
             const { soon } = planMeta(p);
@@ -123,7 +134,8 @@ export default function Plans() {
               </button>
             );
           })}
-          {!current.length && <div className="card">No plans running. Tap ＋ to make one.</div>}
+          {!current.length && <div className="card">{show === 'paused' ? 'Nothing is paused. Every plan is sending.' : show === 'running'
+            ? 'Nothing is running. Resume a paused plan or tap ＋ to make one.' : 'No plans yet. Tap ＋ to make one.'}</div>}
         </div>
         {!!finished.length && (
           <details className="finished-list">
