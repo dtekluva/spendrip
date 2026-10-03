@@ -151,7 +151,7 @@ When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks
 
   Every event carries `source`. On spendrip.com the events are `get-started` and `sign-in`.
 - **Attribution:** `landing/track.js` stores the visitor's first source (search engine, AI assistant, social app, `utm:` campaign, or direct) and adds `?src=&lp=` to app links. The app saves them on the user (`signup_source`, `signup_landing`), and they show in admin under Users.
-- **Memory:** check with `docker stats --no-stream`. Resize the droplet to 2 GB before raising the cap.
+- **Memory:** Node heap is capped at 200 MB (`NODE_OPTIONS` in `/etc/umami.env`; 160 MB ran out). Check with `docker stats --no-stream`. Resize the droplet to 2 GB before raising the cap.
 - **Restart:**
 
   ```bash
