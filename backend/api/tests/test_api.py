@@ -520,7 +520,7 @@ def test_payouts_switch_holds_every_drip(user, top_up, recipients, make_plan, se
 def test_new_accounts_get_the_default_daily_limit(dev, db):
     c = APIClient()
     sign_up(c, "new@example.com")
-    assert User.objects.get(email="new@example.com").daily_cap_kobo == 10_000_000
+    assert User.objects.get(email="new@example.com").daily_cap_kobo == 100_000_000  # ₦1,000,000
 
 
 def test_wipe_needs_the_flag_and_keeps_staff_and_waitlist(demo, dev):

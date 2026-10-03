@@ -118,7 +118,7 @@ SPENDRIP = {
     "PASS_THROUGH_TRANSFER_FEES": env_bool("PASS_THROUGH_TRANSFER_FEES", True),
     # Live-money safety rails.
     "PAYOUTS_ENABLED": env_bool("PAYOUTS_ENABLED", True),  # off = no drip is sent; due ones wait (and miss after the late window)
-    "DEFAULT_DAILY_CAP_KOBO": int(env("DEFAULT_DAILY_CAP_KOBO", "10000000")),  # ₦100,000 a day for new accounts
+    "DEFAULT_DAILY_CAP_KOBO": int(env("DEFAULT_DAILY_CAP_KOBO", "100000000")),  # ₦1,000,000 a day for new accounts
     # Bank-transfer funding needs real virtual accounts (Liberty). Off = no account number is issued or shown; cards only.
     "BANK_TRANSFER_FUNDING": env_bool("BANK_TRANSFER_FUNDING", True),
     # Limits for accounts verified with an ID photo + live selfies (no government database check yet).

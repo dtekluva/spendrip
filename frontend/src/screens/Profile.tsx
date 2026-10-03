@@ -43,7 +43,7 @@ export default function Profile() {
   const capSheet = () => openSheet(<>
     <h3>Daily sending limit</h3>
     <p className="small muted" style={{ marginTop: -6 }}>A safety net. If drips would go over this in one day, the extra ones wait and we tell you.</p>
-    <div className="opt-list">{[2_000_000, 5_000_000, 10_000_000, 20_000_000, null].map((v) => (
+    <div className="opt-list">{[5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000, 200_000_000, null].map((v) => (
       <button key={String(v)} className="opt" aria-pressed={u.daily_cap_kobo === v} onClick={() => { closeSheet(); save({ daily_cap_kobo: v }, v ? `Daily limit set to ${N(v)}` : 'Daily limit removed'); }}>
         <span>🧢</span><span><b>{v ? `${N(v)} a day` : 'No limit'}</b></span><span className="check">✓</span></button>
     ))}</div></>);
