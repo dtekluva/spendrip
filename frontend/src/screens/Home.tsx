@@ -40,15 +40,18 @@ export default function Home() {
 
   return (
     <div className="stack">
-      <div className="topbar"><Wordmark />
-        <span style={{ display: 'flex', gap: 8 }}>
-          <button className="icon-btn" aria-label="Appearance" onClick={() => openAppearance(store)}>{Icon.look}</button>
-          <button className="icon-btn" aria-label="Activity" onClick={() => nav('/activity')}>{Icon.bell}</button>
-          <button className="avatar" aria-label="Profile" onClick={() => nav('/profile')}>{initials}</button>
-        </span>
+      {/* Phones: logo bar, then the greeting. Wide screens: greeting and buttons share one row, so both columns start level. */}
+      <div className="home-head">
+        <div className="topbar"><Wordmark />
+          <span style={{ display: 'flex', gap: 8 }}>
+            <button className="icon-btn" aria-label="Appearance" onClick={() => openAppearance(store)}>{Icon.look}</button>
+            <button className="icon-btn" aria-label="Activity" onClick={() => nav('/activity')}>{Icon.bell}</button>
+            <button className="avatar" aria-label="Profile" onClick={() => nav('/profile')}>{initials}</button>
+          </span>
+        </div>
+        <div className="home-greet"><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} {greeting().emoji}</p><h1 className="h1">{headline}</h1></div>
       </div>
       <div className="cols cols-home"><div className="col stack">
-        <div><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} {greeting().emoji}</p><h1 className="h1">{headline}</h1></div>
         <div className="balance">
           <div className="eyebrow">Your balance</div>
           <div className="big-amt num">{N(bal)}</div>

@@ -831,5 +831,13 @@ a{color:inherit}
 /* plan builder: hide the bottom tab bar on phones, keep the sidebar on wide screens */
 .nav.nav-focused{display:none}
 @container app (min-width: 860px){ .nav.nav-focused{display:flex} }
-/* wide screens: the sidebar already carries the logo, so the Home top bar doesn't repeat it */
-@container app (min-width: 860px){ .topbar > .brand-sm.wm{visibility:hidden} }
+
+/* Home header: on wide screens the greeting moves up beside the buttons (the sidebar carries the logo), so the
+   balance card and the next-drip card start on the same line. */
+.home-head{display:flex;flex-direction:column;gap:14px}
+@container app (min-width: 860px){
+  .home-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:20px}
+  .home-head .topbar{grid-column:2;grid-row:1;margin:0;align-self:start}
+  .home-head .topbar > .wm{display:none}
+  .home-greet{grid-column:1;grid-row:1}
+}
