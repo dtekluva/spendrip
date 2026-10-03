@@ -42,8 +42,10 @@ export default function UpdateBar() {
   return (
     <div className="update-bar" role="status">
       <span>✨ A new version of SpenDrip is ready</span>
-      <button className="btn btn-primary" onClick={() => { setReady(false); applyUpdate(); }}>Refresh</button>
-      <button className="link small" aria-label="Later" onClick={() => setReady(false)}>Later</button>
+      <span className="acts">
+        <button className="btn btn-primary" onClick={() => { setReady(false); applyUpdate(); }}>Refresh</button>
+        <button className="link small" aria-label="Later" onClick={() => setReady(false)}>Later</button>
+      </span>
     </div>
   );
 }
