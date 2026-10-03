@@ -29,6 +29,7 @@ from providers import messages as copy
 
 from .models import Plan, Run, RunBatch
 from notifications.emails import drip_delivered_email, group_paid_email
+from .reminders import send_reminders, spot_email
 from .services import clear_one_offs, engine_plans, fee_schedule, finish_plans, materialise_runs, sent_today_kobo
 
 log = logging.getLogger("spendrip.worker")
@@ -46,6 +47,7 @@ class Worker:
         self.provider = provider or get_payout_provider()
         self.messenger = messenger or get_messenger()
         self.cfg = settings.SPENDRIP
+        self._reminders_at: datetime | None = None  # reminders are checked every few minutes, not every tick
 
     # ------------------------------------------------------------------ tick
     def tick(self, now: datetime | None = None) -> dict:
@@ -60,10 +62,21 @@ class Worker:
             handled = self.process_due(now)
             checked = self.check_in_flight(now)
             finished = finish_plans(now)
-            return {"created": created, "handled": handled, "checked": checked, "finished": finished}
+            reminded = self.remind(now)
+            return {"created": created, "handled": handled, "checked": checked, "finished": finished, "reminded": reminded}
         finally:
             with connection.cursor() as c:
                 c.execute("SELECT pg_advisory_unlock(%s)", [ADVISORY_LOCK_KEY])
+
+    def remind(self, now: datetime, every: timedelta = timedelta(minutes=5)) -> dict:
+        if self._reminders_at and now - self._reminders_at < every:
+            return {}
+        self._reminders_at = now
+        try:
+            return send_reminders(now)
+        except Exception:  # a reminder must never stop payouts
+            log.exception("reminders failed")
+            return {}
 
     # ------------------------------------------------------------- due runs
     def process_due(self, now: datetime) -> int:
@@ -122,6 +135,9 @@ class Worker:
                                                                       cost_kobo=batch.cost_kobo, reason=d.reason,
                                                                       short_by_kobo=d.short_by_kobo,
                                                                       hours=self.cfg["LATE_SEND_WINDOW_HOURS"]))
+                spot_email(user, key=f"batch:{batch.pk}:waiting:email", emoji=plan.emoji, label=plan.label, who=f"{len(runs)} people",
+                           amount_kobo=batch.amount_kobo, cost_kobo=batch.cost_kobo, reason=d.reason, short_by_kobo=d.short_by_kobo,
+                           at=batch.scheduled_for, is_group=True, people=len(runs))
             return
         for run in runs:
             self._send(run, now)
@@ -189,6 +205,8 @@ class Worker:
         if skipped:
             self._tell_self(run, "skipped", copy.self_skipped(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo,
                                                               reason=d.reason, short_by_kobo=d.short_by_kobo))
+            spot_email(user, key=f"run:{run.pk}:skipped:email", emoji=plan.emoji, label=plan.label, who=plan.recipient.label if plan.recipient else "",
+                       amount_kobo=run.amount_kobo, cost_kobo=run.cost_kobo, reason=d.reason, short_by_kobo=d.short_by_kobo, at=run.scheduled_for)
             return
         self._send(run, now)
 

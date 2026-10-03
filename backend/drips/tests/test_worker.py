@@ -191,11 +191,12 @@ def test_delivered_drip_emails_the_sender_once(user, top_up, recipients, make_pl
     mum = make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2, time_local="10:00")
     t = lagos("2026-11-02T10:00")
     worker.tick(t)
-    assert not mail.outbox  # sent, not yet confirmed: no email
+    delivered = lambda: [m for m in mail.outbox if 'landed' in m.subject]  # the month outlook may also go out on the 2nd
+    assert not delivered()  # sent, not yet confirmed: no email
     worker.tick(t + timedelta(seconds=31))
     worker.tick(t + timedelta(seconds=200))
-    assert len(mail.outbox) == 1
-    m = mail.outbox[0]
+    assert len(delivered()) == 1
+    m = delivered()[0]
     assert m.to == ["ada@example.com"] and "₦10,000 just landed for Mum" in m.subject
     assert "Balance now: ₦9,950" in m.body and "kobo-celebrate.png" in m.alternatives[0][0]
     run = runs_of(mum).get(scheduled_for=t)
@@ -211,7 +212,7 @@ def test_delivery_email_can_be_turned_off(user, top_up, recipients, make_plan, w
     t = lagos("2026-11-02T10:00")
     worker.tick(t)
     worker.tick(t + timedelta(seconds=31))
-    assert not mail.outbox
+    assert not [m for m in mail.outbox if 'landed' in m.subject]
 
 
 def test_itemised_fees_are_charged_posted_and_listed(user, top_up, recipients, make_plan, worker, real_fees):
