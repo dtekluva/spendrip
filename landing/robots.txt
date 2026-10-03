@@ -1,0 +1,19 @@
+# spendrip.com: everything here is public and meant to be found.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# AI assistants and AI search engines may read and cite these pages.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /api/
+
+Sitemap: https://spendrip.com/sitemap.xml

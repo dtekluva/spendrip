@@ -1,0 +1,4 @@
+# app.spendrip.com is the signed-in app. Pages send "X-Robots-Tag: noindex"; the public site is https://spendrip.com
+User-agent: *
+Allow: /
+Disallow: /api/

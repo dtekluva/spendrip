@@ -57,11 +57,13 @@ def send_raw(to: str, subject: str, text: str, html: str, fail_silently: bool = 
 
 def waitlist_joined(entry) -> bool:
     hi = f"Hi {entry.name}," if entry.name else "Hi there,"
-    return send(entry.contact, "You're on the SpenDrip waitlist 💧", "You're on the list!", [
+    url = settings.SPENDRIP["PUBLIC_APP_URL"]
+    return send(entry.contact, "Thanks for your interest in SpenDrip 💧", "You're on our list!", [
         hi,
-        "Thanks for joining the SpenDrip waitlist. We're letting people in a few at a time, and we'll email you the moment your spot is ready.",
-        "Soon you'll be able to set your payments once (fuel every Friday, upkeep every morning, Mum at month-end) and let SpenDrip send every one on time.",
-    ])
+        "Thanks for leaving your email. We'll send you SpenDrip news now and then, nothing more.",
+        "You don't have to wait: SpenDrip is open. Sign up free, set your payments once (fuel every Friday, upkeep every morning, "
+        "Mum at month-end) and let SpenDrip send every one on time.",
+    ], button=("Get started free", url))
 
 
 def waitlist_invite(entry, fail_silently: bool = True) -> bool:

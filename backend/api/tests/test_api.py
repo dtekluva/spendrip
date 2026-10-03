@@ -316,8 +316,8 @@ def test_waitlist_emails_a_welcome_only_to_new_email_signups(db):
     c.post("/api/waitlist", {"contact": "08031234567"}, format="json")  # phone: no email
     assert len(mail.outbox) == 1
     m = mail.outbox[0]
-    assert m.to == ["ada@example.com"] and "waitlist" in m.subject and "Hi Ada" in m.body
-    assert m.alternatives and "You're on the list" in m.alternatives[0][0].replace("&#x27;", "'")
+    assert m.to == ["ada@example.com"] and "SpenDrip" in m.subject and "Hi Ada" in m.body and "Get started free" in m.body
+    assert m.alternatives and "on our list" in m.alternatives[0][0].replace("&#x27;", "'")
 
 
 def test_waitlist_still_joins_when_email_fails(db, monkeypatch):

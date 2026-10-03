@@ -29,3 +29,9 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# The app is behind a sign-in: keep it out of search results (spendrip.com is the public site to index).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
