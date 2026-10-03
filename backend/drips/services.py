@@ -100,7 +100,14 @@ def materialise_runs(now: datetime, *, days: int | None = None, plans=None) -> i
 def _materialise_group(plan: Plan, sched, start: datetime, end: datetime) -> int:
     """One batch per payout, with one run per person. One-off changes (a bonus, someone skipped) go into the
     plan's next scheduled batch only; later batches use everyone's regular amount."""
-    from django.db import transaction
+    from django.db import IntegrityError, transaction
+    # Lock the plan row: the worker and an edit in the app can both build batches for the same plan at the same moment.
+    with transaction.atomic():
+        Plan.objects.select_for_update().filter(pk=plan.pk).exists()
+        return _build_group_batches(plan, sched, start, end, IntegrityError, transaction)
+
+
+def _build_group_batches(plan: Plan, sched, start: datetime, end: datetime, IntegrityError, transaction) -> int:
     existing = set(RunBatch.objects.filter(plan=plan).values_list("scheduled_for", flat=True))
     has_pending = RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).exists()
     lines = plan.active_lines()
@@ -114,29 +121,35 @@ def _materialise_group(plan: Plan, sched, start: datetime, end: datetime) -> int
         if not paying:
             continue
         parts = sched.group_parts([a for _, a in paying])
-        with transaction.atomic():
+        try:
+            with transaction.atomic():
             batch = RunBatch.objects.create(plan=plan, user_id=plan.user_id, scheduled_for=at, amount_kobo=sum(a for _, a in paying),
                                             fee_kobo=sum(f.total_kobo for f in parts))
             Run.objects.bulk_create([
                 Run(plan=plan, line=ln, batch=batch, user_id=plan.user_id, scheduled_for=at, amount_kobo=a, fee_kobo=f.total_kobo,
                     service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
                 for (ln, a), f in zip(paying, parts)])
+        except IntegrityError:
+            continue  # someone else built this payout a moment ago; theirs stands
         created += len(paying)
     return created
 
 
 def reschedule(plan: Plan, now: datetime | None = None) -> None:
     """After a plan changes, drop its future scheduled runs and create them again from the new settings."""
+    from django.db import transaction
     now = now or timezone.now()
-    if plan.is_group:
-        # Nothing in a scheduled or waiting batch has moved money yet, so rebuild them all (a waiting one keeps its time).
-        RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).delete()
-        # A one-person plan that just became a group: its own scheduled drips must not go out as well.
-        Run.objects.filter(plan=plan, batch__isnull=True, status=Run.Status.SCHEDULED).delete()
-    else:
-        Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
-    if plan.status == Plan.Status.ACTIVE:
-        materialise_runs(now, plans=[plan])
+    with transaction.atomic():
+        Plan.objects.select_for_update().filter(pk=plan.pk).exists()  # one rebuild at a time per plan (a double tap sends two)
+        if plan.is_group:
+            # Nothing in a scheduled or waiting batch has moved money yet, so rebuild them all (a waiting one keeps its time).
+            RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).delete()
+            # A one-person plan that just became a group: its own scheduled drips must not go out as well.
+            Run.objects.filter(plan=plan, batch__isnull=True, status=Run.Status.SCHEDULED).delete()
+        else:
+            Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
+        if plan.status == Plan.Status.ACTIVE:
+            materialise_runs(now, plans=[plan])
 
 
 # ---------------------------------------------------------------- start, end and progress
