@@ -1,6 +1,6 @@
 # Bulk drips: one plan, many people, different amounts
 
-Status: **built 3 Oct 2026.** Not yet built: the day-before heads-up email, the optional "approve each payout" setting and the CSV export of a payout (see 2.6 and 6.9).
+Status: **built 3 Oct 2026.** Not yet built: the day-before heads-up email (in the backlog, docs/PLAN.md), the optional "approve each payout" setting and the CSV export of a payout (see 2.6 and 6.9).
 
 Decisions:
 - Called **Group** in the app ("Send to several people" in the picker).

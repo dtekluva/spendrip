@@ -332,6 +332,7 @@ Ring-fence a **fixed amount** for a plan. For example, *"keep ₦60,000 for 💛
 ### Backlog
 - **Dojah identity checks.** Look up NIN/BVN against the government record (NIMC/NIBSS), get the official photo, and match the selfie to it (face match + liveness). This proves the person is the ID's owner, so the Tier-1 limits can go up. Keep the current ID read and three-angle liveness as the first layer. Needs a Dojah account and API keys.
 - **Liberty bank-transfer funding.** Real virtual account numbers; turn `BANK_TRANSFER_FUNDING` back on.
+- **Day-before heads-up for group payouts.** About 24 hours before each group payout, send an email (and an in-app note) such as "Tomorrow at 9:00 AM: Staff pay, 6 people, ₦412,750. Balance ₦300,000. Short by ₦112,750", with *Review* and *Add money* buttons. Also warn if the payout is over the daily limit. Send it once per batch (dedupe key `batch:<id>:heads_up`) from the worker tick. Skip it if the batch is already covered and the person has turned these off. Group payouts are all or nothing, so this gives people time to top up before payday. Spec: `docs/plans/bulk-drips.md` §2.6.
 
 ### Still open (none of these block Phase 0–2)
 1. **Allocation auto-refill:** on or off by default?

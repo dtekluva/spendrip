@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from .base import ProviderError
 from .claude import vision_json
 
 DOC_PROMPT = """You are checking a photo submitted as a Nigerian identity document (NIN slip or card, driver's licence,
@@ -31,6 +32,16 @@ otherwise "other"."""
 
 ALLOWED_DOCS = {"nin", "drivers_licence", "voters_card", "passport"}
 STEP_WORDS = {"front": "looking straight at the camera", "left": "turned to your left", "right": "turned to your right"}
+
+
+def read_pose(img: bytes) -> dict:
+    """One liveness photo. An answer that isn't clean JSON (cut short, or a refusal) gets one more try before giving up."""
+    try:
+        return vision_json(POSE_PROMPT, img, max_tokens=600)
+    except ProviderError as e:
+        if "no JSON" not in str(e) and "valid JSON" not in str(e):
+            raise
+        return vision_json(POSE_PROMPT, img, max_tokens=600)
 
 
 class LiveKycProvider:
@@ -64,7 +75,7 @@ class LiveKycProvider:
     def check_liveness(self, images: list[bytes], order: list[str]) -> dict:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=len(images)) as pool:  # side by side, so the person waits for one check, not three
-            reads = list(pool.map(lambda img: vision_json(POSE_PROMPT, img, max_tokens=200), images))
+            reads = list(pool.map(read_pose, images))
         steps = []
         for i, (pose, r) in enumerate(zip(order, reads), start=1):
             step = {"pose": pose, "faces": r.get("faces"), "face_clear": r.get("face_clear"), "looks_live": r.get("looks_live"),

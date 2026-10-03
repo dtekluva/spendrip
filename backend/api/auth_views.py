@@ -198,6 +198,8 @@ class KycDocument(APIView):
             result = provider.check_document(image.read(), id_type=id_type)
         except (ProviderError, ValueError) as e:
             log.warning("ID check failed for user %s: %s", user.pk, e)
+            KycCheck.objects.create(user=user, step=KycCheck.Step.DOCUMENT, passed=False, provider=provider.name,
+                                    raw={"id_type": id_type, "error": str(e)[:500]})
             raise FlowError("We couldn't check your ID just now. Use a JPEG or PNG photo, or try again in a minute.", code="check_unavailable", status=503)
         number = "".join(ch for ch in str(result.pop("document_number", "")) if ch.isalnum()).upper()
         KycCheck.objects.create(user=user, step=KycCheck.Step.DOCUMENT, passed=result["passed"], provider=provider.name,
@@ -255,6 +257,8 @@ class KycLiveness(APIView):
             result = provider.check_liveness([img.read() for img in images], ch["order"])
         except (ProviderError, ValueError) as e:
             log.warning("liveness check failed for user %s: %s", user.pk, e)
+            KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=False, provider=provider.name,
+                                    raw={"order": ch["order"], "error": str(e)[:500]})  # kept, so the reason survives restarts
             raise FlowError("We couldn't check your photos just now. Try again in a minute.", code="check_unavailable", status=503)
         KycCheck.objects.create(user=user, step=KycCheck.Step.SELFIE, passed=result["passed"], provider=provider.name,
                                 raw={"order": ch["order"], **result})

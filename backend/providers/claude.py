@@ -59,10 +59,11 @@ def vision_json(prompt: str, image: bytes, *, max_tokens: int = 700, session: re
         break
     if r.status_code >= 400:
         raise ProviderError(f"Claude: HTTP {r.status_code} {r.text[:300]}")
-    text = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+    data = r.json()
+    text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
-        raise ProviderError("Claude: no JSON in the answer")
+        raise ProviderError(f"Claude: no JSON in the answer (stop={data.get('stop_reason')}): {text[:200]!r}")
     try:
         return json.loads(m.group(0))
     except ValueError as e:
