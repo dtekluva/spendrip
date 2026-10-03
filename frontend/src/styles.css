@@ -831,3 +831,5 @@ a{color:inherit}
 /* plan builder: hide the bottom tab bar on phones, keep the sidebar on wide screens */
 .nav.nav-focused{display:none}
 @container app (min-width: 860px){ .nav.nav-focused{display:flex} }
+/* wide screens: the sidebar already carries the logo, so the Home top bar doesn't repeat it */
+@container app (min-width: 860px){ .topbar > .brand-sm.wm{visibility:hidden} }
