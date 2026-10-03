@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { cadence, dateLabel, dayLabel, dayLabelY, fmtTime, N } from '../lib/format';
+import { cadence, dateLabel, dayLabel, dayLabelY, fmtTime, N, toWhom } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Plan } from '../lib/types';
 import RankPicker from '../components/RankPicker';
@@ -110,9 +110,10 @@ export default function Plans() {
                   <span className="nm">{p.label} {p.priority_rank && <span className="pill p-prot">🛡 Priority {p.priority_rank}</span>}
                     {p.status === 'paused' && <span className="pill p-off">Paused</span>}
                     {p.state === 'scheduled' && <span className="pill p-sched">Starts {dateLabel(p.start_date)}</span>}
-                    {soon && <span className="pill p-wait">Ending soon</span>}</span>
+                    {soon && <span className="pill p-wait">Ending soon</span>}
+                    {p.next_payout?.changed && <span className="pill p-wait">Next payout changed</span>}</span>
                   <span className="amt num">{N(p.amount_kobo)}</span>
-                  <span className="small muted">{cadence(p)} · {fmtTime(p.time_local)} · to {p.recipient.label}</span>
+                  <span className="small muted">{cadence(p)} · {fmtTime(p.time_local)} · to {toWhom(p)}</span>
                   <span className="small" style={{ fontWeight: 700 }}>{p.status === 'paused' ? 'Not sending'
                     : p.state === 'scheduled' && p.first_drip_at ? 'First drip: ' + dayLabelY(p.first_drip_at)
                     : p.next_at ? 'Next: ' + dayLabel(p.next_at) : ''}</span>
@@ -133,7 +134,7 @@ export default function Plans() {
                   <span className={`tile t-${p.tint}`}>{p.emoji}</span>
                   <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span className="nm">{p.label} <span className="pill p-off">Finished</span></span>
-                    <span className="small muted">{N(p.amount_kobo)} · {cadence(p)} · to {p.recipient.label}</span>
+                    <span className="small muted">{N(p.amount_kobo)} · {cadence(p)} · to {toWhom(p)}</span>
                     <Progress p={p} />
                     <span className="done-actions">
                       <button className="btn btn-soft" onClick={() => nav(`/plans/${p.id}/edit?extend=1`)}>Extend</button>
@@ -145,7 +146,10 @@ export default function Plans() {
             </div>
           </details>
         )}
-        <button className="btn btn-soft btn-block" onClick={() => nav('/plans/new')}>＋ New plan</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new')}>＋ New plan</button>
+          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new?group=1')}>👥 Pay several people</button>
+        </div>
       </div></div>
     </div>
   );
@@ -172,7 +176,9 @@ function PlanSheet({ plan }: { plan: Plan }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}><span className={`tile t-${p.tint}`}>{p.emoji}</span>
-        <div><h3 style={{ margin: 0 }}>{p.label}</h3><div className="muted small">{N(p.amount_kobo)} to {p.recipient.label} ({p.recipient.bank_name} ••{p.recipient.account_last4})</div></div></div>
+        <div><h3 style={{ margin: 0 }}>{p.label}</h3><div className="muted small">{p.kind === 'group' || !p.recipient ? `${N(p.amount_kobo)} to ${toWhom(p)}, paid together`
+          : `${N(p.amount_kobo)} to ${p.recipient.label} (${p.recipient.bank_name} ••${p.recipient.account_last4})`}</div></div></div>
+      {p.kind === 'group' && <GroupPeople p={p} onEdit={() => { closeSheet(); nav(`/plans/${p.id}/edit?people=1`); }} />}
       <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{cadence(p)} at {fmtTime(p.time_local)}.{p.state === 'scheduled' && p.first_drip_at ? ` Starts ${dayLabelY(p.first_drip_at)}.` : p.next_at ? ` Next: ${dayLabel(p.next_at)}.` : ''}</p>
       <p className="small muted" style={{ margin: '0 0 12px' }}>{p.end_mode === 'ongoing' ? 'Keeps going until you stop it.'
         : `${p.state === 'finished' ? 'Ran' : 'Runs'} ${p.end_mode === 'months' ? `for ${p.duration_months} month${p.duration_months === 1 ? '' : 's'}` : `until ${p.end_date ? dateLabel(p.end_date) : ''}`}`
@@ -202,5 +208,21 @@ function PlanSheet({ plan }: { plan: Plan }) {
             <button className="btn btn-danger" style={{ flex: 1 }} onClick={del}>Delete</button></div></div>
       )}
     </>
+  );
+}
+
+/** A group plan's people, what each gets, and what the next payout will be after one-off changes. */
+function GroupPeople({ p, onEdit }: { p: Plan; onEdit: () => void }) {
+  const np = p.next_payout;
+  return (
+    <div className="g-sum" style={{ margin: '0 0 12px' }}>
+      {(p.lines ?? []).map((l) => (
+        <div key={l.recipient.id} className="kv sub"><span className="muted">{l.recipient.label} · {l.recipient.bank_name} ••{l.recipient.account_last4}
+          {l.skip_next ? ' · skipped next time' : l.next_amount_kobo != null ? ` · ${N(l.next_amount_kobo)} next time` : ''}</span>
+          <span className="num">{N(l.amount_kobo)}</span></div>
+      ))}
+      {np?.changed && <div className="kv"><span className="muted">Next payout</span><b className="num">{np.people} people · {N(np.amount_kobo + np.fee_kobo)} with fees</b></div>}
+      <button className="btn btn-soft btn-block" style={{ marginTop: 6 }} onClick={onEdit}>Change people or amounts</button>
+    </div>
   );
 }

@@ -87,3 +87,7 @@ export function dayLabelY(d: Date | string): string {
   const x = lagos(d), now = lagos(new Date());
   return dayLabel(d) + (x.y !== now.y ? ` ${x.y}` : '');
 }
+
+/** Who a plan pays, for one-line summaries: "Mum" or "6 people". */
+export const toWhom = (p: { kind?: string; recipient: { label: string } | null; people?: number; lines?: unknown[] | null }) =>
+  p.kind === 'group' ? `${p.people ?? p.lines?.length ?? 0} people` : p.recipient?.label ?? 'someone';

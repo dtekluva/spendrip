@@ -9,13 +9,13 @@ from django.utils import timezone
 from engine import FeeSchedule, forecast, occurrences
 from ledger import services as ledger
 
-from .models import Plan, Run
+from .models import Plan, PlanLine, Run, RunBatch
 
 
 def fee_schedule() -> FeeSchedule:
     c = settings.SPENDRIP
     tiers = FeeSchedule().provider_tiers if c.get("PASS_THROUGH_TRANSFER_FEES", True) else ((None, 0),)
-    return FeeSchedule(service_kobo=c["TRANSFER_FEE_KOBO"], stamp_duty_kobo=c.get("STAMP_DUTY_KOBO", 0),
+    return FeeSchedule(service_kobo=c["TRANSFER_FEE_KOBO"], group_service_kobo=c.get("GROUP_FEE_KOBO", 10_000), stamp_duty_kobo=c.get("STAMP_DUTY_KOBO", 0),
                        stamp_duty_from_kobo=c.get("STAMP_DUTY_FROM_KOBO", 1_000_000), provider_tiers=tiers)
 
 
@@ -24,8 +24,14 @@ def fee_kobo(amount_kobo: int) -> int:
     return fee_schedule()(amount_kobo)
 
 
+def plan_fee_kobo(plan: Plan) -> int:
+    """What one regular payout of this plan costs in fees (group plans: the flat fee plus each transfer's charges)."""
+    s = fee_schedule()
+    return s.group_fee([ln.amount_kobo for ln in plan.active_lines()]) if plan.is_group else s(plan.amount_kobo)
+
+
 def engine_plans(user) -> list:
-    plans = Plan.objects.filter(user=user).exclude(status=Plan.Status.DELETED).select_related("recipient")
+    plans = Plan.objects.filter(user=user).exclude(status=Plan.Status.DELETED).select_related("recipient").prefetch_related("lines")
     out = [p.to_engine() for p in plans]
     if user.paused_all:
         from dataclasses import replace
@@ -62,7 +68,7 @@ def materialise_runs(now: datetime, *, days: int | None = None, plans=None) -> i
     days = days or settings.SPENDRIP["MATERIALISE_DAYS"]
     start = now - timedelta(hours=settings.SPENDRIP["LATE_SEND_WINDOW_HOURS"])
     end = now + timedelta(days=days)
-    plans = plans if plans is not None else Plan.objects.filter(status=Plan.Status.ACTIVE)
+    plans = plans if plans is not None else Plan.objects.filter(status=Plan.Status.ACTIVE).prefetch_related("lines")
     sched = fee_schedule()
 
     def run(p, at):
@@ -70,18 +76,55 @@ def materialise_runs(now: datetime, *, days: int | None = None, plans=None) -> i
         return Run(plan=p, user_id=p.user_id, scheduled_for=at, amount_kobo=p.amount_kobo, fee_kobo=f.total_kobo,
                    service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
 
-    rows = [run(p, at) for p in plans for at in occurrences(p.schedule, max(start, p.starts_at), end)]
-    if not rows:
-        return 0
-    before = Run.objects.filter(plan__in={r.plan_id for r in rows}).count()
-    Run.objects.bulk_create(rows, ignore_conflicts=True)  # returns every row passed in, so count instead
-    return Run.objects.filter(plan__in={r.plan_id for r in rows}).count() - before
+    singles = [p for p in plans if not p.is_group]
+    rows = [run(p, at) for p in singles for at in occurrences(p.schedule, max(start, p.starts_at), end)]
+    created = 0
+    if rows:
+        before = Run.objects.filter(plan__in={r.plan_id for r in rows}).count()
+        Run.objects.bulk_create(rows, ignore_conflicts=True)  # returns every row passed in, so count instead
+        created = Run.objects.filter(plan__in={r.plan_id for r in rows}).count() - before
+    for p in plans:
+        if p.is_group:
+            created += _materialise_group(p, sched, start, end)
+    return created
+
+
+def _materialise_group(plan: Plan, sched, start: datetime, end: datetime) -> int:
+    """One batch per payout, with one run per person. One-off changes (a bonus, someone skipped) go into the
+    plan's next scheduled batch only; later batches use everyone's regular amount."""
+    from django.db import transaction
+    existing = set(RunBatch.objects.filter(plan=plan).values_list("scheduled_for", flat=True))
+    has_pending = RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).exists()
+    lines = plan.active_lines()
+    created = 0
+    for at in occurrences(plan.schedule, max(start, plan.starts_at), end):
+        if at in existing:
+            continue
+        use_next = not has_pending
+        has_pending = True
+        paying = [(ln, ln.next_amount if use_next else ln.amount_kobo) for ln in lines if not (use_next and ln.skip_next)]
+        if not paying:
+            continue
+        parts = sched.group_parts([a for _, a in paying])
+        with transaction.atomic():
+            batch = RunBatch.objects.create(plan=plan, user_id=plan.user_id, scheduled_for=at, amount_kobo=sum(a for _, a in paying),
+                                            fee_kobo=sum(f.total_kobo for f in parts))
+            Run.objects.bulk_create([
+                Run(plan=plan, line=ln, batch=batch, user_id=plan.user_id, scheduled_for=at, amount_kobo=a, fee_kobo=f.total_kobo,
+                    service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
+                for (ln, a), f in zip(paying, parts)])
+        created += len(paying)
+    return created
 
 
 def reschedule(plan: Plan, now: datetime | None = None) -> None:
     """After a plan changes, drop its future scheduled runs and create them again from the new settings."""
     now = now or timezone.now()
-    Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
+    if plan.is_group:
+        # Nothing in a scheduled or waiting batch has moved money yet, so rebuild them all (a waiting one keeps its time).
+        RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).delete()
+    else:
+        Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED, scheduled_for__gt=now).delete()
     if plan.status == Plan.Status.ACTIVE:
         materialise_runs(now, plans=[plan])
 
@@ -99,7 +142,10 @@ def plan_progress(plan: Plan, now: datetime) -> dict:
     bounded = plan.ends_at is not None
     every = all_occurrences(s) if bounded else []
     first = every[0] if every else (next_occurrences(s, plan.starts_at, 1) or [None])[0]
-    done = Run.objects.filter(plan=plan, status__in=DONE_STATUSES + Run.IN_FLIGHT).count()
+    if plan.is_group:
+        done = RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SENDING, RunBatch.Status.DONE, RunBatch.Status.SKIPPED]).count()
+    else:
+        done = Run.objects.filter(plan=plan, status__in=DONE_STATUSES + Run.IN_FLIGHT).count()
     if plan.status == Plan.Status.FINISHED:
         state = "finished"
     elif plan.status == Plan.Status.PAUSED:
@@ -108,7 +154,7 @@ def plan_progress(plan: Plan, now: datetime) -> dict:
         state = "scheduled"  # its start date is still ahead
     else:
         state = "active"
-    fee = fee_schedule()(plan.amount_kobo)
+    fee = plan_fee_kobo(plan)
     return {
         "state": state,
         "first_drip_at": first,
@@ -135,10 +181,37 @@ def finish_plans(now: datetime) -> int:
     from django.db import transaction
     finished = 0
     for plan in Plan.objects.filter(status__in=[Plan.Status.ACTIVE, Plan.Status.PAUSED], ends_at__lt=now):
-        if Run.objects.filter(plan=plan, status__in=(Run.Status.SCHEDULED, *Run.IN_FLIGHT)).exists():
+        if Run.objects.filter(plan=plan, status__in=(Run.Status.SCHEDULED, *Run.IN_FLIGHT)).exists() or \
+                RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.WAITING, RunBatch.Status.SENDING]).exists():
             continue  # its last drip is still being handled
         with transaction.atomic():
             release_priority(plan)
             Plan.objects.filter(pk=plan.pk).update(status=Plan.Status.FINISHED, finished_at=now, priority_rank=None)
         finished += 1
     return finished
+
+
+# ---------------------------------------------------------------- group plans
+
+def save_lines(plan: Plan, lines: list[dict]) -> None:
+    """Replace a group plan's people with `lines` ([{recipient, amount_kobo, next_amount_kobo?, skip_next?}], in order).
+    People who drop off are kept as inactive lines so past payouts still point at them. Keeps plan.amount_kobo in step."""
+    current = {ln.recipient_id: ln for ln in plan.lines.filter(active=True)}
+    keep = set()
+    for i, d in enumerate(lines):
+        r = d["recipient"]
+        ln = current.get(r.pk) or PlanLine(plan=plan, recipient=r)
+        ln.amount_kobo, ln.position = d["amount_kobo"], i
+        ln.next_amount_kobo = d.get("next_amount_kobo")
+        ln.skip_next = bool(d.get("skip_next", False))
+        ln.active = True
+        ln.save()
+        keep.add(r.pk)
+    plan.lines.filter(active=True).exclude(recipient_id__in=keep).update(active=False)
+    plan.amount_kobo = sum(d["amount_kobo"] for d in lines)
+    plan.save(update_fields=["amount_kobo", "updated_at"])
+
+
+def clear_one_offs(plan: Plan) -> None:
+    """A payout has gone out: one-off amounts and skips were for that payout only."""
+    plan.lines.filter(active=True).update(next_amount_kobo=None, skip_next=False)

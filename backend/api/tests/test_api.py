@@ -449,7 +449,7 @@ def poses_for(order, flip=False):
     return [{"faces": 1, "face_clear": True, "looks_live": True, "direction": "front" if p == "front" else turn[p]} for p in order]
 
 
-def test_live_id_then_liveness(dev, db, live_kyc):
+def test_live_id_then_liveness(dev, db, live_kyc, settings):
     c = APIClient()
     sign_up(c)
     assert c.get("/api/me").json()["user"]["kyc_mode"] == "live"
@@ -473,7 +473,7 @@ def test_live_id_then_liveness(dev, db, live_kyc):
     live_kyc["poses"] = poses_for(order)
     me = c.post("/api/kyc/liveness", {f"image_{i}": IMG() for i in range(3)}).json()
     assert me["user"]["kyc_status"] == "verified" and me["user"]["kyc_tier"] == 1
-    assert me["user"]["funding_account"] is None and me["user"]["limits"]["max_drip_kobo"] == 5_000_000
+    assert me["user"]["funding_account"] is None and me["user"]["limits"]["max_drip_kobo"] == settings.SPENDRIP["TIER1_MAX_DRIP_KOBO"]
 
 
 def test_same_id_cannot_verify_two_accounts(dev, db, live_kyc):
@@ -495,7 +495,7 @@ def test_liveness_needs_a_fresh_start(dev, db):
 
 
 def test_tier1_limits_on_drips_and_top_ups(demo, dev, settings):
-    settings.SPENDRIP = {**settings.SPENDRIP, "KYC_PROVIDER": "live"}
+    settings.SPENDRIP = {**settings.SPENDRIP, "KYC_PROVIDER": "live", "TIER1_MAX_DRIP_KOBO": 5_000_000, "TIER1_MAX_BALANCE_KOBO": 30_000_000}
     c = unlocked_client(demo)
     big = c.post("/api/plans", plan_body(demo, amount_kobo=6_000_000), format="json")
     assert big.status_code == 400 and big.json()["code"] == "over_limit"

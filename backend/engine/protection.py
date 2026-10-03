@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
-from .fees import fee_for
+from .fees import fee_for, group_fee_for
 from .schedule import Schedule, day_key, end_of_month, occurrences
 
 # Event statuses
@@ -36,6 +36,17 @@ class PlanLike:
     priority_rank: int | None = None  # 1, 2, 3 or None
     status: str = "active"
     order: int = 0  # tie-break for runs at the same moment and rank (creation order)
+    # Group plans: each person's amount (amount_kobo is their sum). next_line_amounts, when set, is the very next
+    # payout only (a one-off bonus, deduction or someone skipped).
+    line_amounts: tuple[int, ...] | None = None
+    next_line_amounts: tuple[int, ...] | None = None
+
+    def cost_parts(self, fee_kobo, first: bool = False) -> tuple[int, int]:
+        """(amount, fee) of one payout of this plan; `first` = its very next one."""
+        if self.line_amounts is None:
+            return self.amount_kobo, fee_for(fee_kobo, self.amount_kobo)
+        lines = self.next_line_amounts if first and self.next_line_amounts is not None else self.line_amounts
+        return sum(lines), group_fee_for(fee_kobo, lines) if lines else 0
 
 
 @dataclass(frozen=True)
@@ -94,12 +105,14 @@ def validate_priorities(plans) -> list[str]:
 
 
 def _events(plans, start: datetime, end: datetime, fee_kobo) -> list[ForecastEvent]:
-    events = [
-        ForecastEvent(p.id, at, p.amount_kobo, fee_for(fee_kobo, p.amount_kobo), p.priority_rank, p.order)
-        for p in plans
-        if p.status == "active"
-        for at in occurrences(p.schedule, start, end)
-    ]
+    events = []
+    for p in plans:
+        if p.status != "active":
+            continue
+        for i, at in enumerate(occurrences(p.schedule, start, end)):
+            amount, fee = p.cost_parts(fee_kobo, first=i == 0)
+            if amount:
+                events.append(ForecastEvent(p.id, at, amount, fee, p.priority_rank, p.order))
     events.sort(key=lambda e: compare_key(e.at, e.rank, e.order))
     return events
 
@@ -156,15 +169,16 @@ def forecast(plans, available_kobo: int, now: datetime, *, fee_kobo, tz: str,
 
 
 def decide(*, plan_id: str, at: datetime, amount_kobo: int, plans, available_kobo: int, sent_today_kobo: int,
-           fee_kobo, tz: str, daily_cap_kobo: int | None = None) -> Decision:
+           fee_kobo, tz: str, daily_cap_kobo: int | None = None, run_fee_kobo: int | None = None) -> Decision:
     """
     Live decision for one due run (used by the worker). Matches what forecast() predicts:
     the money that must stay behind is the cost of higher-priority runs still due after this
-    run, up to the end of this run's month.
+    run, up to the end of this run's month. `run_fee_kobo` is this run's fee when it's already known
+    (a group payout's total fee).
     """
     plan = next((p for p in plans if p.id == plan_id), None)
     rank = plan.priority_rank if plan else None
-    cost = amount_kobo + fee_for(fee_kobo, amount_kobo)
+    cost = amount_kobo + (run_fee_kobo if run_fee_kobo is not None else fee_for(fee_kobo, amount_kobo))
 
     guarded = [p for p in plans if p.id != plan_id and p.priority_rank and (rank is None or p.priority_rank < rank)]
     reserved = sum(e.cost_kobo for e in _events(guarded, at + timedelta(microseconds=1), end_of_month(at, tz), fee_kobo))

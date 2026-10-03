@@ -4,6 +4,9 @@
 - provider:   the payout provider's transfer charge, passed through (Paystack: ₦10 up to ₦5,000,
               ₦25 up to ₦50,000, ₦50 above).
 - stamp_duty: the government's ₦50 stamp duty on transfers of ₦10,000 and above, passed through.
+
+A group payout (several people at once) pays SpenDrip's fee once, flat (₦100), however many people are on it.
+The transfer fee and stamp duty still apply to each transfer, because each person is a separate bank transfer.
 """
 from __future__ import annotations
 
@@ -40,6 +43,7 @@ class FeeSchedule:
     service_kobo: int = 5_000
     stamp_duty_kobo: int = 5_000
     stamp_duty_from_kobo: int = 1_000_000
+    group_service_kobo: int = 10_000
     provider_tiers: tuple[tuple[int | None, int], ...] = field(default=PAYSTACK_TRANSFER_TIERS)
 
     def provider_fee(self, amount_kobo: int) -> int:
@@ -55,8 +59,19 @@ class FeeSchedule:
     def __call__(self, amount_kobo: int) -> int:
         return self.parts(amount_kobo).total_kobo
 
+    def group_parts(self, amounts_kobo) -> list[FeeParts]:
+        """Fee parts for each transfer of a group payout, in order. The flat SpenDrip fee sits on the first one."""
+        out = []
+        for i, a in enumerate(amounts_kobo):
+            p = self.parts(a)
+            out.append(FeeParts(self.group_service_kobo if i == 0 else 0, p.provider_kobo, p.stamp_duty_kobo))
+        return out
+
+    def group_fee(self, amounts_kobo) -> int:
+        return sum(p.total_kobo for p in self.group_parts(amounts_kobo))
+
     def describe(self) -> dict:
-        return {"service_kobo": self.service_kobo, "stamp_duty_kobo": self.stamp_duty_kobo,
+        return {"service_kobo": self.service_kobo, "group_service_kobo": self.group_service_kobo, "stamp_duty_kobo": self.stamp_duty_kobo,
                 "stamp_duty_from_kobo": self.stamp_duty_from_kobo,
                 "provider_tiers": [{"up_to_kobo": u, "fee_kobo": f} for u, f in self.provider_tiers]}
 
@@ -64,3 +79,10 @@ class FeeSchedule:
 def fee_for(fee, amount_kobo: int) -> int:
     """`fee` is either a flat kobo amount or something that maps an amount to its total fee."""
     return fee(amount_kobo) if callable(fee) else fee
+
+
+def group_fee_for(fee, amounts_kobo) -> int:
+    """Total fee for one group payout. A FeeSchedule charges its flat group fee; anything simpler charges each transfer."""
+    if hasattr(fee, "group_fee"):
+        return fee.group_fee(amounts_kobo)
+    return sum(fee_for(fee, a) for a in amounts_kobo)

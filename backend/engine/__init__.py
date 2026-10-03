@@ -1,5 +1,5 @@
 """Pure scheduling and protection logic. No Django imports, so it is easy to test and reason about."""
-from .fees import FeeParts, FeeSchedule, fee_for
+from .fees import FeeParts, FeeSchedule, fee_for, group_fee_for
 from .money import DEFAULT_FEE_KOBO, format_naira, naira, to_naira
 from .priorities import MAX_PRIORITIES, set_priority
 from .protection import (
@@ -29,7 +29,7 @@ from .schedule import (
 )
 
 __all__ = [
-    "FeeParts", "FeeSchedule", "fee_for",
+    "FeeParts", "FeeSchedule", "fee_for", "group_fee_for",
     "DEFAULT_FEE_KOBO", "format_naira", "naira", "to_naira",
     "MAX_PRIORITIES", "set_priority",
     "Decision", "Forecast", "ForecastEvent", "PlanLike", "compare_key", "decide", "forecast", "validate_priorities",

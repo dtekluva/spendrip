@@ -27,8 +27,12 @@ export interface Recipient {
 }
 
 export type Frequency = 'daily' | 'weekly' | 'monthly';
+export interface PlanLine { id?: number; recipient: Recipient; amount_kobo: number; next_amount_kobo: number | null; skip_next: boolean }
 export interface Plan {
-  id: number; label: string; emoji: string; tint: Tint; amount_kobo: number; recipient: Recipient; frequency: Frequency;
+  id: number; kind: 'single' | 'group'; label: string; emoji: string; tint: Tint; amount_kobo: number; fee_kobo: number;
+  recipient: Recipient | null; lines: PlanLine[] | null; people?: number;
+  next_payout?: { people: number; amount_kobo: number; fee_kobo: number; changed: boolean };
+  frequency: Frequency;
   weekday: number | null; month_day: number | null; month_day_last: boolean; time_local: string; tz: string;
   starts_at: string; ends_at: string | null; status: 'active' | 'paused' | 'finished'; priority_rank: number | null; next_at: string | null;
   start_date: string; end_mode: EndMode; duration_months: number | null; end_date: string | null; finished_at: string | null;
@@ -41,7 +45,7 @@ export type EventStatus = 'protected' | 'send' | 'wait' | 'short' | 'cap' | 'sen
 export interface DripEvent { plan_id: number; at: string; amount_kobo: number; fee_kobo?: number; rank?: number | null; status: EventStatus }
 
 export interface FeeRules {
-  service_kobo: number; stamp_duty_kobo: number; stamp_duty_from_kobo: number;
+  service_kobo: number; group_service_kobo?: number; stamp_duty_kobo: number; stamp_duty_from_kobo: number;
   provider_tiers: { up_to_kobo: number | null; fee_kobo: number }[];
 }
 export interface FeeLineT { kind: string; label: string; amount_kobo: number }
@@ -56,7 +60,9 @@ export interface Summary {
   funding_account: FundingAccount | null;
 }
 
+export interface DraftLine { recipient_id: number; amount_kobo: number; next_amount_kobo: number | null; skip_next: boolean }
 export interface Draft {
+  kind: 'single' | 'group'; lines: DraftLine[];
   label: string; emoji: string; tint: Tint; amount_kobo: number; recipient_id: number | null; frequency: Frequency;
   weekday: number; month_day: number; month_day_last: boolean; time_local: string; priority_rank: number;
   start_date: string; end_mode: EndMode; duration_months: number; end_date: string;
@@ -65,11 +71,13 @@ export interface Draft {
 export interface Preview {
   next_dates: string[]; runs_this_month: number; month_cost_kobo: number; fee_kobo: number; fee_lines?: FeeLineT[]; top_up_before_kobo: number;
   top_up_after_kobo: number; draft_waiting: number; priorities_short_after_kobo: number; priority_order: string[]; dropped_priorities: string[];
+  daily_cap_kobo?: number | null; over_daily_cap?: boolean;
   first_drip_at: string | null; last_drip_at: string | null; total_drips: number | null; total_amount_kobo: number | null; total_fees_kobo: number | null;
 }
 
+export interface ActivityPerson { label: string; bank_name: string; account_last4: string; amount_kobo: number; status: string }
 export interface ActivityItem {
-  kind: 'run' | 'inflow'; status: string; at: string; amount_kobo: number; fee_kobo?: number; fee_lines?: FeeLineT[]; reason?: string; sender?: string;
+  kind: 'run' | 'inflow' | 'group'; people?: ActivityPerson[]; paid?: number; status: string; at: string; amount_kobo: number; fee_kobo?: number; fee_lines?: FeeLineT[]; reason?: string; sender?: string;
   plan?: { id: number; label: string; emoji: string; tint: Tint };
   recipient?: { label: string; bank_name: string; account_last4: string };
   whatsapp?: { to: string; body: string; status: string } | null;

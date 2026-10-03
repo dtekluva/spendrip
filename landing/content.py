@@ -93,6 +93,9 @@ PAGES = [
     "sections": [
       {"id": "table", "h2": "Fees for each drip", "html": FEE_TABLE + f"""
 <p class="src">Transfer fees: {S_PAYSTACK_FEES} (Single and bulk transfers). Stamp duty: ₦50 on transfers of ₦10,000 and above, paid by the sender from 2026 ({S_STAMP}; {S_PAYSTACK_DUTY}). Checked 3 October 2026.</p>"""},
+      {"id": "groups", "h2": "Paying several people at once", "html": """
+<p>A group plan pays several people together, each with their own amount: staff pay, or the whole family's monthly support. The SpenDrip fee is <b>₦100 for the whole payout</b>, however many people are on it. Each person is still a separate bank transfer, so each one has its own transfer fee and, from ₦10,000, its own ₦50 stamp duty.</p>
+<p>Example: a driver on ₦80,000, a nanny on ₦70,000 and a gateman on ₦45,000. That's ₦100 SpenDrip fee + ₦125 transfer fees (₦50 + ₦50 + ₦25) + ₦150 stamp duty = <b>₦375 in fees</b> for the whole payout.</p>"""},
       {"id": "calculator", "h2": "Fee calculator", "html": "<p>Type an amount to see what one drip costs, and what a month of them adds up to.</p>" + FEE_CALC},
       {"id": "topups", "h2": "Adding money", "html": """
 <p>You top up your SpenDrip balance by card through Paystack. The card fee is shown on the screen before you pay, so you know the exact amount. Bank-transfer top-ups to your own SpenDrip account number are coming soon.</p>"""},
@@ -103,6 +106,7 @@ PAGES = [
       ("Is SpenDrip free?", "Joining is free. You pay only when a drip goes out: the ₦50 SpenDrip fee plus the transfer fee and, from ₦10,000, the ₦50 stamp duty."),
       ("Who pays the ₦50 stamp duty?", "From 2026 the sender pays ₦50 stamp duty on electronic transfers of ₦10,000 and above. SpenDrip adds it to the drip and shows it as its own line."),
       ("Do the people I pay get charged?", "No. They receive the full amount you scheduled."),
+      ("How much does it cost to pay several people at once?", "A group payout has one ₦100 SpenDrip fee for everyone on it. Each person's transfer still has its own transfer fee and, from ₦10,000, ₦50 stamp duty."),
     ],
   },
   {
@@ -147,7 +151,7 @@ PAGES = [
     "sections": [
       {"id": "identity", "h2": "Identity checks", "html": """
 <p>Before you can add money or send it, you verify with a photo of your ID (NIN slip, driver's licence, voter's card or passport) and three quick live selfies: looking straight, turning one way, then the other, in a random order. The selfies must be taken live in the app, not picked from your gallery. One ID can only verify one account.</p>
-<p>New accounts have limits while verification is ID and live selfies only: up to ₦50,000 per drip and ₦300,000 in your balance.</p>"""},
+<p>New accounts have limits while verification is ID and live selfies only: up to ₦500,000 per transfer and ₦2,000,000 in your balance.</p>"""},
       {"id": "cards", "h2": "Cards", "html": """
 <p>You pay on Paystack's secure checkout, so SpenDrip never sees your card number. For one-tap top-ups we keep only an encrypted token from Paystack.</p>"""},
       {"id": "payees", "h2": "Paying the right person", "html": """

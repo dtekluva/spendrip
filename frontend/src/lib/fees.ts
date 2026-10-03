@@ -19,3 +19,19 @@ export function feeLines(amountKobo: number, rules: FeeRules = DEFAULT_FEES): Fe
 }
 
 export const feeTotal = (amountKobo: number, rules?: FeeRules) => feeLines(amountKobo, rules).reduce((t, l) => t + l.amount_kobo, 0);
+
+/** A group payout: SpenDrip's flat fee once, plus each transfer's own charge and stamp duty. Mirrors FeeSchedule.group_parts. */
+export function groupFeeLines(amountsKobo: number[], rules: FeeRules = DEFAULT_FEES): FeeLine[] {
+  let provider = 0, duty = 0;
+  for (const a of amountsKobo) {
+    const l = feeLines(a, rules);
+    provider += l.find((x) => x.kind === 'provider')?.amount_kobo ?? 0;
+    duty += l.find((x) => x.kind === 'stamp_duty')?.amount_kobo ?? 0;
+  }
+  return [
+    { kind: 'service', label: 'SpenDrip fee (whole group)', amount_kobo: amountsKobo.length ? rules.group_service_kobo ?? 10_000 : 0 },
+    { kind: 'provider', label: `Transfer fees (Paystack, ${amountsKobo.length} transfers)`, amount_kobo: provider },
+    { kind: 'stamp_duty', label: 'Stamp duty', amount_kobo: duty },
+  ].filter((l) => l.amount_kobo > 0);
+}
+export const groupFeeTotal = (amountsKobo: number[], rules?: FeeRules) => groupFeeLines(amountsKobo, rules).reduce((t, l) => t + l.amount_kobo, 0);

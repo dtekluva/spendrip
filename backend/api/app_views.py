@@ -12,8 +12,9 @@ from rest_framework.views import APIView
 
 from accounts import services as acc
 from accounts.services import FlowError
-from drips.models import Plan, Recipient, Run
-from drips.services import engine_plans, fee_schedule, plan_progress, reschedule, sent_today_kobo, user_forecast
+from drips.models import Plan, Recipient, Run, RunBatch
+from drips.services import (engine_plans, fee_schedule, plan_fee_kobo, plan_progress, reschedule, save_lines, sent_today_kobo,
+                            user_forecast)
 from engine import (
     MAX_PLAN_MONTHS,
     PlanLike,
@@ -38,6 +39,7 @@ from providers.banks import BANKS, BY_NIP
 
 TINTS = {"cobalt", "sun", "hibiscus", "mint"}
 MIN_AMOUNT_KOBO, MAX_AMOUNT_KOBO = 10_000, 1_000_000_000  # ₦100 – ₦10m
+MIN_GROUP, MAX_GROUP = 2, 50  # people on a group plan
 
 
 # ------------------------------------------------------------------ helpers
@@ -64,11 +66,29 @@ def recipient_json(r: Recipient) -> dict:
             "whatsapp": r.whatsapp, "notify_whatsapp": r.notify_whatsapp}
 
 
+def line_json(ln) -> dict:
+    return {"id": ln.id, "recipient": recipient_json(ln.recipient), "amount_kobo": ln.amount_kobo,
+            "next_amount_kobo": ln.next_amount_kobo, "skip_next": ln.skip_next}
+
+
+def group_json(p: Plan) -> dict:
+    """Group plans: the people, and what the next payout and a regular one cost."""
+    if not p.is_group:
+        return {"lines": None}
+    lines = p.active_lines()
+    sched = fee_schedule()
+    nxt = [ln.next_amount for ln in lines if not ln.skip_next]
+    return {"lines": [line_json(ln) for ln in lines], "people": len(lines),
+            "next_payout": {"people": len(nxt), "amount_kobo": sum(nxt), "fee_kobo": sched.group_fee(nxt) if nxt else 0,
+                            "changed": any(ln.skip_next or ln.next_amount_kobo is not None for ln in lines)}}
+
+
 def plan_json(p: Plan, now: datetime) -> dict:
     nxt = next_occurrences(p.schedule, now, 1) if p.status == Plan.Status.ACTIVE else []
     z = ZoneInfo(p.tz)
-    return {"id": p.id, "label": p.label, "emoji": p.emoji, "tint": p.tint, "amount_kobo": p.amount_kobo,
-            "recipient": recipient_json(p.recipient), "frequency": p.frequency, "weekday": p.weekday, "month_day": p.month_day,
+    return {"id": p.id, "kind": p.kind, "label": p.label, "emoji": p.emoji, "tint": p.tint, "amount_kobo": p.amount_kobo,
+            "fee_kobo": plan_fee_kobo(p), **group_json(p),
+            "recipient": recipient_json(p.recipient) if p.recipient and not p.is_group else None, "frequency": p.frequency, "weekday": p.weekday, "month_day": p.month_day,
             "month_day_last": p.month_day_last, "time_local": p.time_local, "tz": p.tz, "starts_at": p.starts_at,
             "ends_at": p.ends_at, "status": p.status, "priority_rank": p.priority_rank, "next_at": nxt[0] if nxt else None,
             "start_date": p.starts_at.astimezone(z).date(), "end_mode": p.end_mode, "duration_months": p.duration_months,
@@ -77,7 +97,8 @@ def plan_json(p: Plan, now: datetime) -> dict:
 
 
 def user_plans(user):
-    return Plan.objects.filter(user=user).exclude(status=Plan.Status.DELETED).select_related("recipient").order_by("created_at")
+    return (Plan.objects.filter(user=user).exclude(status=Plan.Status.DELETED).select_related("recipient")
+            .prefetch_related("lines__recipient").order_by("created_at"))
 
 
 def priority_order(user) -> list[str]:
@@ -108,22 +129,27 @@ def parse_plan(data, user, instance: Plan | None = None) -> dict:
     out["emoji"] = str(data.get("emoji", cur("emoji", "💸")))[:8] or "💸"
     tint = data.get("tint", cur("tint", "cobalt"))
     out["tint"] = tint if tint in TINTS else "cobalt"
-    try:
-        amount = int(data.get("amount_kobo", cur("amount_kobo", 0)))
-    except (TypeError, ValueError):
-        raise FlowError("Enter an amount.")
-    if not MIN_AMOUNT_KOBO <= amount <= MAX_AMOUNT_KOBO:
-        raise FlowError("Amounts must be between ₦100 and ₦10,000,000.")
-    lim = acc.limits(user)
-    if lim and amount > lim["max_drip_kobo"]:
-        from engine import format_naira
-        raise FlowError(f"Each drip can be up to {format_naira(lim['max_drip_kobo'])} for now.", code="over_limit")
-    out["amount_kobo"] = amount
-    rid = data.get("recipient_id", instance.recipient_id if instance else None)
-    recipient = Recipient.objects.filter(pk=rid, user=user).first()
-    if not recipient:
-        raise FlowError("Choose who gets the money.")
-    out["recipient"] = recipient
+    kind = data.get("kind") or (instance.kind if instance else Plan.Kind.SINGLE)
+    if kind not in (Plan.Kind.SINGLE, Plan.Kind.GROUP):
+        raise FlowError("A plan is for one person or a group.")
+    if instance and instance.is_group and kind != Plan.Kind.GROUP:
+        raise FlowError("A group plan can't turn back into a one-person plan. Remove people instead, or make a new plan.")
+    out["kind"] = kind
+    if kind == Plan.Kind.GROUP:
+        if "lines" in data or not instance or not instance.is_group:
+            out["lines"] = _lines(data.get("lines"), user)
+            out["amount_kobo"] = sum(d["amount_kobo"] for d in out["lines"])
+        else:
+            out["amount_kobo"] = instance.amount_kobo
+        if not instance:
+            out["recipient"] = None
+    else:
+        out["amount_kobo"] = _amount_ok(data.get("amount_kobo", cur("amount_kobo", 0)), user)
+        rid = data.get("recipient_id", instance.recipient_id if instance else None)
+        recipient = Recipient.objects.filter(pk=rid, user=user).first()
+        if not recipient:
+            raise FlowError("Choose who gets the money.")
+        out["recipient"] = recipient
     out["frequency"] = data.get("frequency", cur("frequency"))
     out["weekday"] = _int(data.get("weekday", cur("weekday"))) if out["frequency"] == "weekly" else None
     md = _int(data.get("month_day", cur("month_day"))) if out["frequency"] == "monthly" else None
@@ -139,6 +165,45 @@ def parse_plan(data, user, instance: Plan | None = None) -> dict:
         raise FlowError(errors[0][0].upper() + errors[0][1:] + ".")
     if out["ends_at"] and not all_occurrences(sched):
         raise FlowError("This ends before its first drip. Pick a later end.", code="no_drips")
+    return out
+
+
+def _amount_ok(v, user, who: str = "") -> int:
+    from engine import format_naira
+    try:
+        amount = int(v)
+    except (TypeError, ValueError):
+        raise FlowError(f"Enter an amount{' for ' + who if who else ''}.")
+    if not MIN_AMOUNT_KOBO <= amount <= MAX_AMOUNT_KOBO:
+        raise FlowError(f"{who}'s amount must be between ₦100 and ₦10,000,000." if who else "Amounts must be between ₦100 and ₦10,000,000.")
+    lim = acc.limits(user)
+    if lim and amount > lim["max_drip_kobo"]:
+        cap = format_naira(lim["max_drip_kobo"])
+        raise FlowError(f"Each transfer can be up to {cap} for now, so {who}'s is too high." if who else f"Each drip can be up to {cap} for now.",
+                        code="over_limit")
+    return amount
+
+
+def _lines(raw, user) -> list[dict]:
+    """People on a group plan: [{recipient_id, amount_kobo, next_amount_kobo?, skip_next?}], in the order to show them."""
+    if not isinstance(raw, list) or not MIN_GROUP <= len(raw) <= MAX_GROUP:
+        raise FlowError(f"A group needs {MIN_GROUP} to {MAX_GROUP} people.")
+    ids = [d.get("recipient_id") if isinstance(d, dict) else None for d in raw]
+    people = {r.pk: r for r in Recipient.objects.filter(user=user, pk__in=[i for i in ids if i])}
+    out, seen = [], set()
+    for d, rid in zip(raw, ids):
+        r = people.get(_int(rid))
+        if not r:
+            raise FlowError("Someone on the list isn't one of your saved people. Add them first.")
+        if r.pk in seen:
+            raise FlowError(f"{r.label} is on the list twice.", code="duplicate_person")
+        seen.add(r.pk)
+        line = {"recipient": r, "amount_kobo": _amount_ok(d.get("amount_kobo"), user, r.label), "skip_next": bool(d.get("skip_next", False))}
+        nxt = d.get("next_amount_kobo")
+        line["next_amount_kobo"] = _amount_ok(nxt, user, r.label) if nxt not in (None, "") else None
+        out.append(line)
+    if all(d["skip_next"] for d in out):
+        raise FlowError("Everyone is skipped next time. Pause the plan instead.", code="all_skipped")
     return out
 
 
@@ -299,10 +364,11 @@ class RecipientDetail(APIView):
         r = request.user.recipients.filter(pk=pk).first()
         if not r:
             raise FlowError("That person isn't in your list.", status=404)
-        using = list(r.plans.exclude(status=Plan.Status.DELETED).values_list("label", flat=True))
+        using = list(r.plans.exclude(status=Plan.Status.DELETED).values_list("label", flat=True)) + list(
+            r.plan_lines.filter(active=True).exclude(plan__status=Plan.Status.DELETED).values_list("plan__label", flat=True))
         if using:
             raise FlowError(f"{', '.join(using)} still pays this person. Change or delete those plans first.", code="in_use", status=409)
-        if r.plans.exists():
+        if r.plans.exists() or r.plan_lines.exists():
             r.plans.update(status=Plan.Status.DELETED)  # keep history; deleted plans keep pointing at it
             r.label = f"{r.label} (removed)"
             r.save(update_fields=["label"])
@@ -320,9 +386,12 @@ class Plans(APIView):
 
     def post(self, request):
         fields = parse_plan(request.data, request.user)
+        lines = fields.pop("lines", None)
         rank = int(request.data.get("priority_rank") or 0)
         with transaction.atomic():
             plan = Plan.objects.create(user=request.user, **fields)
+            if lines is not None:
+                save_lines(plan, lines)
             dropped = apply_priority(request.user, plan, rank) if rank else []
         plan.refresh_from_db()
         reschedule(plan)
@@ -343,9 +412,14 @@ class PlanDetail(APIView):
         with transaction.atomic():
             was_finished = plan.status == Plan.Status.FINISHED
             schedule_keys = {"label", "emoji", "tint", "amount_kobo", "recipient_id", "frequency", "weekday", "month_day",
-                             "month_day_last", "time_local", "start_date", "end_mode", "duration_months", "end_date"}
+                             "month_day_last", "time_local", "start_date", "end_mode", "duration_months", "end_date", "kind", "lines"}
+            lines = None
             if schedule_keys & set(d):
-                for k, v in parse_plan(d, request.user, instance=plan).items():
+                parsed = parse_plan(d, request.user, instance=plan)
+                lines = parsed.pop("lines", None)
+                if plan.is_group:
+                    parsed.pop("recipient", None)
+                for k, v in parsed.items():
                     setattr(plan, k, v)
             if was_finished and (plan.ends_at is None or plan.ends_at > timezone.now()):
                 plan.status, plan.finished_at = Plan.Status.ACTIVE, None  # extended: it runs again
@@ -356,6 +430,10 @@ class PlanDetail(APIView):
                     raise FlowError("This plan has finished. Extend its end date to start it again.", code="finished")
                 plan.status = d["status"]
             plan.save()
+            if lines is not None:
+                if RunBatch.objects.filter(plan=plan, status=RunBatch.Status.SENDING).exists():
+                    raise FlowError("A payout for this group is going out right now. Try again in a minute.", code="sending", status=409)
+                save_lines(plan, lines)
             if "priority_rank" in d:
                 dropped = apply_priority(request.user, plan, int(d["priority_rank"] or 0))
         plan.refresh_from_db()
@@ -370,14 +448,15 @@ class PlanDetail(APIView):
             plan.status = Plan.Status.DELETED
             plan.save(update_fields=["status", "updated_at"])
             Run.objects.filter(plan=plan, status=Run.Status.SCHEDULED).update(status=Run.Status.CANCELLED)
+            RunBatch.objects.filter(plan=plan, status__in=[RunBatch.Status.SCHEDULED, RunBatch.Status.WAITING]).update(status=RunBatch.Status.CANCELLED)
         return Response(status=204)
 
 
-def whole_plan(sched: Schedule, amount_kobo: int) -> dict:
+def whole_plan(sched: Schedule, amount_kobo: int, fee: int | None = None) -> dict:
     """Totals for a plan with an end, so people see the full commitment before saving."""
     every = all_occurrences(sched)
     first = every[0] if every else (next_occurrences(sched, sched.starts_at, 1) or [None])[0]
-    fee = fee_schedule()(amount_kobo)
+    fee = fee_schedule()(amount_kobo) if fee is None else fee
     return {"first_drip_at": first, "last_drip_at": every[-1] if every else None,
             "total_drips": len(every) if sched.ends_at else None,
             "total_amount_kobo": len(every) * amount_kobo if sched.ends_at else None,
@@ -402,8 +481,28 @@ class PlanPreview(APIView):
         others = [p for p in before if p.id != draft_id]
         order, dropped = set_priority([p.id for p in sorted(others, key=lambda p: p.priority_rank or 9) if p.priority_rank], draft_id, rank)
         ranks = {pid: i + 1 for i, pid in enumerate(order)}
+        lines = fields.get("lines")
+        if lines is None and editing and editing.is_group:
+            lines = [{"amount_kobo": ln.amount_kobo, "next_amount_kobo": ln.next_amount_kobo, "skip_next": ln.skip_next}
+                     for ln in editing.active_lines()]
+        line_amounts = next_amounts = None
+        if lines is not None:
+            line_amounts = tuple(ln["amount_kobo"] for ln in lines)
+            nxt = tuple(ln["next_amount_kobo"] or ln["amount_kobo"] for ln in lines if not ln["skip_next"])
+            next_amounts = nxt if nxt != line_amounts else None
         draft = PlanLike(id=draft_id, amount_kobo=fields["amount_kobo"], schedule=sched, priority_rank=ranks.get(draft_id),
-                         order=editing.pk if editing else 10**9)
+                         order=editing.pk if editing else 10**9, line_amounts=line_amounts, next_line_amounts=next_amounts)
+        sched_fees = fee_schedule()
+        if line_amounts is not None:
+            per_line = sched_fees.group_parts(line_amounts)
+            fee_lines = [{"kind": k, "label": label, "amount_kobo": total} for k, label, total in (
+                ("service", "SpenDrip fee (whole group)", sum(f.service_kobo for f in per_line)),
+                ("provider", f"Transfer fees (Paystack, {len(per_line)} transfers)", sum(f.provider_kobo for f in per_line)),
+                ("stamp_duty", "Stamp duty", sum(f.stamp_duty_kobo for f in per_line))) if total]
+            payout_fee = sum(f.total_kobo for f in per_line)
+        else:
+            fee_lines = sched_fees.parts(fields["amount_kobo"]).lines()
+            payout_fee = sched_fees(fields["amount_kobo"])
         after = [replace(p, priority_rank=ranks.get(p.id)) for p in others] + [draft]
 
         bal = ledger.balance(user).available_kobo
@@ -415,15 +514,17 @@ class PlanPreview(APIView):
             "next_dates": next_occurrences(sched, now, 5),
             "runs_this_month": len(mine),
             "month_cost_kobo": sum(e.cost_kobo for e in mine),
-            "fee_kobo": fee_schedule()(fields["amount_kobo"]),
-            "fee_lines": fee_schedule().parts(fields["amount_kobo"]).lines(),
+            "fee_kobo": payout_fee,
+            "fee_lines": fee_lines,
             "top_up_before_kobo": f0.top_up_kobo,
             "top_up_after_kobo": f1.top_up_kobo,
             "draft_waiting": sum(1 for e in mine if e.status in ("wait", "short", "cap")),
             "priorities_short_after_kobo": f1.priority_shortfall_kobo,
             "priority_order": [labels.get(pid, fields["label"]) for pid in order],
             "dropped_priorities": [labels.get(pid, pid) for pid in dropped],
-            **whole_plan(sched, fields["amount_kobo"]),
+            "daily_cap_kobo": user.daily_cap_kobo,
+            "over_daily_cap": bool(user.daily_cap_kobo and fields["amount_kobo"] > user.daily_cap_kobo),
+            **whole_plan(sched, fields["amount_kobo"], payout_fee),
         })
 
 
@@ -452,15 +553,26 @@ class Calendar(APIView):
         if not -3 <= months_away <= 2:
             raise FlowError("The calendar shows 3 months back and 2 ahead.")
 
-        events = []
+        events, batches = [], {}
         for r in Run.objects.filter(user=user, scheduled_for__gte=start, scheduled_for__lte=min(end, now)).exclude(status=Run.Status.SCHEDULED):
+            if r.batch_id:  # one calendar entry per group payout
+                b = batches.setdefault(r.batch_id, {"plan_id": r.plan_id, "at": r.scheduled_for, "amount_kobo": 0, "statuses": []})
+                b["amount_kobo"] += r.amount_kobo
+                b["statuses"].append(RUN_STATUS.get(r.status, r.status))
+                continue
             events.append({"plan_id": r.plan_id, "at": r.scheduled_for, "amount_kobo": r.amount_kobo, "status": RUN_STATUS.get(r.status, r.status)})
+        for b in batches.values():
+            st = b.pop("statuses")
+            b["status"] = "sending" if "sending" in st else ("sent" if "sent" in st else st[0])
+            events.append(b)
         if months_away == 0:
             events += [event_json(e) for e in user_forecast(user, now).events]
         elif months_away > 0:
+            sched_fees = fee_schedule()
             for p in engine_plans(user):
                 if p.status == "active":
-                    events += [{"plan_id": int(p.id), "at": at, "amount_kobo": p.amount_kobo, "fee_kobo": fee_schedule()(p.amount_kobo),
+                    amount, fee = p.cost_parts(sched_fees)
+                    events += [{"plan_id": int(p.id), "at": at, "amount_kobo": amount, "fee_kobo": fee,
                                 "rank": p.priority_rank, "status": "scheduled"}
                                for at in occurrences(p.schedule, start, end)]
         events.sort(key=lambda e: e["at"])
@@ -472,12 +584,28 @@ class Activity(APIView):
     def get(self, request):
         user = request.user
         runs = (Run.objects.filter(user=user).exclude(status__in=[Run.Status.SCHEDULED, Run.Status.CANCELLED])
-                .select_related("plan", "plan__recipient").order_by("-scheduled_for")[:100])
+                .select_related("plan", "plan__recipient", "line__recipient", "batch").order_by("-scheduled_for")[:300])
         runs = list(runs)
         wa = {m.run_id: m for m in OutboxMessage.objects.filter(user=user, channel=OutboxMessage.Channel.WHATSAPP, run_id__in=[r.id for r in runs])}
-        items = []
+        items, groups = [], {}
         for r in runs:
-            rec = r.plan.recipient
+            rec = r.recipient
+            if r.batch_id:  # a group payout is one row that opens to show each person
+                g = groups.get(r.batch_id)
+                if not g:
+                    b = r.batch
+                    g = groups[r.batch_id] = {
+                        "kind": "group", "id": str(b.pk), "batch_status": b.status, "at": b.completed_at or b.scheduled_for,
+                        "amount_kobo": 0, "fee_kobo": 0, "reason": b.reason if b.status in (RunBatch.Status.SKIPPED, RunBatch.Status.WAITING) else "",
+                        "plan": {"id": r.plan_id, "label": r.plan.label, "emoji": r.plan.emoji, "tint": r.plan.tint}, "people": []}
+                    items.append(g)
+                st = RUN_STATUS.get(r.status, r.status)
+                g["people"].append({"label": rec.label, "bank_name": rec.bank_name, "account_last4": rec.account_number[-4:],
+                                    "amount_kobo": r.amount_kobo, "status": st, "position": r.line.position if r.line_id else 0})
+                if r.status == Run.Status.SUCCESSFUL or r.status in Run.IN_FLIGHT:
+                    g["amount_kobo"] += r.amount_kobo
+                    g["fee_kobo"] += r.fee_kobo
+                continue
             items.append({
                 "kind": "run", "status": RUN_STATUS.get(r.status, r.status), "at": r.completed_at or r.scheduled_for,
                 "amount_kobo": r.amount_kobo, "fee_kobo": r.fee_kobo, "fee_lines": r.fee_parts.lines(), "reason": r.last_error if r.status.startswith("skipped") else "",
@@ -485,6 +613,12 @@ class Activity(APIView):
                 "recipient": {"label": rec.label, "bank_name": rec.bank_name, "account_last4": rec.account_number[-4:]},
                 "whatsapp": {"to": rec.label, "body": wa[r.id].body, "status": wa[r.id].status} if r.id in wa else None,
             })
+        for g in groups.values():
+            g["people"].sort(key=lambda p: p["position"])
+            sts = [p["status"] for p in g["people"]]
+            g["paid"] = sts.count("sent")
+            g["status"] = ("sending" if "sending" in sts else "sent" if g["paid"] == len(sts) else
+                           "partial" if g["paid"] else sts[0])
         for i in Inflow.objects.filter(user=user, status=Inflow.Status.CREDITED).order_by("-created_at")[:50]:
             items.append({"kind": "inflow", "status": "received", "at": i.credited_at or i.created_at, "amount_kobo": i.amount_kobo,
                           "sender": i.sender_name})

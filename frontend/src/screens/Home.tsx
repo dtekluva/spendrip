@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { countdown, dayLabel, fmtTime, greeting, lagos, MON, MONL, N, WD } from '../lib/format';
+import { countdown, dayLabel, fmtTime, greeting, lagos, MON, MONL, N, WD, toWhom } from '../lib/format';
 import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
@@ -90,7 +90,7 @@ export default function Home() {
         {next && nextPlan && (
           <div className="card next"><div className={`tile t-${nextPlan.tint}`}>{nextPlan.emoji}</div>
             <div style={{ minWidth: 0 }}><div className="eyebrow">Next drip</div>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>{nextPlan.label} · {N(next.amount_kobo)} <span className="muted" style={{ fontWeight: 600 }}>to {nextPlan.recipient.label}</span></div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{nextPlan.label} · {N(next.amount_kobo)} <span className="muted" style={{ fontWeight: 600 }}>to {toWhom(nextPlan)}</span></div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}><span className="cd num">{countdown(next.at)}</span><span className="small muted">{dayLabel(next.at)}, {fmtTime(next.at)}</span></div>
               <div style={{ marginTop: 4 }}><StatusPill status={next.status} /></div></div></div>
         )}
@@ -102,7 +102,7 @@ export default function Home() {
               <button key={i} className="row" onClick={() => nav(`/plans?open=${p.id}`)}>
                 <span className="date"><span className="d1">{dayLabel(e.at) === 'Today' ? 'TODAY' : WD[d.wd]!.slice(0, 3).toUpperCase()}</span><span className="d2 num">{d.d}</span></span>
                 <span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
-                <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p.label}</span><span className="s">{fmtTime(e.at)} · to {p.recipient.label}</span></span>
+                <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p.label}</span><span className="s">{fmtTime(e.at)} · to {toWhom(p)}</span></span>
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}><span className="amt num">{N(e.amount_kobo)}</span><StatusPill status={e.status} /></span>
               </button>
             );

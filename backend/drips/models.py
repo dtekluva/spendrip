@@ -30,6 +30,10 @@ class Recipient(models.Model):
 
 
 class Plan(models.Model):
+    class Kind(models.TextChoices):
+        SINGLE = "single"  # one person
+        GROUP = "group"  # several people, each with their own amount, paid together (PlanLine)
+
     class Frequency(models.TextChoices):
         DAILY = "daily"
         WEEKLY = "weekly"
@@ -50,8 +54,9 @@ class Plan(models.Model):
     label = models.CharField(max_length=40)
     emoji = models.CharField(max_length=8, default="💸")
     tint = models.CharField(max_length=12, default="cobalt")
-    amount_kobo = models.BigIntegerField()
-    recipient = models.ForeignKey(Recipient, on_delete=models.PROTECT, related_name="plans")
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.SINGLE)
+    amount_kobo = models.BigIntegerField()  # group plans: the sum of their active lines, kept in step by save_lines()
+    recipient = models.ForeignKey(Recipient, on_delete=models.PROTECT, related_name="plans", null=True, blank=True)  # empty for groups
     frequency = models.CharField(max_length=10, choices=Frequency.choices)
     weekday = models.PositiveSmallIntegerField(null=True, blank=True)  # ISO 1 = Monday … 7 = Sunday
     month_day = models.PositiveSmallIntegerField(null=True, blank=True)  # 1–31
@@ -86,11 +91,85 @@ class Plan(models.Model):
             weekday=self.weekday, month_day="last" if self.month_day_last else self.month_day, ends_at=self.ends_at,
         )
 
+    @property
+    def is_group(self) -> bool:
+        return self.kind == self.Kind.GROUP
+
+    def active_lines(self) -> list["PlanLine"]:
+        return [ln for ln in self.lines.all() if ln.active]
+
     def to_engine(self) -> PlanLike:
+        line_amounts = next_amounts = None
+        if self.is_group:
+            lines = self.active_lines()
+            line_amounts = tuple(ln.amount_kobo for ln in lines)
+            if any(ln.skip_next or ln.next_amount_kobo is not None for ln in lines):
+                next_amounts = tuple(ln.next_amount for ln in lines if not ln.skip_next)
         return PlanLike(
             id=str(self.pk), amount_kobo=self.amount_kobo, schedule=self.schedule, priority_rank=self.priority_rank,
             status="active" if self.status == self.Status.ACTIVE else "paused", order=self.pk,
+            line_amounts=line_amounts, next_line_amounts=next_amounts,
         )
+
+
+class PlanLine(models.Model):
+    """One person on a group plan, with their own amount. Removed people stay (inactive) so past payouts keep their history."""
+
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="lines")
+    recipient = models.ForeignKey(Recipient, on_delete=models.PROTECT, related_name="plan_lines")
+    amount_kobo = models.BigIntegerField()  # every payout
+    next_amount_kobo = models.BigIntegerField(null=True, blank=True)  # the next payout only (bonus or deduction)
+    skip_next = models.BooleanField(default=False)  # left out of the next payout only
+    position = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["plan", "recipient"], condition=Q(active=True), name="planline_one_per_person"),
+            models.CheckConstraint(condition=Q(amount_kobo__gt=0), name="planline_amount_positive"),
+        ]
+
+    @property
+    def next_amount(self) -> int:
+        return self.next_amount_kobo if self.next_amount_kobo is not None else self.amount_kobo
+
+    def __str__(self):
+        return f"{self.recipient.label}: {self.amount_kobo / 100:,.0f}"
+
+
+class RunBatch(models.Model):
+    """One payout of a group plan: all of its transfers are decided together, so either everyone is paid or nobody is."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled"
+        WAITING = "waiting"  # due, but the balance (or a limit) can't cover everyone yet; retried until the late window ends
+        SENDING = "sending"  # money set aside, transfers going out
+        DONE = "done"  # every transfer has a final answer
+        SKIPPED = "skipped"  # never sent (no money in time, paused, missed)
+        CANCELLED = "cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="batches")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="run_batches")
+    scheduled_for = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.SCHEDULED)
+    amount_kobo = models.BigIntegerField(default=0)
+    fee_kobo = models.BigIntegerField(default=0)
+    reason = models.CharField(max_length=40, blank=True)  # why it's waiting or was skipped
+    short_by_kobo = models.BigIntegerField(default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["plan", "scheduled_for"], name="batch_unique_per_plan_time")]
+        indexes = [models.Index(fields=["status", "scheduled_for"])]
+
+    @property
+    def cost_kobo(self) -> int:
+        return self.amount_kobo + self.fee_kobo
 
 
 class Run(models.Model):
@@ -115,6 +194,8 @@ class Run(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="runs")
+    line = models.ForeignKey("PlanLine", on_delete=models.PROTECT, related_name="runs", null=True, blank=True)  # group plans
+    batch = models.ForeignKey("RunBatch", on_delete=models.CASCADE, related_name="runs", null=True, blank=True)  # group plans
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="runs")
     scheduled_for = models.DateTimeField()
     amount_kobo = models.BigIntegerField()
@@ -136,7 +217,10 @@ class Run(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["plan", "scheduled_for"], name="run_unique_per_plan_time")]
+        constraints = [
+            models.UniqueConstraint(fields=["plan", "scheduled_for"], condition=Q(line__isnull=True), name="run_unique_per_plan_time"),
+            models.UniqueConstraint(fields=["line", "scheduled_for"], condition=Q(line__isnull=False), name="run_unique_per_line_time"),
+        ]
         indexes = [models.Index(fields=["status", "scheduled_for"]), models.Index(fields=["status", "next_check_at"])]
 
     @property
@@ -149,3 +233,12 @@ class Run(models.Model):
     @property
     def cost_kobo(self) -> int:
         return self.amount_kobo + self.fee_kobo
+
+    @property
+    def recipient(self) -> Recipient:
+        return self.line.recipient if self.line_id else self.plan.recipient
+
+    @property
+    def label(self) -> str:
+        """For ledger memos: the plan, plus the person on group plans."""
+        return f"{self.plan.label} · {self.line.recipient.label}" if self.line_id else self.plan.label

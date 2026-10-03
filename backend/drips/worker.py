@@ -27,9 +27,9 @@ from notifications.services import notify
 from providers import ProviderError, TransferRequest, TransferStatus, get_messenger, get_payout_provider
 from providers import messages as copy
 
-from .models import Plan, Run
-from notifications.emails import drip_delivered_email
-from .services import engine_plans, fee_schedule, finish_plans, materialise_runs, sent_today_kobo
+from .models import Plan, Run, RunBatch
+from notifications.emails import drip_delivered_email, group_paid_email
+from .services import clear_one_offs, engine_plans, fee_schedule, finish_plans, materialise_runs, sent_today_kobo
 
 log = logging.getLogger("spendrip.worker")
 ADVISORY_LOCK_KEY = 0x5D_D21F  # one worker at a time
@@ -71,15 +71,91 @@ class Worker:
             log.warning("payouts are switched off (PAYOUTS_ENABLED=false); due drips wait")
             return 0
         due = list(Run.objects.filter(status=Run.Status.SCHEDULED, scheduled_for__lte=now)
-                   .select_related("plan", "plan__recipient", "user"))
+                   .select_related("plan", "plan__recipient", "line__recipient", "batch", "user"))
         by_user = defaultdict(list)
         for run in due:
             by_user[run.user_id].append(run)
         for runs in by_user.values():
             runs.sort(key=lambda r: compare_key(r.scheduled_for, r.plan.priority_rank, r.plan.pk))
+            seen_batches = set()
             for run in runs:
-                self._handle_due(run, now)
+                if run.batch_id:
+                    if run.batch_id not in seen_batches:  # a group payout is decided once, for everyone on it
+                        seen_batches.add(run.batch_id)
+                        self._handle_batch(run.batch, [r for r in runs if r.batch_id == run.batch_id], now)
+                else:
+                    self._handle_due(run, now)
         return len(due)
+
+    # ---------------------------------------------------------- group payouts
+    def _handle_batch(self, batch: RunBatch, runs: list[Run], now: datetime) -> None:
+        """All or nothing: reserve everyone's money together, or nobody's. If the balance (or a limit) can't cover it,
+        the payout waits and is retried every tick until the late window closes."""
+        plan, user = batch.plan, batch.user
+        if plan.status != Plan.Status.ACTIVE or user.paused_all or not user.is_verified:
+            self._end_batch(batch, runs, Run.Status.SKIPPED_PAUSED, "paused" if user.is_verified else "not_verified")
+            return
+        late = now - batch.scheduled_for > timedelta(hours=self.cfg["LATE_SEND_WINDOW_HOURS"])
+        with transaction.atomic():
+            ledger.lock_wallet(user)
+            available = ledger.balance(user).available_kobo
+            d = decide(
+                plan_id=str(plan.pk), at=batch.scheduled_for, amount_kobo=batch.amount_kobo, plans=engine_plans(user),
+                available_kobo=available, sent_today_kobo=sent_today_kobo(user, batch.scheduled_for),
+                fee_kobo=fee_schedule(), tz=user.tz, daily_cap_kobo=user.daily_cap_kobo, run_fee_kobo=batch.fee_kobo,
+            )
+            if d.ok and not late:
+                for run in runs:
+                    ledger.reserve(user, run)
+                    self._set(run, Run.Status.RESERVED, provider=self.provider.name)
+                RunBatch.objects.filter(pk=batch.pk).update(status=RunBatch.Status.SENDING, reason="", short_by_kobo=0)
+                clear_one_offs(plan)
+        if late:
+            reason = batch.reason or "missed"
+            self._end_batch(batch, runs, SKIP_STATUS.get(reason, Run.Status.MISSED), reason)
+            return
+        if not d.ok:
+            first_wait = batch.status != RunBatch.Status.WAITING
+            RunBatch.objects.filter(pk=batch.pk).update(status=RunBatch.Status.WAITING, reason=d.reason, short_by_kobo=d.short_by_kobo)
+            if first_wait:
+                self._tell_batch(batch, "waiting", copy.group_waiting(emoji=plan.emoji, label=plan.label, people=len(runs),
+                                                                      cost_kobo=batch.cost_kobo, reason=d.reason,
+                                                                      short_by_kobo=d.short_by_kobo,
+                                                                      hours=self.cfg["LATE_SEND_WINDOW_HOURS"]))
+            return
+        for run in runs:
+            self._send(run, now)
+
+    def _end_batch(self, batch: RunBatch, runs: list[Run], run_status: str, reason: str) -> None:
+        for run in runs:
+            self._set(run, run_status, last_error=reason)
+        RunBatch.objects.filter(pk=batch.pk).update(status=RunBatch.Status.SKIPPED, reason=reason, completed_at=timezone.now())
+        plan = batch.plan
+        if reason != "not_verified":
+            self._tell_batch(batch, "skipped", copy.group_skipped(emoji=plan.emoji, label=plan.label, people=len(runs),
+                                                                  cost_kobo=batch.cost_kobo, reason=reason))
+
+    def _batch_settled(self, run: Run) -> None:
+        """After one transfer of a group payout settles: once everyone's has, close the payout and send one summary."""
+        batch = run.batch
+        runs = list(batch.runs.select_related("line__recipient"))
+        if any(r.status in (Run.Status.SCHEDULED, *Run.IN_FLIGHT) for r in runs):
+            return
+        if not RunBatch.objects.filter(pk=batch.pk, status=RunBatch.Status.SENDING).update(status=RunBatch.Status.DONE, completed_at=timezone.now()):
+            return  # already closed
+        batch.refresh_from_db()
+        plan, user = batch.plan, batch.user
+        paid = [r for r in runs if r.status == Run.Status.SUCCESSFUL]
+        self._tell_batch(batch, "done", copy.group_done(emoji=plan.emoji, label=plan.label, paid=len(paid), people=len(runs),
+                                                        amount_kobo=sum(r.amount_kobo for r in paid)))
+        if user.email and user.notify_email:
+            notify(user, key=f"batch:{batch.pk}:email", channel=OutboxMessage.Channel.EMAIL, template="group_paid_email", to=user.email,
+                   body=f"{plan.label}: {len(paid)} of {len(runs)} paid", email=group_paid_email(batch, runs, ledger.balance(user).available_kobo))
+
+    def _tell_batch(self, batch: RunBatch, kind: str, body: str) -> None:
+        for channel in (OutboxMessage.Channel.IN_APP, OutboxMessage.Channel.PUSH):
+            notify(batch.user, key=f"batch:{batch.pk}:{kind}:{channel}", channel=channel, template=f"group_{kind}", body=body,
+                   messenger=self.messenger)
 
     def _handle_due(self, run: Run, now: datetime) -> None:
         plan, user = run.plan, run.user
@@ -116,7 +192,7 @@ class Worker:
         self._send(run, now)
 
     def _send(self, run: Run, now: datetime) -> None:
-        r = run.plan.recipient
+        r = run.recipient
         req = TransferRequest(reference=str(run.pk), amount_kobo=run.amount_kobo, bank_code=r.nip_bank_code,
                               account_number=r.account_number, account_name=r.verified_account_name,
                               narration=f"SpenDrip {run.plan.label}", cbn_bank_code=r.cbn_bank_code,
@@ -137,10 +213,11 @@ class Worker:
         stuck_reserved = now - timedelta(minutes=2)
         runs = list(
             Run.objects.filter(status__in=[Run.Status.PENDING, Run.Status.UNKNOWN], next_check_at__lte=now)
-            .select_related("plan", "plan__recipient", "user")
+            .select_related("plan", "plan__recipient", "line__recipient", "batch", "user")
         ) + list(
             # Reserved but the worker died before the transfer call returned: treat as unknown.
-            Run.objects.filter(status=Run.Status.RESERVED, updated_at__lte=stuck_reserved).select_related("plan", "plan__recipient", "user")
+            Run.objects.filter(status=Run.Status.RESERVED, updated_at__lte=stuck_reserved)
+            .select_related("plan", "plan__recipient", "line__recipient", "batch", "user")
         )
         for run in runs:
             try:
@@ -176,7 +253,11 @@ class Worker:
             ledger.settle(run.user, run)
             self._set(run, Run.Status.SUCCESSFUL, completed_at=now, provider_session_id=result.session_id or run.provider_session_id,
                       provider_ref=result.provider_ref or run.provider_ref, next_check_at=None, needs_review=False)
-        plan, r, user = run.plan, run.plan.recipient, run.user
+        plan, r, user = run.plan, run.recipient, run.user
+        if run.batch_id:  # group payout: the person still hears; the sender gets one summary when everyone's settled
+            self._tell_recipient(run, r, user)
+            self._batch_settled(run)
+            return
         self._tell_self(run, "paid", copy.self_paid(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo,
                                                     recipient_label=r.label, bank=r.bank_name, last4=r.account_number[-4:]))
         if user.email and user.notify_email:
@@ -184,6 +265,9 @@ class Worker:
                    run=run, body=copy.self_paid(emoji=plan.emoji, label=plan.label, amount_kobo=run.amount_kobo, recipient_label=r.label,
                                                 bank=r.bank_name, last4=r.account_number[-4:]),
                    email=drip_delivered_email(run, ledger.balance(user).available_kobo))
+        self._tell_recipient(run, r, user)
+
+    def _tell_recipient(self, run: Run, r, user) -> None:
         if not r.is_self and r.notify_whatsapp and r.whatsapp:
             notify(user, key=f"run:{run.pk}:wa", channel=OutboxMessage.Channel.WHATSAPP, template="recipient_paid", to=r.whatsapp, run=run,
                    messenger=self.messenger,
@@ -194,6 +278,9 @@ class Worker:
         with transaction.atomic():
             ledger.release(run.user, run)
             self._set(run, Run.Status.FAILED, last_error=reason[:500], completed_at=now, next_check_at=None)
+        if run.batch_id:
+            self._batch_settled(run)
+            return
         self._tell_self(run, "failed", copy.self_failed(emoji=run.plan.emoji, label=run.plan.label, amount_kobo=run.amount_kobo))
 
     # --------------------------------------------------------------- helpers

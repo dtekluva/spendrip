@@ -112,6 +112,7 @@ SPENDRIP = {
     # What each drip costs on top of its amount (engine/fees.py): SpenDrip's fee, plus the payout provider's
     # transfer charge and the ₦50 stamp duty on ₦10,000+, both passed through at cost.
     "TRANSFER_FEE_KOBO": int(env("TRANSFER_FEE_KOBO", "5000")),  # SpenDrip's own fee
+    "GROUP_FEE_KOBO": int(env("GROUP_FEE_KOBO", "10000")),  # SpenDrip's fee for a whole group payout (₦100), however many people
     "STAMP_DUTY_KOBO": int(env("STAMP_DUTY_KOBO", "5000")),
     "STAMP_DUTY_FROM_KOBO": int(env("STAMP_DUTY_FROM_KOBO", "1000000")),
     "PASS_THROUGH_TRANSFER_FEES": env_bool("PASS_THROUGH_TRANSFER_FEES", True),
@@ -120,9 +121,10 @@ SPENDRIP = {
     "DEFAULT_DAILY_CAP_KOBO": int(env("DEFAULT_DAILY_CAP_KOBO", "10000000")),  # ₦100,000 a day for new accounts
     # Bank-transfer funding needs real virtual accounts (Liberty). Off = no account number is issued or shown; cards only.
     "BANK_TRANSFER_FUNDING": env_bool("BANK_TRANSFER_FUNDING", True),
-    # Limits for accounts verified with BVN + ID only (no face match yet), modelled on CBN Tier 1.
-    "TIER1_MAX_BALANCE_KOBO": int(env("TIER1_MAX_BALANCE_KOBO", "30000000")),  # ₦300,000
-    "TIER1_MAX_DRIP_KOBO": int(env("TIER1_MAX_DRIP_KOBO", "5000000")),  # ₦50,000
+    # Limits for accounts verified with an ID photo + live selfies (no government database check yet).
+    # Raised above CBN Tier-1 levels on 3 Oct 2026 for group payouts; government ID checks (Dojah) should come next.
+    "TIER1_MAX_BALANCE_KOBO": int(env("TIER1_MAX_BALANCE_KOBO", "200000000")),  # ₦2,000,000
+    "TIER1_MAX_DRIP_KOBO": int(env("TIER1_MAX_DRIP_KOBO", "50000000")),  # ₦500,000 per transfer
     "LATE_SEND_WINDOW_HOURS": int(env("LATE_SEND_WINDOW_HOURS", "6")),
     "MATERIALISE_DAYS": 35,
     "WORKER_TICK_SECONDS": int(env("WORKER_TICK_SECONDS", "30")),

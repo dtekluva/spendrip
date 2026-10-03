@@ -95,7 +95,7 @@ def delivered_context(run, balance_kobo: int) -> dict:
     from zoneinfo import ZoneInfo
 
     from drips.models import Run
-    plan, r, user = run.plan, run.plan.recipient, run.user
+    plan, r, user = run.plan, run.recipient, run.user
     tz = ZoneInfo(user.tz or "Africa/Lagos")
     when = (run.completed_at or run.scheduled_for).astimezone(tz)
     total = index = None
@@ -216,3 +216,110 @@ def sample_delivered(first_name: str = "Ada") -> dict:
             "recipient_label": "Mum", "account_name": "Ngozi Okafor", "bank": "OPay", "last4": "6357", "when": now,
             "reference": "SDP-7F3K2Q", "balance_kobo": 15_495_000, "seed": 0,
             "next": {"emoji": "⛽", "label": "Fuel", "amount_kobo": 4_000_000, "when": (now + timedelta(days=2)).replace(hour=14, minute=0)}}
+
+
+# ------------------------------------------------------------------ group payout summary
+
+def group_context(batch, runs, balance_kobo: int) -> dict:
+    from zoneinfo import ZoneInfo
+
+    from drips.models import Run
+    plan, user = batch.plan, batch.user
+    tz = ZoneInfo(user.tz or "Africa/Lagos")
+    people = []
+    for r in sorted(runs, key=lambda r: (r.line.position if r.line_id else 0)):
+        rec = r.recipient
+        people.append({"label": rec.label, "account_name": rec.verified_account_name.title(), "bank": rec.bank_name,
+                       "last4": rec.account_number[-4:], "amount_kobo": r.amount_kobo, "paid": r.status == Run.Status.SUCCESSFUL})
+    paid = [p for p in people if p["paid"]]
+    settled = [r for r in runs if r.status == Run.Status.SUCCESSFUL]
+    fee_lines = []
+    for kind, label in (("service_fee_kobo", "SpenDrip fee"), ("provider_fee_kobo", "Transfer fees (Paystack)"), ("stamp_duty_kobo", "Stamp duty")):
+        total = sum(getattr(r, kind) for r in settled)
+        if total:
+            fee_lines.append({"label": label, "amount_kobo": total})
+    return {"first_name": user.first_name.title(), "emoji": plan.emoji, "label": plan.label, "people": people,
+            "paid_count": len(paid), "paid_kobo": sum(p["amount_kobo"] for p in paid), "fee_lines": fee_lines,
+            "when": (batch.completed_at or batch.scheduled_for).astimezone(tz), "balance_kobo": balance_kobo}
+
+
+def render_group(c: dict) -> tuple[str, str, str]:
+    """(subject, text, html) for a finished group payout: who got what, in one email."""
+    from engine import format_naira as N
+    e = escape
+    n, paid = len(c["people"]), c["paid_count"]
+    everyone = paid == n
+    subject = f"{c['emoji']} {c['label']}: {'all ' + str(n) + ' people paid' if everyone else f'{paid} of {n} paid'} · {N(c['paid_kobo'])}"
+    headline = "Everyone's paid! 🎉" if everyone else f"{paid} of {n} paid"
+    hi = f"Hi {c['first_name']}," if c["first_name"] else "Hi there,"
+    app = settings.SPENDRIP["PUBLIC_APP_URL"]
+    kobo = f"{settings.EMAIL_ASSET_BASE}/kobo-celebrate.png"
+    intro = (f"your <b style=\"color:#0E1233\">{e(c['emoji'])} {e(c['label'])}</b> payout went out on schedule and the banks have confirmed "
+             + ("every transfer. Each person with WhatsApp on got a message when theirs landed. 🙌" if everyone else
+                "most of it. The ones marked below didn't go through, and their money is back in your balance."))
+    rows = "".join(
+        f'<tr><td style="padding:11px 0;border-top:1px solid #EEF0F8;font-size:15px;color:#0E1233;font-weight:700">{e(p["label"])}'
+        f'<br><span style="color:#6b7099;font-weight:600;font-size:13px">{e(p["account_name"])} · {e(p["bank"])} ••{e(p["last4"])}</span></td>'
+        f'<td style="padding:11px 0;border-top:1px solid #EEF0F8;text-align:right;font-size:15px;font-weight:800;color:{"#0E1233" if p["paid"] else "#B42318"}">'
+        f'{N(p["amount_kobo"])}<br><span style="font-size:12px;font-weight:800;color:{"#12B283" if p["paid"] else "#B42318"}">{"✓ PAID" if p["paid"] else "✗ RETURNED"}</span></td></tr>'
+        for p in c["people"])
+    fees = "".join(
+        f'<tr><td style="padding:8px 0;color:#6b7099;font-size:14px">{e(f["label"])}</td>'
+        f'<td style="padding:8px 0;text-align:right;color:#0E1233;font-size:14px;font-weight:700">{N(f["amount_kobo"])}</td></tr>' for f in c["fee_lines"])
+    html = f"""<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
+<body style="margin:0;padding:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">{e(subject)}. Balance: {N(c['balance_kobo'])}.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 12px 40px -18px rgba(14,18,51,.35)">
+ <tr><td style="background:#0B1040;padding:20px 28px">
+   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="font-size:24px;font-weight:800;letter-spacing:-.6px;color:#ffffff">spendrip<span style="color:#FFD23F">.</span></td>
+    <td align="right"><span style="display:inline-block;background:{'#12B283' if everyone else '#F79009'};color:#ffffff;font-size:12px;font-weight:800;letter-spacing:.06em;padding:6px 12px;border-radius:999px">{'✓ ALL PAID' if everyone else f'{paid} OF {n} PAID'}</span></td>
+   </tr></table>
+ </td></tr>
+ <tr><td style="background:#FFF4CC;border-bottom:4px solid #FFD23F;padding:26px 28px 24px" align="center">
+   {f'<img src="{kobo}" width="150" height="141" alt="Kobo, the SpenDrip drop, celebrating" style="display:block;border:0;margin:0 auto 6px">' if everyone else ''}
+   <div style="font-size:15px;font-weight:800;color:#0B1040;opacity:.75">{n} people · {e(c['emoji'])} {e(c['label'])}</div>
+   <div style="font-size:46px;line-height:1.05;font-weight:800;letter-spacing:-1.5px;color:#0B1040;margin:6px 0 4px">{N(c['paid_kobo'])}</div>
+   <div style="font-size:19px;font-weight:800;color:#0B1040">{e(headline)}</div>
+ </td></tr>
+ <tr><td style="padding:24px 28px 6px;font-size:16px;line-height:1.55;color:#3b4070">{e(hi)} {intro}</td></tr>
+ <tr><td style="padding:10px 28px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}</table></td></tr>
+ <tr><td style="padding:6px 28px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid #EEF0F8">{fees}
+   <tr><td style="padding:8px 0;color:#6b7099;font-size:14px">Sent</td><td style="padding:8px 0;text-align:right;color:#0E1233;font-size:14px;font-weight:700">{e(_when(c['when']))}</td></tr></table></td></tr>
+ <tr><td style="padding:0 28px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B1040;border-radius:18px">
+   <tr><td style="padding:16px 20px;color:#B6BCEB;font-size:13px;font-weight:700;letter-spacing:.08em">BALANCE NOW</td>
+       <td style="padding:16px 20px;color:#FFD23F;font-size:24px;font-weight:800;letter-spacing:-.5px" align="right">{N(c['balance_kobo'])}</td></tr></table></td></tr>
+ <tr><td align="center" style="padding:18px 28px 30px">
+   <a href="{e(app)}" style="display:inline-block;background:#0B1040;color:#FFD23F;font-size:16px;font-weight:800;text-decoration:none;padding:15px 30px;border-radius:16px">{'Open SpenDrip →' if everyone else 'Fix and resend →'}</a>
+ </td></tr>
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px"><tr><td style="padding:18px 20px;font-size:12px;line-height:1.6;color:#8a8fb5" align="center">
+ You're getting this because drip emails are on. Turn them off any time in <b>Profile → Email me when a drip lands</b>.<br>SpenDrip 💧 Money that shows up on time.
+</td></tr></table>
+</td></tr></table></body></html>"""
+    text = "\n".join([
+        f"{headline} {c['emoji']} {c['label']}: {N(c['paid_kobo'])} to {paid} of {n} people.", "",
+        *[f"{'✓' if p['paid'] else '✗ returned'}  {p['label']} ({p['bank']} ••{p['last4']}): {N(p['amount_kobo'])}" for p in c["people"]], "",
+        *[f"{f['label']}: {N(f['amount_kobo'])}" for f in c["fee_lines"]], f"Balance now: {N(c['balance_kobo'])}", "", f"Open SpenDrip: {app}",
+    ])
+    return subject, text, html
+
+
+def group_paid_email(batch, runs, balance_kobo: int) -> dict:
+    subject, text, html = render_group(group_context(batch, runs, balance_kobo))
+    return {"subject": subject, "text": text, "html": html}
+
+
+def sample_group(first_name: str = "Ada", everyone: bool = True) -> dict:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    people = [("Musa (driver)", "Musa Bello", "OPay", "4471", 9_000_000), ("Blessing (nanny)", "Blessing Okon", "Kuda", "0932", 7_000_000),
+              ("Emeka (gateman)", "Emeka Obi", "Access Bank", "2218", 4_500_000), ("Mama Tunde (cook)", "Funke Adeyemi", "Moniepoint", "5550", 6_000_000)]
+    rows = [{"label": l, "account_name": a, "bank": b, "last4": d, "amount_kobo": k, "paid": everyone or i != 2} for i, (l, a, b, d, k) in enumerate(people)]
+    paid = [r for r in rows if r["paid"]]
+    return {"first_name": first_name, "emoji": "👷", "label": "Staff pay", "people": rows, "paid_count": len(paid),
+            "paid_kobo": sum(r["amount_kobo"] for r in paid),
+            "fee_lines": [{"label": "SpenDrip fee", "amount_kobo": 10_000}, {"label": "Transfer fees (Paystack)", "amount_kobo": sum(5_000 if r["amount_kobo"] > 5_000_000 else 2_500 for r in paid)},
+                          {"label": "Stamp duty", "amount_kobo": 5_000 * len(paid)}],
+            "when": datetime.now(ZoneInfo("Africa/Lagos")).replace(hour=9, minute=0, second=0, microsecond=0), "balance_kobo": 4_212_500}

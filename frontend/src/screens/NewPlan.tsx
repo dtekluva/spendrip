@@ -3,19 +3,21 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { addDaysISO, addMonthsISO, dateLabel, dayLabel, dayLabelY, fmtTime, ISO_WD, N, ord, todayISO } from '../lib/format';
 import { useStore } from '../lib/store';
-import { feeLines, feeTotal } from '../lib/fees';
-import type { Draft, EndMode, Plan, Preview, Recipient, Tint } from '../lib/types';
+import { feeLines, feeTotal, groupFeeLines, groupFeeTotal } from '../lib/fees';
+import type { Draft, DraftLine, EndMode, Plan, Preview, Recipient, Tint } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Spinner, useAction } from '../components/ui';
 import { track } from '../lib/analytics';
 import Kobo from '../components/Kobo';
+import GroupEditor from '../components/GroupEditor';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
 const EMOJIS = ['🍔', '🍲', '⛽', '💛', '🤝', '🏠', '📱', '🚕', '💡', '🎓', '💪', '🐷'];
 const SUGGEST: [string, string][] = [['⛽', 'Fuel'], ['🍲', 'Upkeep'], ['📱', 'Data'], ['🏠', 'Rent'], ['💡', 'Light bill'], ['🐷', 'Savings']];
 
 const fromPlan = (p: Plan): Draft => ({
-  label: p.label, emoji: p.emoji, tint: p.tint, amount_kobo: p.amount_kobo, recipient_id: p.recipient.id, frequency: p.frequency,
+  kind: p.kind, lines: (p.lines ?? []).map((l) => ({ recipient_id: l.recipient.id, amount_kobo: l.amount_kobo, next_amount_kobo: l.next_amount_kobo, skip_next: l.skip_next })),
+  label: p.label, emoji: p.emoji, tint: p.tint, amount_kobo: p.amount_kobo, recipient_id: p.recipient?.id ?? null, frequency: p.frequency,
   weekday: p.weekday ?? 5, month_day: p.month_day ?? 1, month_day_last: p.month_day_last, time_local: p.time_local, priority_rank: p.priority_rank ?? 0,
   start_date: p.start_date, end_mode: p.end_mode, duration_months: p.duration_months ?? 3,
   end_date: p.end_date ?? (p.last_drip_at ? p.last_drip_at.slice(0, 10) : addMonthsISO(todayISO(), 1)),
@@ -39,13 +41,24 @@ export default function NewPlan() {
     // "Run it again": same sentence, starting today, for the same length of time.
     ...fromPlan(source), start_date: todayISO(), end_mode: source.end_mode === 'ongoing' ? 'ongoing' : 'months',
     duration_months: source.duration_months ?? 3, priority_rank: 0,
+    lines: fromPlan(source).lines.map((l) => ({ ...l, next_amount_kobo: null, skip_next: false })),
+  } : params.get('group') ? {
+    kind: 'group', lines: [], label: 'Staff pay', emoji: '👷', tint: TINTS[plans.length % 4]!, amount_kobo: 0, recipient_id: null,
+    frequency: 'monthly', weekday: 5, month_day: 28, month_day_last: false, time_local: '09:00', priority_rank: 0,
+    start_date: todayISO(), end_mode: 'ongoing', duration_months: 3, end_date: addMonthsISO(todayISO(), 1),
   } : {
-    label: 'Food', emoji: '🍔', tint: TINTS[plans.length % 4]!, amount_kobo: 1_000_000, recipient_id: recipients.find((r) => r.is_self)?.id ?? recipients[0]?.id ?? null,
+    kind: 'single', lines: [], label: 'Food', emoji: '🍔', tint: TINTS[plans.length % 4]!, amount_kobo: 1_000_000, recipient_id: recipients.find((r) => r.is_self)?.id ?? recipients[0]?.id ?? null,
     frequency: 'weekly', weekday: 5, month_day: 1, month_day_last: false, time_local: '14:00', priority_rank: 0,
     start_date: todayISO(), end_mode: 'ongoing', duration_months: 3, end_date: addMonthsISO(todayISO(), 1),
   });
   const startLocked = !!existing && existing.drips_done > 0;
-  useEffect(() => { if (existing && params.get('extend')) window.setTimeout(() => openChip('end'), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (existing && params.get('extend')) window.setTimeout(() => openChip('end'), 300);
+    if ((existing && params.get('people')) || (params.get('group') && !existing)) window.setTimeout(() => openChip('who'), 300);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const group = d.kind === 'group';
+  const groupAmounts = d.lines.map((l) => l.amount_kobo);
+  const groupTotal = groupAmounts.reduce((t, a) => t + a, 0);
   const [pulse, setPulse] = useState('');
   // Guide for new plans: the wave runs on every visit until the first tap; Kobo's bubble only on the first 3 visits (per device).
   const [explored, setExplored] = useState(!!editing);
@@ -57,27 +70,30 @@ export default function NewPlan() {
   };
   const showKobo = !explored && guided < 3;
   // A brand-new plan can't be started until a word has been tapped at least once. Edits and "Run it again" are already yours.
-  const touched = explored || !!editing || !!source;
+  const touched = explored || !!editing || !!source || (group && d.lines.length >= 2);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewErr, setPreviewErr] = useState('');
   const { busy, error, run } = useAction();
   const recipient = recipients.find((r) => r.id === d.recipient_id);
   useEffect(() => {
-    if (d.recipient_id == null && recipients.length) setD((x) => ({ ...x, recipient_id: (recipients.find((r) => r.is_self) ?? recipients[0]!).id }));
+    if (d.kind === 'single' && d.recipient_id == null && recipients.length) setD((x) => ({ ...x, recipient_id: (recipients.find((r) => r.is_self) ?? recipients[0]!).id }));
   }, [recipients, d.recipient_id]);
 
-  const body = useMemo(() => ({ ...d, weekday: d.frequency === 'weekly' ? d.weekday : null, month_day: d.frequency === 'monthly' && !d.month_day_last ? d.month_day : null,
+  const body = useMemo(() => ({ ...d, lines: d.kind === 'group' ? d.lines : undefined,
+    amount_kobo: d.kind === 'group' ? undefined : d.amount_kobo, recipient_id: d.kind === 'group' ? undefined : d.recipient_id, weekday: d.frequency === 'weekly' ? d.weekday : null, month_day: d.frequency === 'monthly' && !d.month_day_last ? d.month_day : null,
     month_day_last: d.frequency === 'monthly' && d.month_day_last, plan_id: editing ?? undefined,
     start_date: !editing && d.start_date === todayISO() ? 'today' : d.start_date,
     duration_months: d.end_mode === 'months' ? d.duration_months : undefined, end_date: d.end_mode === 'date' ? d.end_date : undefined }), [d, editing]);
 
+  const [bump, setBump] = useState(0);  // re-run the preview after a setting changes (e.g. the daily limit)
+  const ready = group ? d.lines.length >= 2 && d.lines.every((l) => l.amount_kobo >= 10_000) : !!d.recipient_id;
   useEffect(() => {
-    if (!d.recipient_id) return;
+    if (!ready) { setPreview(null); return; }
     const t = window.setTimeout(() => {
       api.post<Preview>('/plans/preview', body).then((p) => { setPreview(p); setPreviewErr(''); }).catch((e) => setPreviewErr(e.message));
     }, 250);
     return () => window.clearTimeout(t);
-  }, [body, d.recipient_id]);
+  }, [body, ready, bump]);
 
   const set = (k: string, patch: Partial<Draft>) => { setD((x) => ({ ...x, ...patch })); setPulse(k); closeSheet(); };
   const chip = (k: string, label: React.ReactNode, on = false) => (
@@ -88,7 +104,15 @@ export default function NewPlan() {
   const openChip = (k: string) => {
     if (k === 'amount') openSheet(<AmountSheet value={d.amount_kobo} onDone={(v) => set('amount', { amount_kobo: v })} />);
     if (k === 'label') openSheet(<LabelSheet emoji={d.emoji} label={d.label} onDone={(emoji, label) => set('label', { emoji, label })} />);
-    if (k === 'who') openSheet(<WhoSheet current={d.recipient_id} onDone={(rid) => set('who', { recipient_id: rid })} />);
+    if (k === 'who' && group) openSheet(<GroupEditor lines={d.lines} onDone={(lines) => set('who', { lines })} />);
+    if (k === 'who' && !group) openSheet(<WhoSheet current={d.recipient_id} allowGroup={!existing || existing.kind === 'single'}
+      onDone={(rid) => set('who', { recipient_id: rid })}
+      onGroup={() => {
+        // Turning a one-person plan into a group: keep the person and amount already chosen as the first line.
+        const seed: DraftLine[] = d.recipient_id ? [{ recipient_id: d.recipient_id, amount_kobo: d.amount_kobo, next_amount_kobo: null, skip_next: false }] : [];
+        setD((x) => ({ ...x, kind: 'group', lines: seed }));
+        openSheet(<GroupEditor lines={seed} onDone={(lines) => set('who', { kind: 'group', lines })} />);
+      }} />);
     if (k === 'freq') openSheet(<>
       <h3>How often?</h3>
       <div className="opt-list">{([['daily', '☀️', 'Every day', 'Like upkeep or lunch money'], ['weekly', '📅', 'Every week', 'Pick a day, like Fuel on Fridays'], ['monthly', '🗓', 'Every month', 'Pick a date, like Mum on the 30th']] as const).map(([v, e, t, s]) => (
@@ -114,7 +138,7 @@ export default function NewPlan() {
       : await api.post<{ plan: Plan; dropped_priorities: string[] }>('/plans', body);
     await reload();
     nav('/plans');
-    if (!editing) { confetti(); track('plan_created', { first: plans.length === 0, frequency: r.plan.frequency, ends: r.plan.end_mode }); }
+    if (!editing) { confetti(); track('plan_created', { first: plans.length === 0, frequency: r.plan.frequency, ends: r.plan.end_mode, kind: r.plan.kind, people: r.plan.people ?? 1 }); }
     const first = r.plan.first_drip_at && r.plan.state === 'scheduled' ? `${dayLabelY(r.plan.first_drip_at)}, ${fmtTime(r.plan.time_local)}`
       : r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
     if (editing) toast(`${r.plan.label} updated`);
@@ -132,7 +156,8 @@ export default function NewPlan() {
   let impact: React.ReactNode = null;
   if (preview) {
     const extra = preview.top_up_after_kobo - preview.top_up_before_kobo;
-    if (!preview.runs_this_month) impact = <div className="impact ok">First drip is next month. Nothing extra needed this month.</div>;
+    if (preview.over_daily_cap) impact = <CapWarning total={group ? groupTotal : d.amount_kobo} cap={preview.daily_cap_kobo ?? 0} onRaised={() => setBump((n) => n + 1)} />;
+    else if (!preview.runs_this_month) impact = <div className="impact ok">First drip is next month. Nothing extra needed this month.</div>;
     else if (d.priority_rank && preview.priorities_short_after_kobo > 0) impact = <div className="impact warn">Your priorities would be short. Top up {N(preview.priorities_short_after_kobo)} to keep them all safe.</div>;
     else if (preview.draft_waiting) impact = <div className="impact warn">{preview.draft_waiting} of {preview.runs_this_month} drip{preview.runs_this_month > 1 ? 's' : ''} would wait for a top-up. Add {N(Math.max(extra, 0))} to cover this month.</div>;
     else if (extra <= 0) impact = <div className="impact ok">✅ Fits in your free balance. Nothing to top up.</div>;
@@ -157,7 +182,9 @@ export default function NewPlan() {
       <div className="close-row"><div className="eyebrow">{editing ? 'Edit plan' : 'New plan'}</div><button className="icon-btn" aria-label="Close" onClick={() => nav(-1)}>{Icon.close}</button></div>
       <div className="cols cols-new"><div className="col stack">
         <p className={`sentence ${explored ? '' : 'tour'}`}>
-          Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')} {when} at {chip('time', fmtTime(d.time_local))},{' '}
+          {group
+            ? <>Pay {chip('who', d.lines.length ? `👥 ${d.lines.length} people · ${N(groupTotal)}` : '👥 pick people', true)} for {chip('label', `${d.emoji} ${d.label}`)}</>
+            : <>Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')}</>} {when} at {chip('time', fmtTime(d.time_local))},{' '}
           {chip('start', startText, d.start_date !== todayISO())} {chip('end', endText, d.end_mode !== 'ongoing')}.{' '}
           {chip('protect', shownRank ? `🛡 Priority ${shownRank}` : '＋ Protect it', !!shownRank)}
         </p>
@@ -177,20 +204,23 @@ export default function NewPlan() {
               <div className="kv sub"><span className="muted">{preview.first_drip_at ? `${dayLabelY(preview.first_drip_at)} → ` : ''}{preview.last_drip_at ? dayLabelY(preview.last_drip_at) : ''}</span><span className="muted num">incl. {N(preview.total_fees_kobo ?? 0)} fees</span></div>
             </div>
           )}
-          {preview && <div className="kv"><span className="muted">Rest of this month</span><b className="num">{preview.runs_this_month} × {N(d.amount_kobo + preview.fee_kobo)} = {N(preview.month_cost_kobo)}</b></div>}
+          {group && <GroupSummary lines={d.lines} onOpen={() => { markExplored(); openChip('who'); }} />}
+          {preview && <div className="kv"><span className="muted">Rest of this month</span><b className="num">{group
+            ? `${preview.runs_this_month} payout${preview.runs_this_month === 1 ? '' : 's'} · ${N(preview.month_cost_kobo)}`
+            : `${preview.runs_this_month} × ${N(d.amount_kobo + preview.fee_kobo)} = ${N(preview.month_cost_kobo)}`}</b></div>}
           <div className="fee-lines">
-            <div className="kv"><span className="muted">Fees per drip</span><b className="num">{N(preview?.fee_kobo ?? feeTotal(d.amount_kobo, store.summary?.fees))}</b></div>
-            {(preview?.fee_lines ?? feeLines(d.amount_kobo, store.summary?.fees)).map((l) => (
+            <div className="kv"><span className="muted">{group ? 'Fees per payout' : 'Fees per drip'}</span><b className="num">{N(preview?.fee_kobo ?? (group ? groupFeeTotal(groupAmounts, store.summary?.fees) : feeTotal(d.amount_kobo, store.summary?.fees)))}</b></div>
+            {(preview?.fee_lines ?? (group ? groupFeeLines(groupAmounts, store.summary?.fees) : feeLines(d.amount_kobo, store.summary?.fees))).map((l) => (
               <div key={l.kind} className="kv sub"><span className="muted">{l.label}</span><span className="num">{N(l.amount_kobo)}</span></div>
             ))}
           </div>
           {impact}
           {previewErr && <div className="impact warn">{previewErr}</div>}
-          {recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b>On ✓</b></div>}
+          {!group && recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b>On ✓</b></div>}
         </div>
         {error && <div className="error-card">{error}</div>}
         <div className="cta-bar">
-          <button className="btn btn-primary btn-block" style={{ height: 56, fontSize: 16 }} disabled={busy || !!previewErr || !touched} onClick={save}>{editing ? 'Save changes' : 'Start this plan'}</button>
+          <button className="btn btn-primary btn-block" style={{ height: 56, fontSize: 16 }} disabled={busy || !!previewErr || !touched || !ready} onClick={save}>{editing ? 'Save changes' : 'Start this plan'}</button>
           {!touched && <p className="small muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Tap a coloured word above to make this plan yours.</p>}
         </div>
       </div></div>
@@ -260,7 +290,7 @@ function ProtectSheet({ draft, editing, onDone }: { draft: Draft; editing: numbe
   );
 }
 
-function WhoSheet({ current, onDone }: { current: number | null; onDone: (id: number) => void }) {
+function WhoSheet({ current, onDone, onGroup, allowGroup }: { current: number | null; onDone: (id: number) => void; onGroup: () => void; allowGroup: boolean }) {
   const { recipients } = useStore();
   const [adding, setAdding] = useState<'' | 'self' | 'other'>('');
   if (adding) return <AddRecipient self={adding === 'self'} onSaved={(r) => onDone(r.id)} />;
@@ -278,8 +308,43 @@ function WhoSheet({ current, onDone }: { current: number | null; onDone: (id: nu
           <button className="opt" onClick={() => setAdding('self')}><span className="tile sm t-cobalt">🙋</span><span><b>My own account</b><br /><span className="small muted">Add the bank account money for you goes to</span></span><span /></button>
         )}
         <button className="opt" onClick={() => setAdding('other')}><span className="tile sm t-mint">＋</span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
+        {allowGroup && <button className="opt" onClick={onGroup}><span className="tile sm t-sun">👥</span><span><b>Several people</b><br /><span className="small muted">Each with their own amount, paid together. Like staff pay or family upkeep.</span></span><span /></button>}
       </div>
     </>
+  );
+}
+
+/** The group's people in the preview card, with any one-off changes for the next payout. */
+function GroupSummary({ lines, onOpen }: { lines: DraftLine[]; onOpen: () => void }) {
+  const { recipients } = useStore();
+  const changed = lines.filter((l) => l.skip_next || l.next_amount_kobo != null).length;
+  return (
+    <div className="g-sum">
+      <div className="kv"><span className="muted">Each payout</span><b className="num">{lines.length} people · {N(lines.reduce((t, l) => t + l.amount_kobo, 0))}</b></div>
+      {lines.slice(0, 6).map((l) => {
+        const r = recipients.find((x) => x.id === l.recipient_id);
+        return <div key={l.recipient_id} className="kv sub"><span className="muted">{r?.label ?? 'Someone'}{l.skip_next ? ' · skipped next time' : l.next_amount_kobo != null ? ` · ${N(l.next_amount_kobo)} next time` : ''}</span><span className="num">{N(l.amount_kobo)}</span></div>;
+      })}
+      {lines.length > 6 && <div className="kv sub"><span className="muted">and {lines.length - 6} more</span></div>}
+      {changed > 0 && <div className="small" style={{ fontWeight: 700 }}>Next payout has {changed} one-off change{changed > 1 ? 's' : ''}.</div>}
+      <button className="link small" onClick={onOpen}>Edit people and amounts</button>
+    </div>
+  );
+}
+
+/** A payout bigger than the daily limit would never go out. Offer to raise the limit to fit it. */
+function CapWarning({ total, cap, onRaised }: { total: number; cap: number; onRaised: () => void }) {
+  const { refreshMe, toast } = useStore();
+  const [busy, setBusy] = useState(false);
+  const target = Math.ceil(total / 1_000_000) * 1_000_000;  // round up to the next ₦10,000
+  const raise = async () => {
+    setBusy(true);
+    try { await api.patch('/me/settings', { daily_cap_kobo: target }); await refreshMe(); toast(`Daily limit is now ${N(target)}`); onRaised(); }
+    catch (e: any) { toast(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="impact warn">This is {N(total)} in one go, over your {N(cap)} daily limit, so it would never go out.
+      <button className="btn btn-soft" style={{ marginTop: 8, width: '100%' }} disabled={busy} onClick={raise}>Raise my daily limit to {N(target)}</button></div>
   );
 }
 

@@ -148,7 +148,7 @@ def reserve(user, run) -> bool:
     if available < cost:
         raise InsufficientFunds(available, cost)
     _, created = post(key, "reserve", [(wallet_code(user.pk), -cost), (held_code(user.pk), cost)], run=run,
-                      memo=f"Set aside for {run.plan.label}")
+                      memo=f"Set aside for {run.label}")
     return created
 
 
@@ -168,7 +168,7 @@ def settle(user, run) -> bool:
         if amount:
             lines.append((account(FEE_ACCOUNTS[kind][0]).code, amount))
     with transaction.atomic():
-        txn, created = post(f"settle:{run.pk}", "settle", lines, run=run, memo=f"{run.plan.label} sent")
+        txn, created = post(f"settle:{run.pk}", "settle", lines, run=run, memo=f"{run.label} sent")
         for kind, amount in fees:
             if amount:
                 code, paid_to = FEE_ACCOUNTS[kind]
@@ -194,7 +194,7 @@ def release(user, run) -> bool:
     if LedgerTransaction.objects.filter(idempotency_key=f"settle:{run.pk}").exists():
         raise LedgerError(f"run {run.pk} was already settled")
     _, created = post(f"release:{run.pk}", "release", [(held_code(user.pk), -run.cost_kobo), (wallet_code(user.pk), run.cost_kobo)],
-                      run=run, memo=f"{run.plan.label} returned")
+                      run=run, memo=f"{run.label} returned")
     return created
 
 
