@@ -162,7 +162,7 @@ export default function NewPlan() {
         </p>
         {!showKobo ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
           <div className="chip-hint" role="note">
-            <Kobo mood="point" size={56} engine="svg" title="" />
+            <Kobo mood="point" size={56} title="Kobo pointing at the sentence" />
             <span className="bubble">Tap any yellow word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
           </div>
         )}

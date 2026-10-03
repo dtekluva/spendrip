@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { countdown, dayLabel, fmtTime, greet, lagos, MON, MONL, N, WD } from '../lib/format';
+import { countdown, dayLabel, fmtTime, greeting, lagos, MON, MONL, N, WD } from '../lib/format';
 import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
@@ -48,7 +48,7 @@ export default function Home() {
         </span>
       </div>
       <div className="cols cols-home"><div className="col stack">
-        <div><p className="hello">{greet()}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} 👋</p><h1 className="h1">{headline}</h1></div>
+        <div><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} {greeting().emoji}</p><h1 className="h1">{headline}</h1></div>
         <div className="balance">
           <div className="eyebrow">Your balance</div>
           <div className="big-amt num">{N(bal)}</div>

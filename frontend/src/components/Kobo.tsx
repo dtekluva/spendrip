@@ -45,8 +45,7 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title, 
 }) {
   const [riveReady, setRiveReady] = useState(false);
   // Eyes that follow your finger exist only in the SVG version, so Kobos with `follow` stay SVG.
-  // 'point' is only drawn in code (it has arms); the Rive file doesn't have it yet.
-  const showRive = mood !== 'point' && (engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion()));
+  const showRive = engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion());
   if (showRive) {
     return (
       <span className="kobo kobo-rive" style={{ width: size, height: size * 1.2, position: 'relative' }} role="img" aria-label={title ?? `Kobo, ${mood}`}>

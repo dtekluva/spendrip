@@ -10,7 +10,7 @@ RuntimeLoader.setWasmUrl(wasmUrl);
 /** Order matches the `moodIndex` conditions in kobo.riv's state machine. */
 export const MOOD_INDEX: Record<KoboMood, number> = {
   idle: 0, happy: 1, celebrate: 2, send: 3, fill: 4, waiting: 5, worried: 6, puddle: 7, sleep: 8, peek: 9,
-  point: 1,  // not in kobo.riv yet; Kobo always draws this one in code
+  point: 10,
 };
 
 /** Kobo drawn and animated in Rive (public/kobo.riv). Each instance has its own mood. */

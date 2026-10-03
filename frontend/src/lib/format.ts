@@ -46,10 +46,14 @@ export function cadence(p: Pick<Plan, 'frequency' | 'weekday' | 'month_day' | 'm
   return p.month_day_last ? 'Last day of every month' : 'Monthly on the ' + ord(p.month_day ?? 1);
 }
 
-export function greet(): string {
-  const h = lagos(new Date()).h;
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+/** Greeting for the person's own time of day (their device clock, wherever they are). */
+export function greeting(now = new Date()): { text: string; emoji: string } {
+  const h = now.getHours();
+  if (h >= 5 && h < 12) return { text: 'Good morning', emoji: '☀️' };
+  if (h >= 12 && h < 17) return { text: 'Good afternoon', emoji: '🌤️' };
+  return { text: 'Good evening', emoji: '🌙' };  // 5 pm until 5 am
 }
+export const greet = () => greeting().text;
 
 export function countdown(at: string | Date): string {
   let s = Math.max(0, Math.floor((new Date(at).getTime() - Date.now()) / 1000));
