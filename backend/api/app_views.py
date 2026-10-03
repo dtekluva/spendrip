@@ -141,8 +141,7 @@ def parse_plan(data, user, instance: Plan | None = None) -> dict:
             out["amount_kobo"] = sum(d["amount_kobo"] for d in out["lines"])
         else:
             out["amount_kobo"] = instance.amount_kobo
-        if not instance:
-            out["recipient"] = None
+        out["recipient"] = None  # a group pays its lines; a one-person plan turned group lets go of its person
     else:
         out["amount_kobo"] = _amount_ok(data.get("amount_kobo", cur("amount_kobo", 0)), user)
         rid = data.get("recipient_id", instance.recipient_id if instance else None)
@@ -188,11 +187,16 @@ def _lines(raw, user) -> list[dict]:
     """People on a group plan: [{recipient_id, amount_kobo, next_amount_kobo?, skip_next?}], in the order to show them."""
     if not isinstance(raw, list) or not MIN_GROUP <= len(raw) <= MAX_GROUP:
         raise FlowError(f"A group needs {MIN_GROUP} to {MAX_GROUP} people.")
-    ids = [d.get("recipient_id") if isinstance(d, dict) else None for d in raw]
+    def pk(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+    ids = [pk(d.get("recipient_id")) if isinstance(d, dict) else None for d in raw]
     people = {r.pk: r for r in Recipient.objects.filter(user=user, pk__in=[i for i in ids if i])}
     out, seen = [], set()
     for d, rid in zip(raw, ids):
-        r = people.get(_int(rid))
+        r = people.get(rid)
         if not r:
             raise FlowError("Someone on the list isn't one of your saved people. Add them first.")
         if r.pk in seen:
@@ -417,8 +421,6 @@ class PlanDetail(APIView):
             if schedule_keys & set(d):
                 parsed = parse_plan(d, request.user, instance=plan)
                 lines = parsed.pop("lines", None)
-                if plan.is_group:
-                    parsed.pop("recipient", None)
                 for k, v in parsed.items():
                     setattr(plan, k, v)
             if was_finished and (plan.ends_at is None or plan.ends_at > timezone.now()):

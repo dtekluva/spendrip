@@ -186,3 +186,14 @@ def test_a_waiting_payout_counts_in_the_top_up(user, top_up, recipients, make_gr
     worker.tick(t)
     f = user_forecast(user, t + timedelta(minutes=5))
     assert f.top_up_kobo == naira(15_100 - 12_000)
+
+
+def test_a_skipped_payout_uses_up_the_one_off_changes(user, top_up, recipients, make_group, worker):
+    top_up(1_000)
+    staff = make_group("Staff", [(recipients["mum"], 10_000), (recipients["me"], 5_000)])
+    PlanLine.objects.filter(plan=staff, recipient=recipients["me"]).update(skip_next=True)
+    t = lagos("2026-11-02T09:00")
+    worker.tick(t)
+    worker.tick(t + timedelta(hours=7))  # still short: skipped
+    assert batch_at(staff, "2026-11-02T09:00").status == RunBatch.Status.SKIPPED
+    assert not PlanLine.objects.filter(plan=staff, skip_next=True).exists()

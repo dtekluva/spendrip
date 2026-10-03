@@ -131,6 +131,7 @@ class Worker:
             self._set(run, run_status, last_error=reason)
         RunBatch.objects.filter(pk=batch.pk).update(status=RunBatch.Status.SKIPPED, reason=reason, completed_at=timezone.now())
         plan = batch.plan
+        clear_one_offs(plan)  # they were for this payout, which is now over, whether or not it went out
         if reason != "not_verified":
             self._tell_batch(batch, "skipped", copy.group_skipped(emoji=plan.emoji, label=plan.label, people=len(runs),
                                                                   cost_kobo=batch.cost_kobo, reason=reason))

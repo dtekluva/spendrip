@@ -76,3 +76,22 @@ def test_a_person_on_a_group_cannot_be_deleted(demo, dev):
     third = people(demo)[2]
     r = c.delete(f"/api/recipients/{third.id}")
     assert r.status_code == 409 and "Staff pay" in r.json()["error"]
+
+
+def test_turning_a_plan_into_a_group_frees_its_person(demo, dev):
+    from api.tests.test_api import plan_body
+    c = unlocked_client(demo)
+    me = demo.recipients.get(is_self=True)
+    plan = c.post("/api/plans", plan_body(demo), format="json").json()["plan"]
+    others = [r for r in people(demo) if r.id != me.id][:2]
+    p = c.patch(f"/api/plans/{plan['id']}", {"kind": "group", "lines": [{"recipient_id": r.id, "amount_kobo": 500_000} for r in others]},
+                format="json").json()["plan"]
+    assert p["kind"] == "group" and p["recipient"] is None
+    assert Plan.objects.get(pk=plan["id"]).recipient_id is None
+
+
+def test_a_bad_recipient_id_is_a_clear_error(demo, dev):
+    body = group_body(demo)
+    body["lines"][0]["recipient_id"] = "abc"
+    r = unlocked_client(demo).post("/api/plans", body, format="json")
+    assert r.status_code == 400 and "saved people" in r.json()["error"]
