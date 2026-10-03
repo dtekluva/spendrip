@@ -39,7 +39,7 @@ class Quote:
 def gateway():
     g = get_card_gateway()
     if g is None:
-        raise FlowError("Card payments aren't set up yet. Use a bank transfer for now.", code="cards_unavailable", status=503)
+        raise FlowError("Card and bank payments aren't set up yet.", code="cards_unavailable", status=503)
     return g
 
 
@@ -95,14 +95,17 @@ def complete(reference: str, result: dict | None = None) -> CardCharge:
                 charge.save(update_fields=["status", "message", "completed_at"])
             return charge  # still pending: leave it for the webhook or the next check
 
+        channel = result.get("channel") or "card"
         inflow, _ = Inflow.objects.get_or_create(
             provider="paystack", reference=reference,
-            defaults={"user": charge.user, "amount_kobo": charge.net_kobo, "sender_name": "Card top-up", "raw": {"gross_kobo": charge.gross_kobo}},
+            defaults={"user": charge.user, "amount_kobo": charge.net_kobo, "raw": {"gross_kobo": charge.gross_kobo, "channel": channel},
+                      "sender_name": {"bank": "Bank top-up", "bank_transfer": "Transfer top-up"}.get(channel, "Card top-up")},
         )
         ledger.credit_inflow(inflow, source=ledger.PAYSTACK)
         ledger.record_card_fee(charge, LedgerTransaction.objects.filter(idempotency_key=f"inflow:paystack:{reference}").first())
         auth = result.get("authorization")
-        if charge.save_card and auth and auth.get("reusable") and auth.get("authorization_code") and not charge.card_id:
+        # Only cards are saved for one-tap top-ups: a bank or transfer payment isn't something to charge again.
+        if charge.save_card and channel == "card" and auth and auth.get("reusable") and auth.get("authorization_code") and not charge.card_id:
             card, _ = SavedCard.objects.update_or_create(
                 user=charge.user, signature=auth.get("signature") or auth["authorization_code"],
                 defaults={"authorization_code_enc": encrypt(auth["authorization_code"]), "brand": auth.get("brand", ""),

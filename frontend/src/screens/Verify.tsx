@@ -329,7 +329,7 @@ function DoneStep({ header }: { header: React.ReactNode }) {
       {header}
       <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
       <h2 style={{ textAlign: 'center' }}>You're verified, {me?.user?.first_name ?? 'friend'} 🎉</h2>
-      <p className="lead" style={{ textAlign: 'center' }}>{fa ? 'Your SpenDrip account is ready. Send money to it any time to fund your plans.' : 'You can now add money by card and start sending.'}</p>
+      <p className="lead" style={{ textAlign: 'center' }}>{fa ? 'Your SpenDrip account is ready. Send money to it any time to fund your plans.' : 'You can now add money by card or bank and start sending.'}</p>
       {me?.user?.limits && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>For now: up to {N(me.user.limits.max_drip_kobo)} per drip and {N(me.user.limits.max_balance_kobo)} in your balance.</p>}
       {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
         <span className="acct-no num">{fa.account_number.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}</span>

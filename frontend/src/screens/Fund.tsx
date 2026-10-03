@@ -44,11 +44,11 @@ export default function Fund() {
             <span style={{ fontWeight: 700 }}>{fa.bank_name} · {fa.account_name}</span>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={copy}>Copy number</button>
-              <button className="btn btn-soft" onClick={() => document.getElementById('card-panel')?.scrollIntoView({ behavior: 'smooth' })}>Pay with card</button>
+              <button className="btn btn-soft" onClick={() => document.getElementById('card-panel')?.scrollIntoView({ behavior: 'smooth' })}>Pay with card or bank</button>
             </div>
             <span className="small muted">Transfers usually land in under a minute. We'll notify you.</span>
           </div>
-        ) : verified ? <div className="card small muted">Bank transfers are coming soon. For now, top up by card below.</div> : <VerifyCard />}
+        ) : verified ? <div className="card small muted">Top up below by card, from your bank account, or by bank transfer, all through Paystack.</div> : <VerifyCard />}
         {verified && me?.user?.limits && <p className="small muted" style={{ margin: 0 }}>Your account can hold up to {N(me.user.limits.max_balance_kobo)} for now.</p>}
         {verified && <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>}
         {me?.dev_tools && verified && (

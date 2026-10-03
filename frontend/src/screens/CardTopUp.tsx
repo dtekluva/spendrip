@@ -13,7 +13,7 @@ interface ChargeResult { reference: string; status: 'started' | 'success' | 'fai
 
 export const cardLabel = (c: SavedCard) => `${c.brand ? c.brand[0]!.toUpperCase() + c.brand.slice(1) : 'Card'} ••${c.last4}`;
 
-/** The "Pay with card" panel on Add money. */
+/** The "Pay with card or bank" panel on Add money (Paystack checkout: card, bank account or bank transfer). */
 export function CardPanel({ suggested }: { suggested: number }) {
   const { reload, koboSay, openSheet, closeSheet, toast } = useStore();
   const [amount, setAmount] = useState(Math.max(suggested, 0) || 2_000_000);
@@ -44,12 +44,12 @@ export function CardPanel({ suggested }: { suggested: number }) {
     })} />,
   );
 
-  if (quote && !quote.available) return <div className="card small muted">Card payments aren't set up yet. Use a bank transfer for now.</div>;
+  if (quote && !quote.available) return <div className="card small muted">Card and bank payments aren't set up yet.</div>;
   const quick = [...new Set([suggested, 2_000_000, 5_000_000, 10_000_000].filter((x) => x >= 10_000))].slice(0, 4);
   return (
     <div className="card stack" style={{ gap: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <b>Pay with card</b>{quote?.test_mode && <span className="pill p-wait">Test mode</span>}
+        <b>Pay with card or bank</b>{quote?.test_mode && <span className="pill p-wait">Test mode</span>}
       </div>
       <div className="quick">{quick.map((q) => <button key={q} aria-pressed={amount === q} onClick={() => setAmount(q)}>{N(q)}</button>)}</div>
       <div className="field"><label htmlFor="card-amt">Amount to add (₦)</label>
@@ -57,8 +57,8 @@ export function CardPanel({ suggested }: { suggested: number }) {
       {quote && (
         <div className="small" style={{ display: 'grid', gap: 4 }}>
           <div className="kv"><span className="muted">Added to your balance</span><b className="num">{N(quote.net_kobo)}</b></div>
-          <div className="kv"><span className="muted">Card fee (Paystack)</span><b className="num">{quote.payer_covers_fee ? N(quote.fee_kobo) : 'On us'}</b></div>
-          <div className="kv"><span className="muted">Charged to your card</span><b className="num">{N(quote.gross_kobo)}</b></div>
+          <div className="kv"><span className="muted">Payment fee (Paystack)</span><b className="num">{quote.payer_covers_fee ? N(quote.fee_kobo) : 'On us'}</b></div>
+          <div className="kv"><span className="muted">You pay</span><b className="num">{N(quote.gross_kobo)}</b></div>
         </div>
       )}
       {error && <div className="error-card">{error}</div>}
@@ -68,12 +68,12 @@ export function CardPanel({ suggested }: { suggested: number }) {
         </button>
       ))}
       <button className={`btn ${cards.length ? 'btn-soft' : 'btn-primary'} btn-block`} disabled={busy || !quote} onClick={payNew}>
-        {cards.length ? 'Use a different card' : 'Pay with card'}
+        {cards.length ? 'Use another card or your bank' : 'Pay with card or bank'}
       </button>
       <label className="small" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
-        <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} /> Save this card for one-tap top-ups
+        <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} /> If I pay by card, save it for one-tap top-ups
       </label>
-      <p className="small muted" style={{ margin: 0 }}>🔒 You'll pay on Paystack's secure page. SpenDrip never sees your card number.{quote?.test_mode ? ' Test mode: no real card is charged.' : ''}</p>
+      <p className="small muted" style={{ margin: 0 }}>🔒 You'll pay on Paystack's secure page: by card, from your bank account, or by bank transfer. SpenDrip never sees your card or bank login.{quote?.test_mode ? ' Test mode: no real card is charged.' : ''}</p>
     </div>
   );
 }
@@ -127,10 +127,10 @@ export default function CardReturn() {
         </>
       )}
       {result?.status === 'failed' && (
-        <><Kobo mood="puddle" size={96} /><h1 className="h1" style={{ margin: 0 }}>That didn't go through</h1><p className="muted" style={{ margin: 0 }}>{result.message || 'Your card was not charged.'}</p></>
+        <><Kobo mood="puddle" size={96} /><h1 className="h1" style={{ margin: 0 }}>That didn't go through</h1><p className="muted" style={{ margin: 0 }}>{result.message || 'You were not charged.'}</p></>
       )}
       {result?.status === 'started' && (
-        <><Kobo mood="waiting" size={96} /><h1 className="h1" style={{ margin: 0 }}>Still confirming</h1><p className="muted" style={{ margin: 0 }}>Your bank hasn't confirmed yet. We'll add the money as soon as it does.</p></>
+        <><Kobo mood="waiting" size={96} /><h1 className="h1" style={{ margin: 0 }}>Still confirming</h1><p className="muted" style={{ margin: 0 }}>Your bank hasn't confirmed yet. If you paid by transfer, this can take a few minutes. We'll add the money as soon as it lands.</p></>
       )}
       {error && <><Kobo mood="puddle" size={96} /><div className="error-card">{error}</div></>}
       <div style={{ display: 'flex', gap: 8, width: '100%' }}>

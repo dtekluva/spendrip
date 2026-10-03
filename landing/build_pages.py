@@ -62,7 +62,7 @@ def footer(pages: list[dict]) -> str:
         <div><b>Company</b><a href="/about/">About</a><a href="/contact/">Contact</a></div>
       </div>
     </div>
-    <div class="legal"><span>© {date.today().year} SpenDrip. Built for Nigeria.</span><span>Card payments are processed by Paystack.</span></div>
+    <div class="legal"><span>© {date.today().year} SpenDrip. Built for Nigeria.</span><span>Payments are processed by Paystack.</span></div>
   </div>
 </footer>'''
 

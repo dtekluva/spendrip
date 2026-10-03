@@ -98,7 +98,7 @@ PAGES = [
 <p>Example: a driver on ₦80,000, a nanny on ₦70,000 and a gateman on ₦45,000. That's ₦100 SpenDrip fee + ₦125 transfer fees (₦50 + ₦50 + ₦25) + ₦150 stamp duty = <b>₦375 in fees</b> for the whole payout.</p>"""},
       {"id": "calculator", "h2": "Fee calculator", "html": "<p>Type an amount to see what one drip costs, and what a month of them adds up to.</p>" + FEE_CALC},
       {"id": "topups", "h2": "Adding money", "html": """
-<p>You top up your SpenDrip balance by card through Paystack. The card fee is shown on the screen before you pay, so you know the exact amount. Bank-transfer top-ups to your own SpenDrip account number are coming soon.</p>"""},
+<p>You top up your SpenDrip balance through Paystack: by card, from your bank account, or by bank transfer. Paystack's payment fee is shown on the screen before you pay, so you know the exact amount.</p>"""},
       {"id": "failed", "h2": "If a transfer fails", "html": """
 <p>Money is set aside before each transfer and only counted as sent once the bank confirms it. If a transfer fails, the amount goes straight back to your balance.</p>"""},
     ],

@@ -185,6 +185,9 @@ PAYSTACK = {
     "BASE_URL": env("PAYSTACK_BASE_URL", "https://api.paystack.co"),
     # True: the payer covers Paystack's card fee (shown before paying). False: SpenDrip absorbs it.
     "PASS_CARD_FEES": env_bool("PAYSTACK_PASS_CARD_FEES", True),
+    # How people can pay on Paystack's checkout: card, bank (pay from a bank account) and bank_transfer (pay with transfer).
+    # Paystack shows only the ones also switched on in its dashboard.
+    "CHANNELS": [c.strip() for c in env("PAYSTACK_CHANNELS", "card,bank,bank_transfer").split(",") if c.strip()],
     "TIMEOUT_SECONDS": 20,
 }
 

@@ -12,6 +12,7 @@ import json
 from math import ceil
 
 import requests
+from django.conf import settings
 
 from .banks import BY_NIP
 from .base import NameEnquiryError, NameEnquiryResult, ProviderError, TransferRequest, TransferResult, TransferStatus
@@ -181,7 +182,9 @@ def _charge(data: dict) -> dict:
         "currency": data.get("currency", "NGN"),
         "reference": data.get("reference", ""),
         "message": data.get("gateway_response") or data.get("message") or "",
+        "channel": str(data.get("channel") or auth.get("channel") or "card"),  # card | bank | bank_transfer | ussd ...
         "authorization": {
+            "channel": auth.get("channel", ""),
             "authorization_code": auth.get("authorization_code", ""), "reusable": bool(auth.get("reusable")),
             "last4": auth.get("last4", ""), "brand": (auth.get("brand") or auth.get("card_type") or "").strip(),
             "bank": auth.get("bank", ""), "exp_month": str(auth.get("exp_month", "")), "exp_year": str(auth.get("exp_year", "")),
@@ -200,7 +203,7 @@ class PaystackCardGateway:
     def initialize(self, *, email, amount_kobo, reference, callback_url, metadata):
         status, body = self.client.call("POST", "/transaction/initialize", json={
             "email": email, "amount": amount_kobo, "reference": reference, "callback_url": callback_url,
-            "currency": "NGN", "channels": ["card"], "metadata": json.dumps(metadata)})
+            "currency": "NGN", "channels": settings.PAYSTACK.get("CHANNELS") or ["card"], "metadata": json.dumps(metadata)})
         data = body.get("data") or {}
         if status >= 400 or not data.get("authorization_url"):
             raise ProviderError(f"Paystack couldn't start the payment: {body.get('message', '')}")

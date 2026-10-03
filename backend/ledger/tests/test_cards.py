@@ -82,3 +82,30 @@ def test_card_fee_is_listed_with_its_top_up(user):
     f = FeeLine.objects.get(card_charge=charge)
     assert f.kind == "card_processing" and f.amount_kobo == 85_000 and f.paid_to == "provider"
     assert f.ledger_transaction.idempotency_key == "inflow:paystack:sdc_t1"
+
+
+def test_bank_payment_credits_but_saves_no_card(user):
+    r = cards.start(user, 1_000_000, save_card=True)
+    charge = CardCharge.objects.get(reference=r["reference"])
+    auth = {"authorization_code": "AUTH_bank", "reusable": True, "channel": "bank", "last4": "", "brand": "", "bank": "GTBank",
+            "exp_month": "", "exp_year": "", "signature": ""}
+    c = cards.complete(r["reference"], {"status": "success", "amount_kobo": charge.gross_kobo, "currency": "NGN", "message": "",
+                                        "channel": "bank", "authorization": auth})
+    assert c.status == "success" and ledger.balance(user).available_kobo == 1_000_000
+    assert c.inflow.sender_name == "Bank top-up"
+    assert not SavedCard.objects.filter(user=user).exists()
+
+
+def test_checkout_offers_card_and_bank(settings, monkeypatch):
+    from providers.paystack import PaystackCardGateway
+    sent = {}
+
+    class Client:
+        secret_key = "sk_test_x"
+
+        def call(self, method, path, json=None):
+            sent.update(json)
+            return 200, {"data": {"authorization_url": "https://checkout.paystack.com/x"}}
+
+    PaystackCardGateway(Client()).initialize(email="a@b.co", amount_kobo=10_000, reference="r", callback_url="https://x", metadata={})
+    assert sent["channels"] == ["card", "bank", "bank_transfer"]
