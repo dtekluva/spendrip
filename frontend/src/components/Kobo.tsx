@@ -45,7 +45,8 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title, 
 }) {
   const [riveReady, setRiveReady] = useState(false);
   // Eyes that follow your finger exist only in the SVG version, so Kobos with `follow` stay SVG.
-  const showRive = engine === 'rive' || (engine === 'auto' && !follow && !riveBroken && !reducedMotion());
+  // Rive is the real Kobo wherever it can run; `follow` (eyes tracking the pointer) only applies to the drawn fallback.
+  const showRive = engine === 'rive' || (engine === 'auto' && !riveBroken && !reducedMotion());
   if (showRive) {
     return (
       <span className="kobo kobo-rive" style={{ width: size, height: size * 1.2, position: 'relative' }} role="img" aria-label={title ?? `Kobo, ${mood}`}>
@@ -64,7 +65,7 @@ export default function Kobo({ mood = 'idle', size = 72, follow = false, title, 
 }
 
 /** Which engine `<Kobo>` will use with these settings, for labels. */
-export const koboEngine = (follow = false) => (!follow && !riveBroken && !reducedMotion() ? 'Rive' : 'Code');
+export const koboEngine = (_follow = false) => (!riveBroken && !reducedMotion() ? 'Rive' : 'Code');
 
 class RiveBoundary extends Component<{ onFail: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
