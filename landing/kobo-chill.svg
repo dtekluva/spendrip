@@ -13,6 +13,7 @@
   </style>
   <defs>
     <linearGradient id="kd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FFC400"/></linearGradient>
+    <clipPath id="kc"><path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z"/></clipPath>
     <pattern id="stripe" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">
       <rect width="7" height="14" fill="#2436F2"/><rect x="7" width="7" height="14" fill="#FFFFFF"/>
     </pattern>
@@ -56,6 +57,12 @@
       <ellipse cx="129" cy="152" rx="10" ry="6" fill="#1726C9" transform="rotate(15 129 152)"/>
       <path d="M122 136 h6 M124 149 h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
       <path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z" fill="url(#kd)" stroke="#E0A400" stroke-width="2"/>
+      <!-- beach shorts: the bottom of the drop, plus a short leg on each side -->
+      <g clip-path="url(#kc)"><rect x="0" y="124" width="120" height="30" fill="#FF4F8B"/><rect x="0" y="124" width="120" height="3.5" fill="#fff" opacity=".8"/></g>
+      <g fill="none" stroke="#FF4F8B" stroke-width="14" stroke-linecap="butt">
+        <path d="M56 132 Q86 150 120 140" stroke-dasharray="26 400"/><path d="M68 134 Q94 134 122 150" stroke-dasharray="24 400"/>
+      </g>
+      <g fill="#FFD23F" opacity=".9"><circle cx="40" cy="132" r="2.2"/><circle cx="78" cy="131" r="2.2"/><circle cx="66" cy="137" r="2"/><circle cx="86" cy="142" r="2"/></g>
       <ellipse cx="40" cy="62" rx="7" ry="12" fill="#fff" opacity=".55" transform="rotate(25 40 62)"/>
       <!-- sunglasses -->
       <rect x="31" y="83" width="26" height="17" rx="7" fill="#0E1233"/>

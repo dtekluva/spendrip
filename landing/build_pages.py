@@ -170,13 +170,19 @@ def page_html(p: dict, pages: list[dict]) -> str:
 
 
 LOST_KOBO = """<svg class="lost-kobo" viewBox="0 0 120 166" aria-hidden="true">
-  <defs><linearGradient id="lk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FFC400"/></linearGradient></defs>
+  <defs><linearGradient id="lk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FFC400"/></linearGradient>
+    <clipPath id="lkc"><path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z"/></clipPath></defs>
   <ellipse cx="60" cy="160" rx="34" ry="5" fill="#0B1040" opacity=".12"/>
   <g fill="none" stroke="#E0A400" stroke-width="6" stroke-linecap="round"><path d="M48 132 L43 152"/><path d="M72 132 L79 149"/></g>
   <ellipse cx="38" cy="155" rx="10" ry="5.5" fill="#2436F2" transform="rotate(-12 38 155)"/>
   <ellipse cx="85" cy="151" rx="10" ry="5.5" fill="#1726C9" transform="rotate(24 85 151)"/>
   <path d="M33 153 h6 M81 148 h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
   <path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z" fill="url(#lk)" stroke="#E0A400" stroke-width="2"/>
+  <!-- shorts: the bottom of the drop, plus a short leg on each side -->
+  <g clip-path="url(#lkc)"><rect x="0" y="122" width="120" height="30" fill="#1E2560"/><rect x="0" y="122" width="120" height="3.5" fill="#2F3A8F"/></g>
+  <g fill="none" stroke="#1E2560" stroke-width="14" stroke-linecap="butt"><path d="M48 130 L45.5 142"/><path d="M72 130 L75.5 142"/></g>
+  <path d="M57 125 l-2 7 M63 125 l2 7" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z" fill="none" stroke="#E0A400" stroke-width="2" clip-path="url(#lkc)"/>
   <ellipse cx="40" cy="64" rx="7" ry="12" fill="#fff" opacity=".55" transform="rotate(25 40 64)"/>
   <circle cx="45" cy="92" r="5.5" fill="#0E1233"/><circle cx="75" cy="92" r="5.5" fill="#0E1233"/>
   <circle cx="47" cy="90" r="1.8" fill="#fff"/><circle cx="77" cy="90" r="1.8" fill="#fff"/>

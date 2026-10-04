@@ -19,7 +19,7 @@ Rules for every outfit: it must read at 40 px (the chip hint, the Activity rows)
 
 ## Legs (new, 4 Oct 2026)
 
-Kobo can have short legs and blue trainers (brand cobalt `#2436F2`, laces in white), but only where movement or attitude needs them. Most poses stay legless so Kobo still reads as a drop at 40 px.
+Kobo can have short legs, shorts and blue trainers (brand cobalt `#2436F2`, white laces), but only where movement or attitude needs them. Legs are never bare: everyday shorts are navy `#1E2560` with a white drawstring; outfits can swap them (pink beach shorts on the chilling 404, trousers for formal looks). Most poses stay legless so Kobo still reads as a drop at 40 px.
 
 Build them as a `legs` boolean (or a `legsPose` number) in the view model, separate from `moodIndex`, so a pose can switch them on.
 
