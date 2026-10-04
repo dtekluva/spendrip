@@ -13,6 +13,11 @@ export const MOOD_INDEX: Record<KoboMood, number> = {
   point: 10,
 };
 
+/** Moods where Kobo stands on his legs (shorts and trainers come with them). */
+const LEG_MOODS = new Set<KoboMood>(['celebrate']);
+const LIFT = -47;  // how far the body rises so the trainers rest on the ground
+const STAND_MS = 220;
+
 /** Kobo drawn and animated in Rive (public/kobo.riv). Each instance has its own mood. */
 export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size: number; onReady: () => void }) {
   const { rive, RiveComponent } = useRive({
@@ -27,7 +32,27 @@ export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size
   const { setValue } = useViewModelInstanceNumber('moodIndex', instance);
   const { setValue: setLookX } = useViewModelInstanceNumber('lookX', instance);
   const { setValue: setLookY } = useViewModelInstanceNumber('lookY', instance);
+  const { setValue: setLegs } = useViewModelInstanceNumber('legs', instance);
+  const { setValue: setLift } = useViewModelInstanceNumber('lift', instance);
   const box = useRef<HTMLSpanElement>(null);
+  const standing = useRef(0);  // 0 = no legs, 1 = on his feet
+
+  // Legs: ease up onto his feet as a leg mood starts, and back down after, instead of popping.
+  useEffect(() => {
+    if (!instance) return;
+    const from = standing.current, to = LEG_MOODS.has(mood) ? 1 : 0;
+    if (from === to) { setLegs(to); setLift(to * LIFT); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / STAND_MS), e = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+      const v = from + (to - from) * e;
+      standing.current = v; setLegs(v); setLift(v * LIFT);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [mood, instance, setLegs, setLift]);
 
   useEffect(() => { if (instance) setValue(MOOD_INDEX[mood]); }, [mood, instance, setValue]);
 
@@ -50,13 +75,13 @@ export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size
     return () => { window.removeEventListener('pointermove', onMove); if (frame) cancelAnimationFrame(frame); };
   }, [instance, setLookX, setLookY]);
 
-  // The artboard (320×400) is bigger than Kobo's box (240×288 units) so jumps, sparkles and the flung droplet
+  // The artboard (320×460) is bigger than Kobo's box (240×288 units) so jumps, sparkles and the flung droplet
   // aren't clipped. It overflows the box upwards and sideways, like the SVG version does.
   return (
     <span ref={box} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <RiveComponent aria-hidden="true" style={{
         position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: size * (320 / 240), height: size * (400 / 240), pointerEvents: 'none',
+        width: size * (320 / 240), height: size * (460 / 240), pointerEvents: 'none',
       }} />
     </span>
   );

@@ -36,6 +36,8 @@ Build them as a `legs` boolean (or a `legsPose` number) in the view model, separ
 | Selfie coach, walking in, waving goodbye | Yes | Walking in and out of screens. |
 | Seasonal: Independence Day march, football kick, dancing at New Year | Yes | |
 
+**In the app since 4 Oct 2026:** celebrate only (legs kick out on the jump). The Rive file (`frontend/public/kobo.riv`, 320×460 artboard) has `legs` (0–1) and `lift` (−47 = standing) inputs; `RiveKobo.tsx` eases them in over 220 ms for the moods in `LEG_MOODS`. The running legs on *send* are built in the file but not switched on in the app yet.
+
 Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `landing/kobo-chill.svg`; the Rive version should match their proportions (legs about a quarter of the drop's height).
 
 ## 1. Product poses (needed regardless of season)
