@@ -14,7 +14,7 @@ export const MOOD_INDEX: Record<KoboMood, number> = {
 };
 
 /** Moods where Kobo stands on his legs (shorts and trainers come with them). */
-const LEG_MOODS = new Set<KoboMood>(['celebrate']);
+const LEG_MOODS = new Set<KoboMood>(['celebrate', 'send']);
 const LIFT = -47;  // how far the body rises so the trainers rest on the ground
 const STAND_MS = 220;
 
