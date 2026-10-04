@@ -211,17 +211,36 @@ def not_found_html(pages: list[dict]) -> str:
 .nf p{{font-size:18px;max-width:46ch;margin:0;color:var(--muted,#5D6390)}}
 .nf .acts{{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}}
 .nf-code{{font-weight:800;letter-spacing:.14em;font-size:13px;color:var(--muted,#5D6390)}}
+.nf-lost,.nf-chill{{display:grid;gap:18px;justify-items:center}}
+.nf [hidden]{{display:none}}
+.chill-kobo{{width:min(340px,90vw);height:auto}}
 </style>
+<script>
+  // Two 404 moods: puzzled Kobo or chilling Kobo, picked at random each visit.
+  document.addEventListener("DOMContentLoaded", function () {{
+    if (Math.random() < 0.5) return;
+    document.querySelector(".nf-lost").hidden = true;
+    document.querySelector(".nf-chill").hidden = false;
+  }});
+</script>
 </head>
 <body>
 {nav(pages)}
 <main class="article">
   <div class="wrap art-wrap">
-    <section class="nf">
-      {LOST_KOBO}
-      <span class="nf-code">ERROR 404</span>
-      <h1>Kobo can't find this page</h1>
-      <p>The link may be old or mistyped. Your money is fine: this is only a missing page on our website.</p>
+    <section class="nf" data-v="lost">
+      <div class="nf-lost">
+        {LOST_KOBO}
+        <span class="nf-code">ERROR 404</span>
+        <h1>Kobo can't find this page</h1>
+        <p>The link may be old or mistyped. Your money is fine: this is only a missing page on our website.</p>
+      </div>
+      <div class="nf-chill" hidden>
+        <img class="chill-kobo" src="/kobo-chill.svg" width="340" height="250" alt="Kobo relaxing in a deckchair with sunglasses, a gold chain and a glass of zobo">
+        <span class="nf-code">ERROR 404 · KOBO'S CHILL SPOT</span>
+        <h1>Oops, you've landed in Kobo's chill spot</h1>
+        <p>Not sure this is what you were looking for. Kobo's on a break here, but your drips aren't: everything still goes out on time.</p>
+      </div>
       <div class="acts"><a class="btn btn-dark" href="/">Go to the home page</a><a class="btn btn-ghost" href="{APP}">Open the app</a></div>
     </section>
     <section class="art-sec"><h2>Popular pages</h2><div class="rel">{guides}</div></section>
