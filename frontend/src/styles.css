@@ -917,3 +917,13 @@ a{color:inherit}
   .plan-scroll > .plan-list + .finished-list{margin-top:14px}
   .plan-actions{position:static;padding:4px 0 0;margin:0;background:none}
 }
+
+/* Home, Coming up: phones show 6 rows then "View more"; wide screens show them all in a box that scrolls on its own. */
+.coming .row.extra{display:none}
+.coming.expanded .row.extra{display:grid}
+@container app (min-width: 860px){
+  .coming{max-height:calc(100dvh - 330px);min-height:min(360px,calc(100dvh - 330px));overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .coming .row.extra{display:grid}
+  .coming .row.more{display:none}
+}

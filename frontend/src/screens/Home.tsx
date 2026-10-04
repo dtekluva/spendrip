@@ -21,7 +21,8 @@ export default function Home() {
   const bal = summary.balance.available_kobo;
   const byId = new Map(plans.map((p) => [p.id, p]));
   const month = MONL[lagos(new Date()).m - 1];
-  const waits = f.events.filter((e) => e.status === 'wait' || e.status === 'cap');
+  const waits = f.events.filter((e) => e.status === 'wait');  // held back for money
+  const capped = f.events.filter((e) => e.status === 'cap');  // held back by the daily sending limit
   const shorts = f.events.filter((e) => e.status === 'short');
   const prioNames = plans.filter((p) => p.priority_rank && p.status === 'active').sort((a, b) => a.priority_rank! - b.priority_rank!).map((p) => p.label);
   const prioText = prioNames.length ? prioNames.join(', ').replace(/, ([^,]*)$/, ' & $1') : 'your priorities';
@@ -80,7 +81,18 @@ export default function Home() {
               {waits.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip">{p?.emoji} {p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
               {waits.length > 4 && <span className="mini-chip">+{waits.length - 4} more</span>}
             </div>
-            <button className="btn btn-primary btn-block" onClick={() => nav('/fund')}>Top up {N(f.top_up_kobo)} to send everything</button></div>
+            {f.top_up_kobo > 0
+              ? <button className="btn btn-primary btn-block" onClick={() => nav('/fund')}>Top up {N(f.top_up_kobo)} to send everything</button>
+              : <p className="small" style={{ margin: 0 }}>They'll go out once earlier drips have settled. Nothing to top up.</p>}
+            {capped.length > 0 && <p className="small" style={{ margin: '8px 0 0' }}>{capped.length} more {capped.length === 1 ? 'is' : 'are'} over your daily sending limit. <button className="link small" onClick={() => nav('/profile')}>Raise it</button></p>}</div>
+        ) : capped.length ? (
+          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3>🧢 Over your daily sending limit</h3>
+            <p>The money is there, but these drips are bigger than what you've allowed SpenDrip to send in a day ({N(store.me?.user?.daily_cap_kobo ?? 0)} a day):</p>
+            <div className="chips-row">
+              {capped.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip">{p?.emoji} {p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
+              {capped.length > 4 && <span className="mini-chip">+{capped.length - 4} more</span>}
+            </div>
+            <button className="btn btn-primary btn-block" onClick={() => nav('/profile')}>Raise my daily limit</button></div>
         ) : plans.length ? (
           <div className="forecast ok"><span className="kobo-corner"><Kobo mood="happy" size={52} /></span><h3>🎉 All of {month} is covered</h3><p>Every drip this month will go out on time, fees included. Nothing to do.</p></div>
         ) : (
@@ -96,11 +108,11 @@ export default function Home() {
               <div style={{ marginTop: 4 }}><StatusPill status={next.status} /></div></div></div>
         )}
         <div className="section-h"><h2>Coming up</h2><button className="link" onClick={() => nav('/calendar')}>Calendar</button></div>
-        <div className="list">
-          {f.events.slice(0, showAll ? undefined : 6).map((e, i) => {
+        <div className={`list coming ${showAll ? 'expanded' : ''}`}>
+          {f.events.map((e, i) => {
             const p = byId.get(e.plan_id); if (!p) return null; const d = lagos(e.at);
             return (
-              <button key={i} className="row" onClick={() => nav(`/plans?open=${p.id}`)}>
+              <button key={i} className={`row ${i >= 6 ? 'extra' : ''}`} onClick={() => nav(`/plans?open=${p.id}`)}>
                 <span className="date"><span className="d1">{dayLabel(e.at) === 'Today' ? 'TODAY' : WD[d.wd]!.slice(0, 3).toUpperCase()}</span><span className="d2 num">{d.d}</span></span>
                 <span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
                 <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p.label}</span><span className="s">{fmtTime(e.at)} · to {toWhom(p)}</span></span>
