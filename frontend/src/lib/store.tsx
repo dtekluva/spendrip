@@ -28,7 +28,7 @@ const Ctx = createContext<Store>(null as unknown as Store);
 export const useStore = () => useContext(Ctx);
 
 const LOOK_KEY = 'sd-look';
-const readLook = (): Look => { try { const v = localStorage.getItem(LOOK_KEY); if (v === 'light' || v === 'dark' || v === 'themed' || v === 'auto') return v; } catch { /* storage blocked */ } return 'themed'; };
+const readLook = (): Look => { try { const v = localStorage.getItem(LOOK_KEY); if (v === 'light' || v === 'dark' || v === 'themed' || v === 'auto') return v; } catch { /* storage blocked */ } return 'light'; };
 /** Time-aware: light from 6 AM to 7 PM on the phone's clock, dark otherwise. */
 export const DAY_FROM = 6, NIGHT_FROM = 19;
 export const resolveLook = (l: Look, d = new Date()): ShownLook => l === 'auto' ? (d.getHours() >= DAY_FROM && d.getHours() < NIGHT_FROM ? 'light' : 'dark') : l;
