@@ -151,6 +151,14 @@ When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks
 
   Every event carries `source`. On spendrip.com the events are `get-started` and `sign-in`.
 - **Attribution:** `landing/track.js` stores the visitor's first source (search engine, AI assistant, social app, `utm:` campaign, or direct) and adds `?src=&lp=` to app links. The app saves them on the user (`signup_source`, `signup_landing`), and they show in admin under Users.
+- **Session replays (since 4 Oct 2026):**
+  - Switched on per website in Umami (website settings, or `POST /api/websites/<id>` with `replayConfig`).
+  - Both websites record every visit (`sampleRate` 1), up to 5 minutes each.
+  - **Website:** Umami's own `stats.spendrip.com/recorder.js`, `maskLevel` moderate (typed inputs hidden).
+  - **App:** `frontend/public/replay.js`, a copy of Umami 3.4's recorder with one patch: rrweb's `sampling: {mousemove: false, mouseInteraction: false}`, so taps and pointer positions are never recorded (the PIN pad is a fixed grid, and tap positions would give PINs away). `maskLevel` strict hides all text and inputs.
+  - Anything marked `data-no-replay` is left out: the verification screens (ID photo, selfies) and the PIN pad.
+  - **When upgrading Umami:** copy the new `public/recorder.js` from the container and re-apply the patch. Search the old file for `sampling:{mousemove`.
+  - Lower `sampleRate` (for example 0.2) once traffic grows. Replays cost Umami memory and Postgres disk.
 - **Memory:** Node heap is capped at 200 MB (`NODE_OPTIONS` in `/etc/umami.env`; 160 MB ran out). Check with `docker stats --no-stream`. Resize the droplet to 2 GB before raising the cap.
 - **Restart:**
 
