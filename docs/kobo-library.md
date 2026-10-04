@@ -44,6 +44,22 @@ Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `l
 
 Gold noodle arms from each side of the drop, ending in round yellow mitts with a thumb (the same style as the arm in the *point* pose). A `hands` input (0–1) switches them on; the pointing mood keeps its own arms instead. Moves: a gentle sway at idle, arms thrown overhead on the celebrate jump, swinging opposite the legs on send, resting in every other mood. **In the app since 4 Oct 2026 for celebrate and send** (they come and go with the legs).
 
+## Season outfits (Kobo lab only, 4 Oct 2026)
+
+Built in the Rive file and previewed at `kobo-lab/events.html`, **not in the app yet**. Each outfit is a group inside Kobo's body (so it jumps and sways with him) with its own number input (0–1) driving its opacity; the app would set the one for the season.
+
+| Input | Event | Outfit |
+|---|---|---|
+| `xmas` | Christmas | Red Santa hat, white fur band and pompom |
+| `newyear` | New Year | Gold party hat with navy stripes, pink pompom, confetti |
+| `love` | Valentine's | Red headband with heart deely-boppers |
+| `mama` | Mothering Sunday | Coral gele, pleated fan with gold edging, white flower |
+| `sallah` | Sallah (both Eids) | Green kufi cap with a gold band and star |
+| `easter` | Easter | Lilac headband with white bunny ears |
+| `naija` | Independence Day | Green-white-green flag on a stick, rosette on his chest |
+
+The lab file's artboard is **320×500** (40 units more headroom than the app's 320×460, so tall hats clear the frame at the top of the celebrate jump). When outfits move into the app, `RiveKobo.tsx` must change its canvas height from `460 / 240` to `500 / 240` along with the new `kobo.riv`.
+
 ## 1. Product poses (needed regardless of season)
 
 | Pose | Where it's used | Notes |
