@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFillHeight } from '../lib/fill';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { countdown, dayLabel, fmtTime, greeting, lagos, MON, MONL, N, WD, toWhom } from '../lib/format';
@@ -10,6 +11,7 @@ import { VerifyCard } from './Verify';
 
 export default function Home() {
   const [showAll, setShowAll] = useState(false);  // Coming up: 6 by default, the rest on request
+  const comingRef = useFillHeight<HTMLDivElement>(0);
   const store = useStore();
   const { summary, plans, me, reload, toast } = store;
   const nav = useNavigate();
@@ -108,7 +110,7 @@ export default function Home() {
               <div style={{ marginTop: 4 }}><StatusPill status={next.status} /></div></div></div>
         )}
         <div className="section-h"><h2>Coming up</h2><button className="link" onClick={() => nav('/calendar')}>Calendar</button></div>
-        <div className={`list coming ${showAll ? 'expanded' : ''}`}>
+        <div className={`list coming ${showAll ? 'expanded' : ''}`} ref={comingRef}>
           {f.events.map((e, i) => {
             const p = byId.get(e.plan_id); if (!p) return null; const d = lagos(e.at);
             return (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFillHeight } from '../lib/fill';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { cadence, dateLabel, dayLabel, dayLabelY, fmtTime, N, toWhom } from '../lib/format';
@@ -40,6 +41,7 @@ export default function Plans() {
 
   // Running plans first (in the order they were made), paused ones at the bottom; a filter narrows to either.
   const [show, setShow] = useState<'all' | 'running' | 'paused'>('all');
+  const scrollRef = useFillHeight<HTMLDivElement>(74);  // leave room for the two buttons under the list
   const running = plans.filter((p) => p.state !== 'finished' && p.status !== 'paused');
   const pausedPlans = plans.filter((p) => p.state !== 'finished' && p.status === 'paused');
   const current = show === 'running' ? running : show === 'paused' ? pausedPlans : [...running, ...pausedPlans];
@@ -111,7 +113,7 @@ export default function Plans() {
             ))}
           </div>
         )}
-        <div className="plan-scroll">
+        <div className="plan-scroll" ref={scrollRef}>
         <div className="plan-list">
           {current.map((p) => {
             const { soon } = planMeta(p);

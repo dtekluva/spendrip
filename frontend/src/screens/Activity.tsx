@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFillHeight } from '../lib/fill';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { dayLabel, fmtTime, N } from '../lib/format';
@@ -71,6 +72,7 @@ export default function Activity() {
   const [filter, setFilter] = useState<'all' | 'money' | 'msg'>('all');
   const [showAll, setShowAll] = useState(false);  // phones: 10 items, then View more; wide screens scroll the list in its own box
   useEffect(() => { api.get<ActivityItem[]>('/activity').then(setItems); }, []);
+  const listRef = useFillHeight<HTMLDivElement>(0, 240, items !== null);
   if (!items) return <div className="stack"><div className="skeleton" /><div className="skeleton" /></div>;
 
   const shown = items.filter((a) => filter === 'all' || (filter === 'money' ? a.status !== 'waited' : !!a.whatsapp));
@@ -83,7 +85,7 @@ export default function Activity() {
         <div className="seg" role="group" aria-label="Filter">
           {([['all', 'All'], ['money', 'Money'], ['msg', 'Messages']] as const).map(([k, l]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}
         </div>
-        <div className={`act-list ${showAll ? 'expanded' : ''}`}>
+        <div className={`act-list ${showAll ? 'expanded' : ''}`} ref={listRef}>
         {shown.map((a, i) => {
           const lbl = dayLabel(a.at); const head = lbl !== last ? <div className="day-h">{lbl}</div> : null; last = lbl;
           const extra = i >= 10 ? 'extra' : '';
