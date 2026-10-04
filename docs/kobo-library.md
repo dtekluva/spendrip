@@ -17,6 +17,27 @@ The app picks the outfit by date, from a small `season` value the API sends with
 
 Rules for every outfit: it must read at 40 px (the chip hint, the Activity rows), keep the face uncovered, and have a reduced-motion version.
 
+## Legs (new, 4 Oct 2026)
+
+Kobo can have short legs and blue trainers (brand cobalt `#2436F2`, laces in white), but only where movement or attitude needs them. Most poses stay legless so Kobo still reads as a drop at 40 px.
+
+Build them as a `legs` boolean (or a `legsPose` number) in the view model, separate from `moodIndex`, so a pose can switch them on.
+
+| Pose | Legs? | Why |
+|---|---|---|
+| idle, waiting, worried, sleep, peek, puddle | No | A drop sitting still; legs add clutter. |
+| happy | Optional, a small bounce | |
+| celebrate | **Yes**: jumping, kicking out | The biggest win from legs. |
+| send | **Yes**: running, a dust puff behind | Shows money moving. |
+| fill (money arriving) | Yes: a little tap dance | |
+| point | Yes: weight on one foot | |
+| Lost (404) | **Yes**: standing, feet turned out, one heel up | Live now on the 404 page. |
+| Chilling (404) | **Yes**: stretched out on the deckchair, crossed at the ankle | Live now on the 404 page. |
+| Selfie coach, walking in, waving goodbye | Yes | Walking in and out of screens. |
+| Seasonal: Independence Day march, football kick, dancing at New Year | Yes | |
+
+Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `landing/kobo-chill.svg`; the Rive version should match their proportions (legs about a quarter of the drop's height).
+
 ## 1. Product poses (needed regardless of season)
 
 | Pose | Where it's used | Notes |

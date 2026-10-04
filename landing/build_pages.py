@@ -169,9 +169,13 @@ def page_html(p: dict, pages: list[dict]) -> str:
 '''
 
 
-LOST_KOBO = """<svg class="lost-kobo" viewBox="0 0 120 150" aria-hidden="true">
+LOST_KOBO = """<svg class="lost-kobo" viewBox="0 0 120 166" aria-hidden="true">
   <defs><linearGradient id="lk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FFC400"/></linearGradient></defs>
-  <ellipse cx="60" cy="142" rx="30" ry="5" fill="#0B1040" opacity=".12"/>
+  <ellipse cx="60" cy="160" rx="34" ry="5" fill="#0B1040" opacity=".12"/>
+  <g fill="none" stroke="#E0A400" stroke-width="6" stroke-linecap="round"><path d="M48 132 L43 152"/><path d="M72 132 L79 149"/></g>
+  <ellipse cx="38" cy="155" rx="10" ry="5.5" fill="#2436F2" transform="rotate(-12 38 155)"/>
+  <ellipse cx="85" cy="151" rx="10" ry="5.5" fill="#1726C9" transform="rotate(24 85 151)"/>
+  <path d="M33 153 h6 M81 148 h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
   <path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z" fill="url(#lk)" stroke="#E0A400" stroke-width="2"/>
   <ellipse cx="40" cy="64" rx="7" ry="12" fill="#fff" opacity=".55" transform="rotate(25 40 64)"/>
   <circle cx="45" cy="92" r="5.5" fill="#0E1233"/><circle cx="75" cy="92" r="5.5" fill="#0E1233"/>
@@ -204,7 +208,7 @@ def not_found_html(pages: list[dict]) -> str:
 <script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
 <style>
 .nf{{display:grid;gap:22px;justify-items:center;text-align:center;padding:56px 0 24px}}
-.nf .lost-kobo{{width:120px;height:150px;animation:nf-bob 2.6s ease-in-out infinite}}
+.nf .lost-kobo{{width:120px;height:166px;animation:nf-bob 2.6s ease-in-out infinite}}
 @keyframes nf-bob{{0%,100%{{transform:translateY(0) rotate(-4deg)}}50%{{transform:translateY(-8px) rotate(4deg)}}}}
 @media (prefers-reduced-motion:reduce){{.nf .lost-kobo{{animation:none}}}}
 .nf h1{{font-family:var(--display,Unbounded,sans-serif);font-size:clamp(30px,5vw,48px);margin:0;line-height:1.1}}
