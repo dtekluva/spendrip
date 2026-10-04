@@ -57,6 +57,14 @@ Built in the Rive file and previewed at `kobo-lab/events.html`, **not in the app
 | `sallah` | Sallah (both Eids) | Green kufi cap with a gold band and star |
 | `easter` | Easter | Lilac headband with white bunny ears |
 | `naija` | Independence Day | Green-white-green flag on a stick, rosette on his chest |
+| `halloween` | Halloween 🇺🇸 (31 Oct) | Purple witch hat, orange band, gold buckle |
+| `thanksgiving` | Thanksgiving 🇺🇸 (4th Thursday of Nov) | Burnt-orange knitted beanie with a cream pompom and an autumn leaf |
+| `stpatrick` | St Patrick's Day 🇺🇸 (17 Mar) | Green top hat with a black band and a shamrock |
+| `usmom` | Mother's Day 🇺🇸 (2nd Sunday of May) | Flower crown: pink, white and lilac flowers on a green vine |
+| `juneteenth` | Juneteenth 🇺🇸 (19 Jun) | The Juneteenth flag (blue over red, white horizon and star) on a stick |
+| `july4` | Fourth of July 🇺🇸 (4 Jul) | Stars-and-stripes top hat |
+
+Left out on purpose: Memorial Day, Veterans Day and MLK Day are days of remembrance, so no costume. If we mark them, a quiet touch only (for example a small ribbon), never a hat. Presidents' Day and Labor Day are low priority.
 
 The lab file's artboard is **320×500** (40 units more headroom than the app's 320×460, so tall hats clear the frame at the top of the celebrate jump). When outfits move into the app, `RiveKobo.tsx` must change its canvas height from `460 / 240` to `500 / 240` along with the new `kobo.riv`.
 
