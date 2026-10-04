@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kobo events</title>
+<style>
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#F4F5FB;color:#0E1233}
+  header{padding:18px 24px}h1{margin:0;font-size:22px}header p{margin:6px 0 0;color:#5D6390}
+  .ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-weight:600;font-size:14px;padding:0 24px 16px}
+  select{font:inherit;padding:6px 10px;border-radius:10px;border:1px solid #E1E4F1;background:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:0 24px 32px}
+  .card{background:#fff;border:1px solid #E1E4F1;border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center}
+  canvas{width:200px;height:312px}
+  .card b{font-size:16px}.card small{color:#5D6390;font-size:13px;line-height:1.4}
+  .rg{font-size:13px}
+  .sw{display:flex;gap:4px;margin-top:2px}.sw i{width:14px;height:14px;border-radius:4px;display:block;border:1px solid #E1E4F1}
+</style></head>
+<body>
+<header><h1>Kobo for the seasons</h1><p>Preview only, nothing here is in the app. Each Kobo is live: pick a mood, move your pointer.</p></header>
+<div class="ctl">
+  <label>Mood <select id="mood">
+    <option value="0">idle</option><option value="1">happy</option><option value="2">celebrate</option><option value="3">send</option>
+    <option value="5">waiting</option><option value="8">sleep</option><option value="9">peek</option></select></label>
+  <label><input type="checkbox" id="legs"> Legs and hands</label>
+</div>
+<div class="grid" id="grid"></div>
+<script src="https://unpkg.com/@rive-app/canvas@2"></script>
+<script>
+  const EVENTS = [
+    ["xmas", "Christmas", "24–26 Dec", "Red, green and gold", ["#E5233B", "#12B283", "#FFC400"]],
+    ["newyear", "New Year", "1 Jan", "Midnight blue and gold: a fresh start", ["#1E2560", "#FFC400", "#FF4F8B"]],
+    ["love", "Valentine's", "14 Feb", "Pink and red: love and care", ["#E5233B", "#FF4F8B"]],
+    ["mama", "Mothering Sunday", "7 Mar 2027", "Coral and gold, a gele for Mama", ["#FF6F61", "#FFC400"]],
+    ["sallah", "Sallah (Eid)", "~10 Mar and ~16 May 2027", "Green and gold", ["#0F7A4F", "#FFC400"]],
+    ["easter", "Easter", "26–29 Mar 2027", "Lilac and spring yellow: renewal", ["#9B7BD8", "#FFB3D1", "#FFD23F"]],
+    ["naija", "Independence Day", "1 Oct", "Green-white-green: the flag", ["#008751", "#FFFFFF", "#008751"]],
+    ["halloween", "Halloween", "31 Oct", "Orange and midnight purple", ["#FF8A1F", "#3A2566"], "US"],
+    ["thanksgiving", "Thanksgiving", "26 Nov 2026", "Autumn orange and brown: gratitude and harvest", ["#D9622B", "#B84E1E", "#C8361B"], "US"],
+    ["stpatrick", "St Patrick's Day", "17 Mar", "Green: Irish heritage", ["#1F8A4C", "#12B283", "#FFC400"], "US"],
+    ["usmom", "Mother's Day (US)", "9 May 2027", "Pink, white and lilac flowers", ["#FF4F8B", "#B79CF0", "#FFFFFF"], "US"],
+    ["juneteenth", "Juneteenth", "19 Jun", "Red, white and blue of the Juneteenth flag: freedom and a new horizon", ["#1E3A8A", "#D62839", "#FFFFFF"], "US"],
+    ["july4", "Fourth of July", "4 Jul", "Red, white and blue", ["#D62839", "#FFFFFF", "#1E3A8A"], "US"],
+  ];
+  const grid = document.getElementById("grid"), all = [];
+  for (const [key, name, when, meaning, colours, region = "NG"] of EVENTS) {
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = `<canvas width="400" height="624"></canvas><b>${name} <span class="rg">${region === "US" ? "🇺🇸" : "🇳🇬"}</span></b><small>${when}<br>${meaning}</small><span class="sw">${colours.map(c => `<i style="background:${c}"></i>`).join("")}</span>`;
+    grid.appendChild(card);
+    const r = new rive.Rive({ src: "kobo.riv", canvas: card.querySelector("canvas"), artboard: "Kobo", stateMachines: "State Machine 1",
+      autoplay: true, autoBind: true, layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.BottomCenter }),
+      onLoad: () => { r.resizeDrawingSurfaceToCanvas(); apply(); } });
+    r._key = key; all.push(r);
+  }
+  const num = (r, n) => { try { return r.viewModelInstance && r.viewModelInstance.number(n); } catch (e) { return null; } };
+  function apply() {
+    const m = +document.getElementById("mood").value, legs = document.getElementById("legs").checked;
+    for (const r of all) {
+      const set = (n, v) => { const p = num(r, n); if (p) p.value = v; };
+      set(r._key, 1); set("moodIndex", m); set("legs", legs ? 1 : 0); set("hands", legs ? 1 : 0); set("lift", legs ? -47 : 0);
+    }
+  }
+  document.getElementById("mood").onchange = apply; document.getElementById("legs").onchange = apply;
+  window.addEventListener("pointermove", (e) => {
+    for (const r of all) {
+      const x = num(r, "lookX"), y = num(r, "lookY"); if (!x || !y) continue;
+      const b = r.canvas.getBoundingClientRect(), dx = e.clientX - (b.left + b.width / 2), dy = e.clientY - (b.top + b.height * 0.7);
+      const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 300); x.value = (dx / d) * 8 * k; y.value = (dy / d) * 6 * k;
+    }
+  });
+</script>
+</body></html>

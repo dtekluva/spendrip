@@ -3,6 +3,7 @@ import { useRive, useViewModelInstanceNumber } from '@rive-app/react-canvas';
 import { RuntimeLoader } from '@rive-app/canvas';
 import wasmUrl from '@rive-app/canvas/rive.wasm?url';
 import type { KoboMood } from './Kobo';
+import { useOutfit } from '../lib/season';
 
 // Ship the Rive engine with the app instead of fetching it from a public CDN.
 RuntimeLoader.setWasmUrl(wasmUrl);
@@ -36,6 +37,15 @@ export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size
   const { setValue: setLift } = useViewModelInstanceNumber('lift', instance);
   const { setValue: setHands } = useViewModelInstanceNumber('hands', instance);
   const box = useRef<HTMLSpanElement>(null);
+  const outfit = useOutfit();
+
+  // Seasonal outfit from the admin: put it on, and take the last one off if it changed.
+  useEffect(() => {
+    if (!instance || !outfit) return;
+    const p = instance.number(outfit);
+    if (p) p.value = 1;
+    return () => { const q = instance.number(outfit); if (q) q.value = 0; };
+  }, [instance, outfit]);
   const standing = useRef(0);  // 0 = no legs, 1 = on his feet
 
   // Legs and hands: ease up onto his feet (hands fading in) as a leg mood starts, and back down after, instead of popping.
@@ -76,13 +86,13 @@ export default function RiveKobo({ mood, size, onReady }: { mood: KoboMood; size
     return () => { window.removeEventListener('pointermove', onMove); if (frame) cancelAnimationFrame(frame); };
   }, [instance, setLookX, setLookY]);
 
-  // The artboard (320×460) is bigger than Kobo's box (240×288 units) so jumps, sparkles and the flung droplet
+  // The artboard (320×500) is bigger than Kobo's box (240×288 units) so jumps, sparkles and the flung droplet
   // aren't clipped. It overflows the box upwards and sideways, like the SVG version does.
   return (
     <span ref={box} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <RiveComponent aria-hidden="true" style={{
         position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: size * (320 / 240), height: size * (460 / 240), pointerEvents: 'none',
+        width: size * (320 / 240), height: size * (500 / 240), pointerEvents: 'none',
       }} />
     </span>
   );

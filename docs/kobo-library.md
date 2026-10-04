@@ -38,7 +38,7 @@ Build them as a `legs` boolean (or a `legsPose` number) in the view model, separ
 
 **In the app since 4 Oct 2026:** celebrate (legs kick out on the jump) and send (running legs). The Rive file (`frontend/public/kobo.riv`, 320×460 artboard) has `legs` (0–1) and `lift` (−47 = standing) inputs; `RiveKobo.tsx` eases them in over 220 ms for the moods in `LEG_MOODS`.
 
-Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `landing/kobo-chill.svg`; the Rive version should match their proportions (legs about a quarter of the drop's height).
+Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `landing/kobo-chill.svg`. The Rive source is in `design/kobo-lab/` (see its README); the Rive version should match their proportions (legs about a quarter of the drop's height).
 
 ## Hands (4 Oct 2026)
 
@@ -46,7 +46,7 @@ Gold noodle arms from each side of the drop, ending in round yellow mitts with a
 
 ## Season outfits (Kobo lab only, 4 Oct 2026)
 
-Built in the Rive file and previewed at `kobo-lab/events.html`, **not in the app yet**. Each outfit is a group inside Kobo's body (so it jumps and sways with him) with its own number input (0–1) driving its opacity; the app would set the one for the season.
+Built in the Rive file and previewed at `design/kobo-lab/events.html`. **In the app since 4 Oct 2026, switched on from the admin** (see below). Each outfit is a group inside Kobo's body (so it jumps and sways with him) with its own number input (0–1) driving its opacity; the app would set the one for the season.
 
 | Input | Event | Outfit |
 |---|---|---|
@@ -66,7 +66,13 @@ Built in the Rive file and previewed at `kobo-lab/events.html`, **not in the app
 
 Left out on purpose: Memorial Day, Veterans Day and MLK Day are days of remembrance, so no costume. If we mark them, a quiet touch only (for example a small ribbon), never a hat. Presidents' Day and Labor Day are low priority.
 
-The lab file's artboard is **320×500** (40 units more headroom than the app's 320×460, so tall hats clear the frame at the top of the celebrate jump). When outfits move into the app, `RiveKobo.tsx` must change its canvas height from `460 / 240` to `500 / 240` along with the new `kobo.riv`.
+The artboard is **320×500**, so tall hats clear the frame at the top of the celebrate jump.
+
+### Switching an outfit on
+
+Admin → **Seasons** (https://api.spendrip.com/admin/seasons/season/). Each row is an outfit with a first and last day (Lagos time) and an *active* tick. Every Kobo in the app wears the outfit of the live row and takes it off after the last day; a change reaches everyone within 5 minutes, no app release. If two rows overlap, the one that started more recently wins. The coming year is pre-filled, all switched off (`python manage.py seed_seasons`); tick *active* on the ones you want, and move the two Sallah rows to the moon-sighted dates.
+
+The website (spendrip.com) and email Kobos are separate drawings and don't change with the seasons.
 
 ## 1. Product poses (needed regardless of season)
 

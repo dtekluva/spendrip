@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "ledger",
     "drips",
     "notifications",
+    "seasons",
 ]
 
 MIDDLEWARE = [

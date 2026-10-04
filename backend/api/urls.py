@@ -3,10 +3,12 @@ from django.urls import path
 from . import app_views as app
 from . import auth_views as auth
 from . import system_views as system
+from seasons.views import CurrentSeason
 
 urlpatterns = [
     # system
     path("health", system.Health.as_view()),
+    path("season", CurrentSeason.as_view()),
     path("cron/tick", system.CronTick.as_view()),
     path("webhooks/liberty", system.LibertyWebhook.as_view()),
     path("webhooks/paystack", system.paystack_webhook),

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kobo lab</title>
+<style>
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#F4F5FB;color:#0E1233}
+  header{padding:18px 24px}h1{margin:0;font-size:22px}p{margin:6px 0 0;color:#5D6390}
+  .row{display:flex;gap:24px;flex-wrap:wrap;padding:0 24px 24px}
+  .card{background:#fff;border:1px solid #E1E4F1;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:center}
+  canvas{width:320px;height:500px}
+  .ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-weight:600;font-size:14px}
+  select,button{font:inherit;padding:6px 10px;border-radius:10px;border:1px solid #E1E4F1;background:#fff}
+  b.tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#5D6390}
+</style></head>
+<body>
+<header><h1>Kobo lab</h1><p>Preview only. Nothing here is in the app. Move your pointer around: the new Kobo's eyes follow it.</p></header>
+<div class="ctl" style="padding:0 24px 16px">
+  <label>Mood <select id="mood">
+    <option value="0">idle</option><option value="1">happy</option><option value="2">celebrate</option><option value="3">send</option>
+    <option value="4">fill</option><option value="5">waiting</option><option value="6">worried</option><option value="7">puddle</option>
+    <option value="8">sleep</option><option value="9">peek</option><option value="10">point</option></select></label>
+  <label><input type="checkbox" id="legs" checked> Legs and shorts</label>
+  <label><input type="checkbox" id="hands" checked> Hands</label>
+  <label><input type="checkbox" id="follow" checked> Eyes follow pointer</label>
+</div>
+<div class="row">
+  <div class="card"><b class="tag">Today, in the app</b><canvas id="today" width="640" height="800" style="height:400px"></canvas></div>
+  <div class="card"><b class="tag">New: legs, shorts, hands, eye-following</b><canvas id="lab" width="640" height="1000"></canvas></div>
+</div>
+<script src="https://unpkg.com/@rive-app/canvas@2"></script>
+<script>
+  const mk = (canvas, src, onLoad) => new rive.Rive({ src, canvas, artboard: "Kobo", stateMachines: "State Machine 1", autoplay: true, autoBind: true,
+    layout: new rive.Layout({ fit: rive.Fit.Contain }), onLoad });
+  const today = mk(document.getElementById("today"), "kobo-before-legs-2026-10-04.riv", () => { today.resizeDrawingSurfaceToCanvas(); apply(); });
+  const lab = mk(document.getElementById("lab"), "kobo.riv", () => { lab.resizeDrawingSurfaceToCanvas(); apply(); });
+  const num = (r, name) => { try { return r.viewModelInstance && r.viewModelInstance.number(name); } catch (e) { return null; } };
+  function apply() {
+    const m = +document.getElementById("mood").value, legs = document.getElementById("legs").checked;
+    [today, lab].forEach(r => { const p = num(r, "moodIndex"); if (p) p.value = m; });
+    const l = num(lab, "legs"), lift = num(lab, "lift");
+    if (l) l.value = legs ? 1 : 0;
+    if (lift) lift.value = legs ? -47 : 0;
+    const h = num(lab, "hands");  // the pointing mood has its own arms, so the new hands stay hidden there
+    if (h) h.value = document.getElementById("hands").checked && m !== 10 ? 1 : 0;
+  }
+  document.getElementById("mood").onchange = apply;
+  document.getElementById("legs").onchange = apply;
+  document.getElementById("hands").onchange = apply;
+  window.addEventListener("pointermove", (e) => {
+    const x = num(lab, "lookX"), y = num(lab, "lookY");
+    if (!x || !y) return;
+    if (!document.getElementById("follow").checked) { x.value = 0; y.value = 0; return; }
+    const r = document.getElementById("lab").getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height * 0.62);
+    const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 300);
+    x.value = (dx / d) * 8 * k; y.value = (dy / d) * 6 * k;
+  });
+</script>
+</body></html>
