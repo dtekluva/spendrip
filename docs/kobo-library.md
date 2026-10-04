@@ -40,9 +40,9 @@ Build them as a `legs` boolean (or a `legsPose` number) in the view model, separ
 
 Today's drawings with legs live in `landing/build_pages.py` (`LOST_KOBO`) and `landing/kobo-chill.svg`; the Rive version should match their proportions (legs about a quarter of the drop's height).
 
-## Hands (in the Kobo lab only, 4 Oct 2026)
+## Hands (4 Oct 2026)
 
-Gold noodle arms from each side of the drop, ending in round yellow mitts with a thumb (the same style as the arm in the *point* pose). A `hands` input (0–1) switches them on; the pointing mood keeps its own arms instead. Moves: a gentle sway at idle, arms thrown overhead on the celebrate jump, swinging opposite the legs on send, resting in every other mood. Not in the app yet.
+Gold noodle arms from each side of the drop, ending in round yellow mitts with a thumb (the same style as the arm in the *point* pose). A `hands` input (0–1) switches them on; the pointing mood keeps its own arms instead. Moves: a gentle sway at idle, arms thrown overhead on the celebrate jump, swinging opposite the legs on send, resting in every other mood. **In the app since 4 Oct 2026 for celebrate and send** (they come and go with the legs).
 
 ## 1. Product poses (needed regardless of season)
 
