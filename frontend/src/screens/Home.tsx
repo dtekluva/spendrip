@@ -6,9 +6,11 @@ import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
 import { openAppearance } from './Appearance';
+import { personColour, plansFor } from './People';
 import { VerifyCard } from './Verify';
 
 export default function Home() {
+  const [showAll, setShowAll] = useState(false);  // Coming up: 6 by default, the rest on request
   const store = useStore();
   const { summary, plans, me, reload, toast } = store;
   const nav = useNavigate();
@@ -18,6 +20,7 @@ export default function Home() {
 
   const f = summary.forecast;
   const bal = summary.balance.available_kobo;
+  const people = store.recipients.filter((r) => !r.label.endsWith('(removed)')).sort((x, y) => Number(y.is_self) - Number(x.is_self));
   const byId = new Map(plans.map((p) => [p.id, p]));
   const month = MONL[lagos(new Date()).m - 1];
   const waits = f.events.filter((e) => e.status === 'wait' || e.status === 'cap');
@@ -96,7 +99,7 @@ export default function Home() {
         )}
         <div className="section-h"><h2>Coming up</h2><button className="link" onClick={() => nav('/calendar')}>Calendar</button></div>
         <div className="list">
-          {f.events.slice(0, 9).map((e, i) => {
+          {f.events.slice(0, showAll ? undefined : 6).map((e, i) => {
             const p = byId.get(e.plan_id); if (!p) return null; const d = lagos(e.at);
             return (
               <button key={i} className="row" onClick={() => nav(`/plans?open=${p.id}`)}>
@@ -108,6 +111,21 @@ export default function Home() {
             );
           })}
           {!f.events.length && <div className="row" style={{ gridTemplateColumns: '1fr' }}><span className="muted">Nothing else this month.</span></div>}
+          {f.events.length > 6 && (
+            <button className="row more" style={{ gridTemplateColumns: '1fr' }} onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+              <span>{showAll ? 'Show fewer' : `View ${f.events.length - 6} more this month`}</span></button>
+          )}
+        </div>
+        <div className="section-h"><h2>People you pay</h2><button className="link" onClick={() => nav('/people')}>View all</button></div>
+        <div className="people-strip">
+          {people.slice(0, 6).map((r) => (
+            <button key={r.id} className="person" onClick={() => nav('/people')} title={`${r.verified_account_name} · ${r.bank_name}`}>
+              <span className={`tile t-${personColour(r)}`}>{r.is_self ? '🙋' : r.label[0]}</span>
+              <span className="nm">{r.is_self ? 'Me' : r.label}</span>
+              <span className="small muted">{plansFor(r, plans).length || 'no'} plan{plansFor(r, plans).length === 1 ? '' : 's'}</span>
+            </button>
+          ))}
+          <button className="person add" onClick={() => nav('/people')}><span className="tile t-mint">＋</span><span className="nm">Add</span><span className="small muted">someone</span></button>
         </div>
       </div></div>
     </div>

@@ -48,7 +48,7 @@ export default function NewPlan() {
     frequency: 'monthly', weekday: 5, month_day: 28, month_day_last: false, time_local: '09:00', priority_rank: 0,
     start_date: todayISO(), end_mode: 'ongoing', duration_months: 3, end_date: addMonthsISO(todayISO(), 1),
   } : {
-    kind: 'single', lines: [], label: 'Food', emoji: '🍔', tint: TINTS[plans.length % 4]!, amount_kobo: 1_000_000, recipient_id: recipients.find((r) => r.is_self)?.id ?? recipients[0]?.id ?? null,
+    kind: 'single', lines: [], label: 'Food', emoji: '🍔', tint: TINTS[plans.length % 4]!, amount_kobo: 1_000_000, recipient_id: (params.get('to') && recipients.find((r) => r.id === Number(params.get('to')))?.id) || (recipients.find((r) => r.is_self)?.id ?? recipients[0]?.id ?? null),
     frequency: 'weekly', weekday: 5, month_day: 1, month_day_last: false, time_local: '14:00', priority_rank: 0,
     start_date: todayISO(), end_mode: 'ongoing', duration_months: 3, end_date: addMonthsISO(todayISO(), 1),
   });

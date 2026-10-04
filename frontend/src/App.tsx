@@ -16,6 +16,7 @@ import Calendar from './screens/Calendar';
 import Fund from './screens/Fund';
 import Activity from './screens/Activity';
 import Profile from './screens/Profile';
+import People from './screens/People';
 import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
 import Verify from './screens/Verify';
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="/fund/card" element={<CardReturn />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/people" element={<People />} />
             <Route path="/kobo" element={<KoboGallery />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="*" element={<Navigate to="/" replace />} />
