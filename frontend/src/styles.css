@@ -940,3 +940,5 @@ a{color:inherit}
   .act-list > .extra{display:block}
   .act-list > .act.more{display:none}
 }
+.act-list > div + div > .day-h{margin-top:14px}
+.act-list .day-h{margin-bottom:8px}

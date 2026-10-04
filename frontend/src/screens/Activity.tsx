@@ -92,7 +92,7 @@ export default function Activity() {
           if (a.kind === 'group') return <div key={i} className={extra}>{head}<GroupRow a={a} onRetried={() => api.get<ActivityItem[]>('/activity').then(setItems)} /></div>;
           const isIn = a.kind === 'inflow';
           const title = isIn ? `${N(a.amount_kobo)} added` : `${a.plan!.label} ${({ sent: 'sent', waited: 'waited', failed: "didn't go through", missed: 'was missed', sending: 'is sending', paused: 'was paused' } as Record<string, string>)[a.status] ?? a.status}`;
-          const sub = isIn ? `Bank transfer${a.sender ? ` from ${a.sender}` : ''}` : a.status === 'waited' ? REASON[a.reason ?? ''] ?? 'Waited for a top-up.' : `To ${a.recipient!.label} · ${a.recipient!.bank_name} ••${a.recipient!.account_last4}`;
+          const sub = isIn ? (a.sender && /top-up$/i.test(a.sender) ? a.sender : `Bank transfer${a.sender ? ` from ${a.sender}` : ''}`) : a.status === 'waited' ? REASON[a.reason ?? ''] ?? 'Waited for a top-up.' : `To ${a.recipient!.label} · ${a.recipient!.bank_name} ••${a.recipient!.account_last4}`;
           const sign = isIn ? '+' : a.status === 'sent' || a.status === 'sending' ? '−' : '';
           return (
             <div key={i} className={extra}>
