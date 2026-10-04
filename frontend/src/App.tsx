@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { onAuthProblem } from './lib/api';
 import { useStore } from './lib/store';
 import type { Me } from './lib/types';
@@ -17,6 +17,7 @@ import Fund from './screens/Fund';
 import Activity from './screens/Activity';
 import Profile from './screens/Profile';
 import People from './screens/People';
+import NotFound from './screens/NotFound';
 import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
 import Verify from './screens/Verify';
@@ -79,7 +80,7 @@ export default function App() {
             <Route path="/people" element={<People />} />
             <Route path="/kobo" element={<KoboGallery />} />
             <Route path="/verify" element={<Verify />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </section>
       </div>

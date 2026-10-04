@@ -169,6 +169,70 @@ def page_html(p: dict, pages: list[dict]) -> str:
 '''
 
 
+LOST_KOBO = """<svg class="lost-kobo" viewBox="0 0 120 150" aria-hidden="true">
+  <defs><linearGradient id="lk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FFC400"/></linearGradient></defs>
+  <ellipse cx="60" cy="142" rx="30" ry="5" fill="#0B1040" opacity=".12"/>
+  <path d="M60 6S14 66 14 92a46 46 0 0 0 92 0C106 66 60 6 60 6z" fill="url(#lk)" stroke="#E0A400" stroke-width="2"/>
+  <ellipse cx="40" cy="64" rx="7" ry="12" fill="#fff" opacity=".55" transform="rotate(25 40 64)"/>
+  <circle cx="45" cy="92" r="5.5" fill="#0E1233"/><circle cx="75" cy="92" r="5.5" fill="#0E1233"/>
+  <circle cx="47" cy="90" r="1.8" fill="#fff"/><circle cx="77" cy="90" r="1.8" fill="#fff"/>
+  <ellipse cx="60" cy="112" rx="6" ry="7" fill="#0E1233"/>
+  <ellipse cx="34" cy="106" rx="7" ry="4" fill="#FF4F8B" opacity=".35"/><ellipse cx="86" cy="106" rx="7" ry="4" fill="#FF4F8B" opacity=".35"/>
+  <text x="98" y="36" font-family="Unbounded,Arial Black,sans-serif" font-weight="800" font-size="30" fill="#2436F2">?</text>
+</svg>"""
+
+
+def not_found_html(pages: list[dict]) -> str:
+    """Netlify serves /404.html for any address that doesn't exist, with a real 404 status."""
+    guides = "".join(f'<a class="rel-card" href="/{p["slug"]}/"><b>{esc(p["h1"])}</b><span>{esc(p["description"])}</span></a>'
+                     for p in pages if p["slug"] in ("scheduled-transfers", "fees", "send-money-to-parents-monthly", "security"))
+    return f'''<!doctype html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found | SpenDrip</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B1040">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/article.css">
+<script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
+<style>
+.nf{{display:grid;gap:22px;justify-items:center;text-align:center;padding:56px 0 24px}}
+.nf .lost-kobo{{width:120px;height:150px;animation:nf-bob 2.6s ease-in-out infinite}}
+@keyframes nf-bob{{0%,100%{{transform:translateY(0) rotate(-4deg)}}50%{{transform:translateY(-8px) rotate(4deg)}}}}
+@media (prefers-reduced-motion:reduce){{.nf .lost-kobo{{animation:none}}}}
+.nf h1{{font-family:var(--display,Unbounded,sans-serif);font-size:clamp(30px,5vw,48px);margin:0;line-height:1.1}}
+.nf p{{font-size:18px;max-width:46ch;margin:0;color:var(--muted,#5D6390)}}
+.nf .acts{{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}}
+.nf-code{{font-weight:800;letter-spacing:.14em;font-size:13px;color:var(--muted,#5D6390)}}
+</style>
+</head>
+<body>
+{nav(pages)}
+<main class="article">
+  <div class="wrap art-wrap">
+    <section class="nf">
+      {LOST_KOBO}
+      <span class="nf-code">ERROR 404</span>
+      <h1>Kobo can't find this page</h1>
+      <p>The link may be old or mistyped. Your money is fine: this is only a missing page on our website.</p>
+      <div class="acts"><a class="btn btn-dark" href="/">Go to the home page</a><a class="btn btn-ghost" href="{APP}">Open the app</a></div>
+    </section>
+    <section class="art-sec"><h2>Popular pages</h2><div class="rel">{guides}</div></section>
+  </div>
+</main>
+{footer(pages)}
+</body>
+</html>
+'''
+
+
 def sitemap(pages: list[dict]) -> str:
     # Google ignores <priority> and <changefreq>; it uses <lastmod> when it's accurate.
     urls = [(f"{SITE}/", HOME_UPDATED)] + [(f"{SITE}/{p['slug']}/", p.get("updated", TODAY)) for p in pages]
@@ -184,6 +248,8 @@ def main():
         out.write_text(page_html(p, pages))
         print("wrote", out.relative_to(ROOT))
     (ROOT / "sitemap.xml").write_text(sitemap(pages))
+    (ROOT / "404.html").write_text(not_found_html(pages))
+    print("wrote 404.html")
     print("wrote sitemap.xml with", len(pages) + 1, "URLs")
 
 
