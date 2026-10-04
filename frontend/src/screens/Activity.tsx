@@ -69,6 +69,7 @@ export default function Activity() {
   const nav = useNavigate();
   const [items, setItems] = useState<ActivityItem[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'money' | 'msg'>('all');
+  const [showAll, setShowAll] = useState(false);  // phones: 10 items, then View more; wide screens scroll the list in its own box
   useEffect(() => { api.get<ActivityItem[]>('/activity').then(setItems); }, []);
   if (!items) return <div className="stack"><div className="skeleton" /><div className="skeleton" /></div>;
 
@@ -82,15 +83,17 @@ export default function Activity() {
         <div className="seg" role="group" aria-label="Filter">
           {([['all', 'All'], ['money', 'Money'], ['msg', 'Messages']] as const).map(([k, l]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}
         </div>
+        <div className={`act-list ${showAll ? 'expanded' : ''}`}>
         {shown.map((a, i) => {
           const lbl = dayLabel(a.at); const head = lbl !== last ? <div className="day-h">{lbl}</div> : null; last = lbl;
-          if (a.kind === 'group') return <div key={i}>{head}<GroupRow a={a} onRetried={() => api.get<ActivityItem[]>('/activity').then(setItems)} /></div>;
+          const extra = i >= 10 ? 'extra' : '';
+          if (a.kind === 'group') return <div key={i} className={extra}>{head}<GroupRow a={a} onRetried={() => api.get<ActivityItem[]>('/activity').then(setItems)} /></div>;
           const isIn = a.kind === 'inflow';
           const title = isIn ? `${N(a.amount_kobo)} added` : `${a.plan!.label} ${({ sent: 'sent', waited: 'waited', failed: "didn't go through", missed: 'was missed', sending: 'is sending', paused: 'was paused' } as Record<string, string>)[a.status] ?? a.status}`;
           const sub = isIn ? `Bank transfer${a.sender ? ` from ${a.sender}` : ''}` : a.status === 'waited' ? REASON[a.reason ?? ''] ?? 'Waited for a top-up.' : `To ${a.recipient!.label} · ${a.recipient!.bank_name} ••${a.recipient!.account_last4}`;
           const sign = isIn ? '+' : a.status === 'sent' || a.status === 'sending' ? '−' : '';
           return (
-            <div key={i}>
+            <div key={i} className={extra}>
               {head}
               <div className="act">
                 <span className={`ic t-${isIn ? 'mint' : a.plan!.tint}`}>{isIn ? '⬇️' : a.plan!.emoji}</span>
@@ -112,6 +115,11 @@ export default function Activity() {
             </div>
           );
         })}
+        {shown.length > 10 && (
+          <button className="act more" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+            {showAll ? 'Show fewer' : `View ${shown.length - 10} more`}</button>
+        )}
+        </div>
         {!shown.length && <div className="card kobo-empty"><Kobo mood="peek" size={64} follow /><span className="muted">Nothing here yet. Your first drip will show up here.</span></div>}
       </div><div className="col stack">
         <div className="card act-sum">

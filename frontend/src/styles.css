@@ -927,3 +927,16 @@ a{color:inherit}
   .coming .row.extra{display:grid}
   .coming .row.more{display:none}
 }
+
+/* Activity: phones show 10 items then "View more"; wide screens scroll the list in its own box. */
+.act-list{display:flex;flex-direction:column;gap:10px}
+.act-list > .extra{display:none}
+.act-list.expanded > .extra{display:block}
+.act.more{display:block;text-align:center;font-weight:800;color:var(--cobalt);padding:12px}
+@container app (min-width: 860px){
+  .act-list{max-height:calc(100dvh - 230px);min-height:min(420px,calc(100dvh - 230px));overflow-y:auto;overscroll-behavior:contain;
+    padding:2px 8px 24px 2px;margin:-2px -8px 0 -2px;scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+    mask-image:linear-gradient(to bottom,#000 calc(100% - 34px),transparent)}
+  .act-list > .extra{display:block}
+  .act-list > .act.more{display:none}
+}
