@@ -42,7 +42,7 @@ export const StatusPill = ({ status }: { status: string }) => {
 export function PinPad({ value, onChange, extra, disabled }: { value: string; onChange: (v: string) => void; extra?: ReactNode; disabled?: boolean }) {
   const press = (k: string) => { if (disabled) return; if (k === 'del') onChange(value.slice(0, -1)); else if (value.length < 4) onChange(value + k); };
   return (
-    <div className="pin-pad">
+    <div className="pin-pad" data-no-replay="">
       {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => <button key={n} type="button" onClick={() => press(n)}>{n}</button>)}
       {extra ?? <span />}
       <button type="button" onClick={() => press('0')}>0</button>

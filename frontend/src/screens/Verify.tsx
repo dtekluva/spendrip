@@ -35,7 +35,7 @@ export default function Verify() {
     </>
   );
   return (
-    <div className="kyc verify">
+    <div className="kyc verify" data-no-replay={step === 'done' ? undefined : ''}>  {/* ID photos and selfies are never recorded */}
       <div className="kyc-inner" key={step}>
         {step === 'document' && <DocStep header={header} dev={dev} onNext={() => setStep('liveness')} />}
         {step === 'liveness' && <LivenessStep header={header} dev={dev} onNext={async (m) => { setMe(m); await reload(); confetti(); setStep('done'); }} />}
