@@ -111,6 +111,7 @@ export default function Plans() {
             ))}
           </div>
         )}
+        <div className="plan-scroll">
         <div className="plan-list">
           {current.map((p) => {
             const { soon } = planMeta(p);
@@ -158,7 +159,8 @@ export default function Plans() {
             </div>
           </details>
         )}
-        <div style={{ display: 'flex', gap: 8 }}>
+        </div>
+        <div className="plan-actions">
           <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new')}>＋ New plan</button>
           <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new?group=1')}>👥 Pay several people</button>
         </div>

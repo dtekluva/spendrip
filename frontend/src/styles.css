@@ -904,3 +904,16 @@ a{color:inherit}
 .person .nm{font-weight:800;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .person.add .tile{border:2px dashed var(--line);background:transparent;color:var(--muted)}
 .list .row.more{justify-items:center;font-weight:800;color:var(--cobalt)}
+
+
+/* Plans: on wide screens the list scrolls on its own so the two actions stay in view; on phones the page scrolls
+   as one and the actions stick to the bottom of the screen instead (nested scrolling is awkward on a phone). */
+.plan-actions{display:flex;gap:8px;position:sticky;bottom:-28px;z-index:3;padding:10px 0 28px;margin-bottom:-28px;
+  background:linear-gradient(to bottom,transparent,var(--bg) 40%)}
+@container app (min-width: 860px){
+  .plan-scroll{overflow-y:auto;overscroll-behavior:contain;max-height:calc(100dvh - 250px);min-height:min(420px,calc(100dvh - 250px));
+    padding:2px 8px 24px 2px;margin:-2px -8px 0 -2px;scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+    mask-image:linear-gradient(to bottom,#000 calc(100% - 34px),transparent)}
+  .plan-scroll > .plan-list + .finished-list{margin-top:14px}
+  .plan-actions{position:static;padding:4px 0 0;margin:0;background:none}
+}
