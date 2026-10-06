@@ -126,7 +126,8 @@ def render(d: Data) -> tuple[str, str, str]:
     s = sections(d)
     t, p, w = d.totals, d.totals_prev, d.totals_world
     month = d.start.strftime("%B %Y")
-    subject = f"🔎 SpenDrip in Google, {month}: {_num(t['clicks'])} clicks, {_num(t['impressions'])} times shown in Nigeria"
+    plural = lambda n, word: f"{_num(n)} {word}{'' if n == 1 else 's'}"
+    subject = f"🔎 SpenDrip in Google, {month}: {plural(t['clicks'], 'click')}, shown {plural(t['impressions'], 'time')} in Nigeria"
     headline = [
         ("Clicks", _num(t["clicks"]), _pct(t["clicks"], p["clicks"])),
         ("Times shown", _num(t["impressions"]), _pct(t["impressions"], p["impressions"])),
