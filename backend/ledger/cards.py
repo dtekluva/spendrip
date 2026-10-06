@@ -61,9 +61,9 @@ def customer_email(user) -> str:
     return f"{user.phone or user.pk}@users.spendrip.com"
 
 
-def _new_charge(user, q: Quote, *, save_card: bool, card: SavedCard | None = None) -> CardCharge:
+def _new_charge(user, q: Quote, *, save_card: bool, card: SavedCard | None = None, source: str = "manual") -> CardCharge:
     return CardCharge.objects.create(user=user, reference=f"sdc_{uuid.uuid4().hex}", net_kobo=q.net_kobo, fee_kobo=q.fee_kobo,
-                                     gross_kobo=q.gross_kobo, save_card=save_card, card=card)
+                                     gross_kobo=q.gross_kobo, save_card=save_card, card=card, source=source)
 
 
 def start(user, net_kobo: int, *, save_card: bool) -> dict:
@@ -122,19 +122,22 @@ def complete(reference: str, result: dict | None = None) -> CardCharge:
     return charge
 
 
-def charge_saved_card(user, card: SavedCard, net_kobo: int) -> CardCharge:
-    """One-tap top-up with a saved card."""
+NEEDS_CARDHOLDER = "Your bank asked for extra confirmation. Use “Pay with card” instead."
+
+
+def charge_saved_card(user, card: SavedCard, net_kobo: int, *, source: str = "manual") -> CardCharge:
+    """One-tap top-up with a saved card (also used by Auto-fill, with source="autofill")."""
     if not card.active or card.user_id != user.pk:
         raise FlowError("That card isn't saved any more.", status=404)
     q = quote(net_kobo)
-    charge = _new_charge(user, q, save_card=False, card=card)
+    charge = _new_charge(user, q, save_card=False, card=card, source=source)
     result = gateway().charge_authorization(email=card.email, amount_kobo=q.gross_kobo, authorization_code=decrypt(card.authorization_code_enc),
                                             reference=charge.reference, metadata={"spendrip_charge": charge.reference, "net_kobo": q.net_kobo})
     if result["status"] in ("pending", "ongoing"):
         result = gateway().verify(charge.reference)  # still working: ask Paystack for the final answer
     elif result["status"] not in ("success", "failed", "abandoned"):
         # e.g. send_otp / send_pin / open_url: the bank wants the cardholder present, which one-tap can't do.
-        result = {**result, "status": "failed", "message": "Your bank asked for extra confirmation. Use “Pay with card” instead."}
+        result = {**result, "status": "failed", "message": NEEDS_CARDHOLDER}
     return complete(charge.reference, result)
 
 
@@ -145,3 +148,5 @@ def remove_card(card: SavedCard) -> None:
         pass  # we stop using it either way
     card.active = False
     card.save(update_fields=["active"])
+    from drips.autofill import card_gone  # Auto-fill can't keep charging a removed card
+    card_gone(card, "card_removed")

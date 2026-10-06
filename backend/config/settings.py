@@ -224,6 +224,9 @@ EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
                  else "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")
 # Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
+# Auto-fill (automatic card top-ups). False stops every automatic charge, like PAYOUTS_ENABLED for payouts.
+AUTOFILL_ENABLED = env_bool("AUTOFILL_ENABLED", True)
+
 # Monthly Google Search Console report (python manage.py seo_report). The key is a service account's JSON key, base64-encoded.
 SEARCH_CONSOLE = {
     "SITE": env("GSC_SITE", "sc-domain:spendrip.com"),

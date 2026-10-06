@@ -244,3 +244,54 @@ class Run(models.Model):
     def label(self) -> str:
         """For ledger memos: the plan, plus the person on group plans."""
         return f"{self.plan.label} · {self.line.recipient.label}" if self.line_id else self.plan.label
+
+
+class AutoFill(models.Model):
+    """
+    Auto-fill: the person's standing permission for SpenDrip to top up their balance from a saved card.
+    Payday fill charges once per chosen window (end and/or start of the month) for what the drips need until the next
+    window; just-in-time fill charges the shortfall for a drip due within a day. See docs/plans/auto-fill.md.
+    """
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="autofill")
+    card = models.ForeignKey("ledger.SavedCard", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    active = models.BooleanField(default=False)
+    payday_end = models.BooleanField(default=True)  # the last 5 days of the month
+    payday_start = models.BooleanField(default=False)  # the 1st to the 5th
+    just_in_time = models.BooleanField(default=True)
+    max_per_charge_kobo = models.BigIntegerField()
+    max_per_month_kobo = models.BigIntegerField()
+    paused_reason = models.CharField(max_length=24, blank=True)  # card_removed | card_expired | card_needs_otp | declines
+    failed_windows = models.PositiveSmallIntegerField(default=0)  # payday windows in a row where every try failed
+    skip_window = models.CharField(max_length=16, blank=True)  # a window key the person chose to skip, e.g. 2026-10-end
+    heads_up_window = models.CharField(max_length=16, blank=True)  # the window the last payday heads-up was for
+    heads_up_at = models.DateTimeField(null=True, blank=True)
+    consent_text = models.TextField(blank=True)
+    consented_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class AutoFillAttempt(models.Model):
+    class Kind(models.TextChoices):
+        PAYDAY = "payday"
+        JUST_IN_TIME = "jit"
+
+    class Status(models.TextChoices):
+        SUCCESS = "success"
+        FAILED = "failed"
+        NOT_NEEDED = "not_needed"  # the balance already covered it
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="autofill_attempts")
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    key = models.CharField(max_length=80)  # payday: window key (2026-10-end); jit: plan id + due time
+    attempt = models.PositiveSmallIntegerField(default=1)
+    amount_kobo = models.BigIntegerField(default=0)
+    charge = models.ForeignKey("ledger.CardCharge", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    status = models.CharField(max_length=12, choices=Status.choices)
+    reason = models.CharField(max_length=200, blank=True)
+    at = models.DateTimeField()  # the worker's clock when it ran (tries a day and monthly limits count from this)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "kind", "key", "attempt"], name="autofill_attempt_once")]
+        indexes = [models.Index(fields=["user", "at"])]

@@ -626,9 +626,12 @@ class Activity(APIView):
             g["paid"] = sts.count("sent")
             g["status"] = ("sending" if "sending" in sts else "sent" if g["paid"] == len(sts) else
                            "partial" if g["paid"] else sts[0])
-        for i in Inflow.objects.filter(user=user, status=Inflow.Status.CREDITED).order_by("-created_at")[:50]:
+        for i in Inflow.objects.filter(user=user, status=Inflow.Status.CREDITED).select_related("card_charge__card").order_by("-created_at")[:50]:
+            cc = getattr(i, "card_charge", None) if hasattr(i, "card_charge") else None
+            sender = (f"Auto-fill · {(cc.card.brand or 'card').title()} ••{cc.card.last4}" if cc and cc.source == "autofill" and cc.card
+                      else "Auto-fill" if cc and cc.source == "autofill" else i.sender_name)
             items.append({"kind": "inflow", "status": "received", "at": i.credited_at or i.created_at, "amount_kobo": i.amount_kobo,
-                          "sender": i.sender_name})
+                          "sender": sender})
         items.sort(key=lambda x: x["at"], reverse=True)
         return Response(items[:100])
 
@@ -747,3 +750,154 @@ class CardDetail(APIView):
             raise FlowError("That card isn't saved any more.", status=404)
         cards.remove_card(card)
         return Response(status=204)
+
+
+# ------------------------------------------------------------------ Auto-fill (automatic card top-ups)
+
+from django.conf import settings  # noqa: E402
+from django.db.models import Sum  # noqa: E402
+
+from drips import autofill as af_svc  # noqa: E402
+from notifications.services import notify  # noqa: E402
+from drips.models import AutoFill, AutoFillAttempt  # noqa: E402
+
+
+def autofill_json(user) -> dict:
+    af = AutoFill.objects.filter(user=user).select_related("card").first()
+    attempts = (AutoFillAttempt.objects.filter(user=user).exclude(status=AutoFillAttempt.Status.NOT_NEEDED)
+                .select_related("charge").order_by("-at"))
+    seen, history = set(), []
+    for a in attempts:  # one row per charge (a just-in-time charge can cover several drips)
+        k = a.charge_id or f"a{a.pk}"
+        if k in seen:
+            continue
+        seen.add(k)
+        history.append({"at": a.at, "kind": a.kind, "status": a.status, "amount_kobo": a.amount_kobo,
+                        "fee_kobo": a.charge.fee_kobo if a.charge else 0, "reason": a.reason})
+        if len(history) == 10:
+            break
+    month_fees = (CardCharge.objects.filter(user=user, source="autofill", status=CardCharge.Status.SUCCESS,
+                                            created_at__gte=timezone.now() - timedelta(days=31)).aggregate(s=Sum("fee_kobo"))["s"] or 0)
+    return {
+        "enabled": settings.AUTOFILL_ENABLED,
+        "active": bool(af and af.active and not af.paused_reason),
+        "paused_reason": af.paused_reason if af else "",
+        "card": card_json(af.card) if af and af.card and af.card.active else None,
+        "payday_end": af.payday_end if af else True,
+        "payday_start": af.payday_start if af else False,
+        "just_in_time": af.just_in_time if af else True,
+        "max_per_charge_kobo": af.max_per_charge_kobo if af else None,
+        "max_per_month_kobo": af.max_per_month_kobo if af else None,
+        "consent_text": af.consent_text if af else "",
+        "skip_window": af.skip_window if af else "",
+        "next": af_svc.next_fill(af) if af else None,
+        "suggested": af_svc.suggested_limits(user),
+        "used_this_month_kobo": af_svc.month_used(user, timezone.now()),
+        "fees_last_30_days_kobo": month_fees,
+        "history": history,
+    }
+
+
+class AutoFillView(APIView):
+    """GET the settings and what's next. PUT turns Auto-fill on or changes it (needs the PIN)."""
+
+    def get(self, request):
+        return Response(autofill_json(request.user))
+
+    def put(self, request):
+        u, d = request.user, request.data
+        acc.require_verified(u)
+        if not settings.AUTOFILL_ENABLED:
+            raise FlowError("Auto-fill is switched off for now.", code="autofill_off", status=503)
+        card = u.cards.filter(pk=d.get("card_id"), active=True).first()
+        if not card:
+            raise FlowError("Pick a saved card.", code="no_card")
+        if af_svc.card_expired(card, timezone.localdate()):
+            raise FlowError("That card has expired. Pick another one.", code="card_expired")
+        end, start, jit = bool(d.get("payday_end")), bool(d.get("payday_start")), bool(d.get("just_in_time"))
+        if not (end or start or jit):
+            raise FlowError("Choose at least one: a payday window, or before a drip.")
+        try:
+            per_charge, per_month = int(d.get("max_per_charge_kobo")), int(d.get("max_per_month_kobo"))
+        except (TypeError, ValueError):
+            raise FlowError("Set both limits.")
+        if not 100_000 <= per_charge <= cards.MAX_TOPUP_KOBO:
+            raise FlowError("The limit per charge must be between ₦1,000 and ₦10,000,000.")
+        if per_month < per_charge:
+            raise FlowError("The monthly limit can't be lower than the limit per charge.")
+        if u.locked_at:
+            raise FlowError("Too many wrong PINs. Sign in again with a code sent to your email.", code="pin_locked", status=423)
+        if not u.check_pin(str(d.get("pin", ""))):
+            u.refresh_from_db()
+            if u.locked_at:
+                raise FlowError("Too many wrong PINs. Sign in again with a code sent to your email.", code="pin_locked", status=423)
+            raise FlowError("Wrong PIN.", code="pin_wrong")
+        af, created = AutoFill.objects.get_or_create(user=u, defaults={"max_per_charge_kobo": per_charge, "max_per_month_kobo": per_month})
+        was_on = af.active and not af.paused_reason
+        af.card, af.payday_end, af.payday_start, af.just_in_time = card, end, start, jit
+        af.max_per_charge_kobo, af.max_per_month_kobo = per_charge, per_month
+        af.active, af.paused_reason, af.failed_windows = True, "", 0
+        af.consent_text, af.consented_at = af_svc.consent_text(af), timezone.now()
+        af.save()
+        notify(u, key=f"autofill:{u.pk}:consent:{af.consented_at:%Y%m%d%H%M%S}", channel=OutboxMessage.Channel.EMAIL, template="autofill_on",
+               to=u.email, body=af.consent_text, email={
+                   "subject": "⛽ Auto-fill is on" if not was_on else "⛽ Auto-fill settings changed",
+                   "heading": "Auto-fill is on" if not was_on else "Your Auto-fill settings changed",
+                   "paragraphs": ["You gave SpenDrip this permission:", af.consent_text,
+                                  "We message you before each payday top-up, and you can skip one or turn Auto-fill off any time in the app. "
+                                  "Turning it off doesn't need your PIN.", "Didn't do this? Turn Auto-fill off and contact us at hello@spendrip.com."],
+                   "button": ("Open Auto-fill", settings.SPENDRIP["PUBLIC_APP_URL"].rstrip("/") + "/autofill")}) if u.email else None
+        return Response(autofill_json(u))
+
+
+class AutoFillOff(APIView):
+    """Turning Auto-fill off never needs the PIN."""
+
+    def post(self, request):
+        AutoFill.objects.filter(user=request.user).update(active=False, updated_at=timezone.now())
+        return Response(autofill_json(request.user))
+
+
+class AutoFillSkip(APIView):
+    """Skip the current (or next) payday fill, or undo the skip."""
+
+    def post(self, request):
+        af = AutoFill.objects.filter(user=request.user, active=True).first()
+        if not af:
+            raise FlowError("Auto-fill isn't on.", status=404)
+        if request.data.get("undo"):
+            af.skip_window = ""
+        else:
+            nxt = af_svc.next_fill(af)
+            if not nxt or not nxt["window"]:
+                raise FlowError("There's no payday fill coming up to skip.")
+            af.skip_window = nxt["window"]
+        af.save(update_fields=["skip_window", "updated_at"])
+        return Response(autofill_json(request.user))
+
+
+class AutoFillNow(APIView):
+    """'I've been paid': run this window's payday fill now instead of waiting."""
+
+    def post(self, request):
+        u = request.user
+        acc.require_verified(u)
+        af = AutoFill.objects.filter(user=u, active=True, paused_reason="").select_related("card").first()
+        if not af or not af.card or not af.card.active:
+            raise FlowError("Auto-fill isn't on.", status=404)
+        now = timezone.now()
+        local = now.astimezone(ZoneInfo(u.tz or "Africa/Lagos"))
+        until = af_svc.next_window_start(local, af) or now + timedelta(days=31)
+        need = af_svc._round_up(af_svc.payday_need(u, now, until))
+        if need < af_svc.MIN_CHARGE_KOBO:
+            raise FlowError("Your balance already covers your drips until the next payday window. Nothing to add.", code="nothing_needed")
+        amount, why = af_svc.clamp(af, need, now)
+        if amount < af_svc.MIN_CHARGE_KOBO:
+            raise FlowError("That would go over your Auto-fill limits. Raise them, or top up by hand.", code="over_limit")
+        charge = cards.charge_saved_card(u, af.card, amount, source="autofill")
+        key = af_svc.window_key(local.date(), af) or f"now-{now:%Y%m%d%H%M}"
+        tries = AutoFillAttempt.objects.filter(user=u, kind=AutoFillAttempt.Kind.PAYDAY, key=key).count()
+        AutoFillAttempt.objects.create(user=u, kind=AutoFillAttempt.Kind.PAYDAY, key=key, attempt=tries + 1, amount_kobo=amount, charge=charge,
+                                       status=AutoFillAttempt.Status.SUCCESS if charge.status == CardCharge.Status.SUCCESS else AutoFillAttempt.Status.FAILED,
+                                       reason=charge.message[:200], at=now)
+        return Response({**charge_json(charge, u), "autofill": autofill_json(u)})

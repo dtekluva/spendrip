@@ -132,6 +132,7 @@ class CardCharge(models.Model):
     fee_kobo = models.BigIntegerField()
     gross_kobo = models.BigIntegerField()
     save_card = models.BooleanField(default=True)
+    source = models.CharField(max_length=10, default="manual")  # manual | autofill
     card = models.ForeignKey(SavedCard, null=True, blank=True, on_delete=models.SET_NULL, related_name="charges")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.STARTED)
     message = models.CharField(max_length=200, blank=True)

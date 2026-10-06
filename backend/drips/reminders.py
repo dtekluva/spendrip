@@ -21,6 +21,7 @@ from ledger import services as ledger
 from notifications.models import OutboxMessage
 from notifications.services import notify
 
+from .autofill import declined_note
 from .models import Plan
 from .services import user_forecast
 
@@ -124,8 +125,9 @@ def day_ahead(user: User, now: datetime) -> int:
         fix = (f"Add {N(need or e.cost_kobo)} before then and it goes out on time." if e.status != "cap"
                else "Raise your daily limit in Profile before then, or it will wait.")
         heading = f"Tomorrow: {p.emoji} {p.label} ({N(e.amount_kobo)}) may not go out"
+        declined = declined_note(user, e.plan_id, e.at) if e.status != "cap" else None
         paragraphs = [f"{p.emoji} {p.label} → {who} is due {_when(e.at, tz)}: {N(e.amount_kobo)} plus {N(e.fee_kobo)} fees.",
-                      f"Right now {why}.", fix,
+                      f"Right now {why}.", *([declined] if declined else []), fix,
                       ("Group payouts are all or nothing: if the balance can't cover everyone, nobody on it is paid." if p.is_group else
                        "Drips that wait for money don't send later, so this is the moment to top up.")]
         body = f"{p.emoji} {p.label} is due {_when(e.at, tz)} and may not go out: {fix}"

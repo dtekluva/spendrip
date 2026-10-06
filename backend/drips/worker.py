@@ -29,6 +29,7 @@ from providers import messages as copy
 
 from .models import Plan, Run, RunBatch
 from notifications.emails import drip_delivered_email, group_paid_email
+from . import autofill
 from .reminders import send_reminders, spot_email
 from .services import clear_one_offs, engine_plans, fee_schedule, finish_plans, materialise_runs, sent_today_kobo
 
@@ -72,8 +73,13 @@ class Worker:
         if self._reminders_at and now - self._reminders_at < every:
             return {}
         self._reminders_at = now
+        filled = {}
         try:
-            return send_reminders(now)
+            filled = autofill.run(now)  # first, so a fill that works stops the low-balance reminder
+        except Exception:
+            log.exception("auto-fill failed")
+        try:
+            return {**send_reminders(now), **{f"autofill_{k}": v for k, v in filled.items()}}
         except Exception:  # a reminder must never stop payouts
             log.exception("reminders failed")
             return {}

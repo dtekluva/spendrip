@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { lagos, MONL, N } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -9,6 +10,7 @@ import { VerifyCard } from './Verify';
 export default function Fund() {
   const { summary, plans, me, reload, confetti, koboSay, toast } = useStore();
   const { busy, run } = useAction();
+  const nav = useNavigate();
   if (!summary) return <div className="stack"><div className="skeleton" /></div>;
   const f = summary.forecast;
   const feeOf = (amount: number) => feeTotal(amount, summary.fees);
@@ -51,6 +53,10 @@ export default function Fund() {
         ) : verified ? <div className="card small muted">Top up below by card, from your bank account, or by bank transfer, all through Paystack.</div> : <VerifyCard />}
         {verified && me?.user?.limits && <p className="small muted" style={{ margin: 0 }}>Your account can hold up to {N(me.user.limits.max_balance_kobo)} for now.</p>}
         {verified && <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>}
+        {verified && (
+          <button className="set-row" onClick={() => nav('/autofill')}><span className="si">⛽</span>
+            <span style={{ minWidth: 0 }}><b>Never top up by hand again</b><span className="sub">Auto-fill tops up from your card on payday, and before a drip if you're short.</span></span></button>
+        )}
         {me?.dev_tools && verified && (
           <div className="demo">
             <div className="eyebrow">Test mode</div>
