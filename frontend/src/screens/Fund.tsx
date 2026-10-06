@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Kobo from '../components/Kobo';
+import type { AutoFillState } from './AutoFill';
 import { api } from '../lib/api';
 import { lagos, MONL, N } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -52,11 +55,8 @@ export default function Fund() {
           </div>
         ) : verified ? <div className="card small muted">Top up below by card, from your bank account, or by bank transfer, all through Paystack.</div> : <VerifyCard />}
         {verified && me?.user?.limits && <p className="small muted" style={{ margin: 0 }}>Your account can hold up to {N(me.user.limits.max_balance_kobo)} for now.</p>}
+        {verified && <AutoFillCard onOpen={() => nav('/autofill')} />}
         {verified && <div id="card-panel"><CardPanel suggested={f.top_up_kobo} /></div>}
-        {verified && (
-          <button className="set-row" onClick={() => nav('/autofill')}><span className="si">⛽</span>
-            <span style={{ minWidth: 0 }}><b>Never top up by hand again</b><span className="sub">Auto-fill tops up from your card on payday, and before a drip if you're short.</span></span></button>
-        )}
         {me?.dev_tools && verified && (
           <div className="demo">
             <div className="eyebrow">Test mode</div>
@@ -87,6 +87,26 @@ export default function Fund() {
           <div className="ttotal final"><span>Top up</span><span className="num">{N(f.top_up_kobo)}</span></div>
         </div>
       </div></div>
+    </div>
+  );
+}
+
+/** Auto-fill, front and centre on Add money: what it is when it's off, what's next when it's on. */
+function AutoFillCard({ onOpen }: { onOpen: () => void }) {
+  const [a, setA] = useState<AutoFillState | null>(null);
+  useEffect(() => { api.get<AutoFillState>('/autofill').then(setA).catch(() => {}); }, []);
+  if (a && !a.enabled) return null;
+  const on = a?.active;
+  const next = on && a?.next ? `Next: ${new Date(a.next.at).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })}${a.next.amount_kobo ? `, about ${N(a.next.amount_kobo)}` : ''}` : '';
+  return (
+    <div className="autofill-card">
+      <Kobo mood="fill" size={56} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <span className="pill" style={{ background: on ? 'var(--mint)' : 'var(--sun)', color: '#0B1040' }}>{on ? '⛽ Auto-fill is on' : a?.paused_reason ? 'Auto-fill paused' : 'New'}</span>
+        <b style={{ display: 'block', margin: '6px 0 2px', fontSize: 17 }}>{on ? 'Your drips top themselves up' : 'Never top up by hand again'}</b>
+        <span className="small muted">{on ? next || 'Before a drip, if you\u2019re short.' : 'Auto-fill tops up from your card on payday, and before a drip if you\u2019re short. You set the limits.'}</span>
+      </div>
+      <button className={`btn ${on ? 'btn-soft' : 'btn-primary'}`} onClick={onOpen}>{on ? 'Manage' : 'Set up'}</button>
     </div>
   );
 }

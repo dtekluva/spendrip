@@ -942,3 +942,9 @@ a{color:inherit}
 }
 .act-list > div + div > .day-h{margin-top:14px}
 .act-list .day-h{margin-bottom:8px}
+
+/* Auto-fill promo on Add money */
+.autofill-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;border:2px solid var(--cobalt);
+  background:color-mix(in srgb,var(--cobalt) 8%,var(--card,transparent))}
+.autofill-card{flex-wrap:wrap}
+.autofill-card .btn{width:100%}
