@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { N } from '../lib/format';
 import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
@@ -29,26 +29,38 @@ export function CardPanel({ suggested }: { suggested: number }) {
     return () => window.clearTimeout(t);
   }, [amount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const payNew = () => run(async () => {
-    const r = await api.post<{ authorization_url: string }>('/funding/card/start', { amount_kobo: amount, save_card: save });
-    window.location.href = r.authorization_url; // Paystack's secure page; it sends you back to /fund/card
-  });
-  const payWith = (card: SavedCard) => openSheet(
-    <ConfirmCharge card={card} quote={quote!} onConfirm={() => run(async () => {
-      openSheet(<div style={{ textAlign: 'center', padding: '12px 0' }}><Kobo mood="waiting" size={90} /><Spinner label={`Charging ${cardLabel(card)}…`} /></div>);
-      try {
-        const r = await api.post<ChargeResult>('/funding/card/charge', { card_id: card.id, amount_kobo: amount });
-        await reload();
-        if (r.status === 'success') {
-          lastTopUp = { at: Date.now(), net_kobo: r.net_kobo, card_id: card.id };
-          track('topup_completed', { method: 'saved_card', naira: Math.round(r.net_kobo / 100) });
-          confetti();
-        }
-        openSheet(<ChargeDone result={r} card={card} />);
-        if (r.status === 'failed') setError(r.message || 'The card was declined.');
-      } catch (e) { closeSheet(); throw e; }
-    })} />,
+  /** The server asks before a second top-up within 10 minutes (code recent_top_up): show its message and let them say yes. */
+  const askAgain = (message: string, card: SavedCard | null, go: () => void) => openSheet(
+    <ConfirmCharge card={card} quote={quote!} warning={message} onConfirm={go} />,
   );
+  const payNew = (again = false) => run(async () => {
+    try {
+      const r = await api.post<{ authorization_url: string }>('/funding/card/start', { amount_kobo: amount, save_card: save, confirm_again: again });
+      window.location.href = r.authorization_url; // Paystack's secure page; it sends you back to /fund/card
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'recent_top_up') { askAgain(e.message, null, () => { closeSheet(); payNew(true); }); return; }
+      throw e;
+    }
+  });
+  const charge = (card: SavedCard, again: boolean) => run(async () => {
+    openSheet(<div style={{ textAlign: 'center', padding: '12px 0' }}><Kobo mood="waiting" size={90} /><Spinner label={`Charging ${cardLabel(card)}…`} /></div>);
+    try {
+      const r = await api.post<ChargeResult>('/funding/card/charge', { card_id: card.id, amount_kobo: amount, confirm_again: again });
+      await reload();
+      if (r.status === 'success') {
+        lastTopUp = { at: Date.now(), net_kobo: r.net_kobo };
+        track('topup_completed', { method: 'saved_card', naira: Math.round(r.net_kobo / 100) });
+        confetti();
+      }
+      openSheet(<ChargeDone result={r} card={card} />);
+      if (r.status === 'failed') setError(r.message || 'The card was declined.');
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'recent_top_up') { askAgain(e.message, card, () => charge(card, true)); return; }
+      closeSheet(); throw e;
+    }
+  });
+  // If this session already knows about a recent top-up, the first sheet asks; saying yes there counts as the server's yes too.
+  const payWith = (card: SavedCard) => openSheet(<ConfirmCharge card={card} quote={quote!} onConfirm={() => charge(card, !!recentTopUp())} />);
 
   if (quote && !quote.available) return <div className="card small muted">Card and bank payments aren't set up yet.</div>;
   const quick = [...new Set([suggested, 2_000_000, 5_000_000, 10_000_000].filter((x) => x >= 10_000))].slice(0, 4);
@@ -73,7 +85,7 @@ export function CardPanel({ suggested }: { suggested: number }) {
           Top up with {cardLabel(c)}
         </button>
       ))}
-      <button className={`btn ${cards.length ? 'btn-soft' : 'btn-primary'} btn-block`} disabled={busy || !quote} onClick={payNew}>
+      <button className={`btn ${cards.length ? 'btn-soft' : 'btn-primary'} btn-block`} disabled={busy || !quote} onClick={() => payNew()}>
         {cards.length ? 'Use another card or your bank' : 'Pay with card or bank'}
       </button>
       <label className="small" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
@@ -85,21 +97,24 @@ export function CardPanel({ suggested }: { suggested: number }) {
 }
 
 /** The last one-tap top-up in this session, to warn before an accidental second one. */
-let lastTopUp: { at: number; net_kobo: number; card_id: number } | null = null;
+let lastTopUp: { at: number; net_kobo: number } | null = null;
 const RECENT_MS = 10 * 60 * 1000;
+const recentTopUp = () => (lastTopUp && Date.now() - lastTopUp.at < RECENT_MS ? lastTopUp : null);
 
-function ConfirmCharge({ card, quote, onConfirm }: { card: SavedCard; quote: Quote; onConfirm: () => void }) {
+function ConfirmCharge({ card, quote, onConfirm, warning }: { card: SavedCard | null; quote: Quote; onConfirm: () => void; warning?: string }) {
   const { closeSheet } = useStore();
-  const recent = lastTopUp && Date.now() - lastTopUp.at < RECENT_MS ? lastTopUp : null;
+  const recent = recentTopUp();
   const mins = recent ? Math.max(1, Math.round((Date.now() - recent.at) / 60000)) : 0;
+  const note = warning ?? (recent ? `You already added ${N(recent.net_kobo)} ${mins === 1 ? 'a minute' : `${mins} minutes`} ago. Only continue if you want to add more.` : '');
   return (
     <>
-      <h3>{recent ? 'Top up again?' : `Top up ${N(quote.net_kobo)}?`}</h3>
-      {recent && <div className="error-card" style={{ marginBottom: 10 }}>You already added {N(recent.net_kobo)} {mins === 1 ? 'a minute' : `${mins} minutes`} ago. Only continue if you want to add more.</div>}
-      <p className="muted" style={{ marginTop: recent ? 0 : -6 }}>We'll charge {N(quote.gross_kobo)} to {cardLabel(card)}{quote.payer_covers_fee && quote.fee_kobo ? `, including the ${N(quote.fee_kobo)} card fee` : ''}.</p>
+      <h3>{note ? 'Top up again?' : `Top up ${N(quote.net_kobo)}?`}</h3>
+      {note && <div className="error-card" style={{ marginBottom: 10 }}>{note}</div>}
+      <p className="muted" style={{ marginTop: note ? 0 : -6 }}>{card ? `We'll charge ${N(quote.gross_kobo)} to ${cardLabel(card)}${quote.payer_covers_fee && quote.fee_kobo ? `, including the ${N(quote.fee_kobo)} card fee` : ''}.`
+        : `You'll pay ${N(quote.gross_kobo)} on Paystack's page.`}</p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-soft" style={{ flex: 1 }} onClick={closeSheet}>Cancel</button>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={onConfirm}>{recent ? `Yes, add ${N(quote.net_kobo)} more` : 'Top up'}</button>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={onConfirm}>{note ? `Yes, add ${N(quote.net_kobo)} more` : 'Top up'}</button>
       </div>
     </>
   );

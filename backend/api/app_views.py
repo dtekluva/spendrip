@@ -705,10 +705,28 @@ def check_balance_limit(user, adding_kobo: int) -> None:
                         code="over_limit")
 
 
+RECENT_TOP_UP = timedelta(minutes=10)
+
+
+def check_recent_top_up(request) -> None:
+    """A card top-up already went through a few minutes ago: ask before charging again (unless the person said yes)."""
+    if request.data.get("confirm_again"):
+        return
+    recent = (CardCharge.objects.filter(user=request.user, status=CardCharge.Status.SUCCESS,
+                                        completed_at__gte=timezone.now() - RECENT_TOP_UP).order_by("-completed_at").first())
+    if recent:
+        from engine import format_naira
+        mins = max(1, round((timezone.now() - recent.completed_at).total_seconds() / 60))
+        how = "Auto-fill added" if recent.source == "autofill" else "You added"
+        raise FlowError(f"{how} {format_naira(recent.net_kobo)} {'a minute' if mins == 1 else f'{mins} minutes'} ago. "
+                        "Only continue if you want to add more.", code="recent_top_up", status=409)
+
+
 class CardStart(APIView):
     def post(self, request):
         acc.require_verified(request.user)
         check_balance_limit(request.user, _amount(request))
+        check_recent_top_up(request)
         return Response(cards.start(request.user, _amount(request), save_card=bool(request.data.get("save_card", True))))
 
 
@@ -734,6 +752,7 @@ class SavedCardTopUp(APIView):
         card = request.user.cards.filter(pk=request.data.get("card_id"), active=True).first()
         if not card:
             raise FlowError("That card isn't saved any more.", status=404)
+        check_recent_top_up(request)
         charge = cards.charge_saved_card(request.user, card, _amount(request))
         return Response(charge_json(charge, request.user))
 
