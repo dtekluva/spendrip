@@ -115,6 +115,7 @@ When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks
 | `KYC_PROVIDER` | `live` | BVN via Paystack customer validation (webhook), ID photo and selfie read by Claude (`ANTHROPIC_API_KEY`). |
 | `BANK_TRANSFER_FUNDING` | `false` | No account numbers until Liberty is live. Cards only. |
 | `PAYOUTS_ENABLED` | `true` | **Kill switch.** Set to `false` and run `deploy/deploy.sh` to stop every payout. |
+| `AUTOFILL_ENABLED` | `false` (since 6 Oct 2026) | **Kill switch** for Auto-fill's automatic card charges. Off until Paystack re-enables transfers. While off, the app hides the Auto-fill card and refuses new set-ups; saved settings are kept. |
 
 **Paystack dashboard (live):**
 - Webhook URL: `https://api.spendrip.com/api/webhooks/paystack`
