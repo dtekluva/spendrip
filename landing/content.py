@@ -89,7 +89,7 @@ PAGES = [
     "description": "Every SpenDrip fee in full: ₦50 per drip, the Paystack transfer fee (₦10, ₦25 or ₦50) and ₦50 stamp duty on ₦10,000 and above. Work out your cost with the calculator.",
     "h1": "SpenDrip fees, in full",
     "lead": "Joining SpenDrip is free. Each scheduled transfer (a drip) costs a ₦50 SpenDrip fee, plus the transfer fee our payment partner charges (₦10, ₦25 or ₦50 depending on the amount) and the government's ₦50 stamp duty on transfers of ₦10,000 and above.",
-    "updated": UPDATED, "scripts": ["tools.js"], "related": ["scheduled-transfers", "black-tax-nigeria"],
+    "updated": UPDATED, "scripts": ["tools.js"], "related": ["scheduled-transfers", "household-payroll", "black-tax-nigeria"],
     "sections": [
       {"id": "table", "h2": "Fees for each drip", "html": FEE_TABLE + f"""
 <p class="src">Transfer fees: {S_PAYSTACK_FEES} (Single and bulk transfers). Stamp duty: ₦50 on transfers of ₦10,000 and above, paid by the sender from 2026 ({S_STAMP}; {S_PAYSTACK_DUTY}). Checked 3 October 2026.</p>"""},
@@ -251,6 +251,92 @@ PAGES = [
       ("Can the allowance stop automatically?", "Yes. Set the plan to end on a date or after a number of months."),
     ],
   },
+  {
+    "slug": "household-payroll", "short": "Household payroll", "nav": None, "footer": True,
+    "eyebrow": "Household payroll",
+    "title": "Pay Your House Help, Driver and Staff Automatically | SpenDrip",
+    "description": "Pay domestic staff in Nigeria on time, every month: house help, driver, security, nanny. One group payout sends each person their own amount, with one ₦100 SpenDrip fee.",
+    "h1": "Pay your house help, driver and staff on time, automatically",
+    "lead": "A group plan pays several people together, each with their own amount, on the day and time you choose. Set up your household payroll once and everyone is paid on the 28th without you sending each salary by hand.",
+    "updated": "2026-10-06", "related": ["fees", "priorities", "upkeep-allowance"],
+    "sections": [
+      {"id": "how", "h2": "How a group payout works", "html": """
+<div class="answer">Add the people you pay, give each one their amount, and pick the day and time. On payday SpenDrip sends a separate bank transfer to each person, and you pay <b>one ₦100 SpenDrip fee for the whole payout</b>, however many people are on it.</div>
+<p class="plan">Pay <span class="chip">🧑🏾‍🍳 Musa ₦80,000</span> <span class="chip">🚗 Blessing ₦70,000</span> <span class="chip">💂🏾 Emeka ₦45,000</span> every <span class="chip">month</span> on the <span class="chip">28th</span> at <span class="chip">9:00 AM</span>.</p>
+<ul>
+<li><b>Up to 50 people</b> on one plan, each with their own amount.</li>
+<li><b>Every account is name-checked</b> with the bank before it's saved, so you see the real account name before anyone is paid.</li>
+<li><b>Paste a list</b> instead of typing: one person per line (name, account number, bank, amount), straight from WhatsApp, Notes or a spreadsheet.</li>
+</ul>"""},
+      {"id": "together", "h2": "Everyone is paid together, or nobody is", "html": """
+<p>A group payout is all or nothing. If your balance can't cover everyone, SpenDrip doesn't pay some people and leave others out. It waits for a few hours for you to top up, then pays everyone at once. You get a note the day before if the balance looks short, with the exact amount to add.</p>
+<p>If one person's transfer fails (a closed account, a bank outage), their money goes back to your balance and you can send it again from Activity with one tap.</p>"""},
+      {"id": "cost", "h2": "What it costs", "html": """
+<p>For the three people above, ₦195,000 in salaries:</p>
+<div class="tbl-wrap"><table class="tbl">
+<thead><tr><th>Fee</th><th class="num">Amount</th></tr></thead>
+<tbody>
+<tr><td>SpenDrip fee (whole payout)</td><td class="num">₦100</td></tr>
+<tr><td>Transfer fees (₦50 + ₦50 + ₦25)</td><td class="num">₦125</td></tr>
+<tr><td>Stamp duty (₦50 per transfer of ₦10,000 or more)</td><td class="num">₦150</td></tr>
+<tr><td><b>Total fees</b></td><td class="num"><b>₦375</b></td></tr>
+</tbody></table></div>
+<p>The transfer fee and stamp duty apply to each person, because each person gets their own bank transfer. Every line is shown before you save the plan. See <a href="/fees/">all fees</a>.</p>"""},
+      {"id": "changes", "h2": "Bonuses, leave and one-off changes", "html": """
+<ul>
+<li><b>Change one person's next payment only:</b> add a December bonus or a deduction for one month; the amount goes back to normal after.</li>
+<li><b>Skip someone once:</b> for unpaid leave, without taking them off the plan.</li>
+<li><b>Add or remove people</b> any time; the next payout uses the new list.</li>
+</ul>
+<p>Make payroll a <a href="/priorities/">priority</a> so salaries are covered before smaller drips spend the money.</p>"""},
+    ],
+    "faq": [
+      ("Can I pay my house help and driver at the same time?", "Yes. Put them on one group plan, each with their own amount. They're paid together on the day and time you choose, for one ₦100 SpenDrip fee."),
+      ("How many people can be on one payout?", "Up to 50."),
+      ("What happens if I don't have enough money on payday?", "Nobody is paid until the balance covers everyone. SpenDrip waits a few hours for a top-up, and tells you the exact amount to add."),
+      ("Can my staff receive their pay in OPay or PalmPay?", "Yes. You can pay Nigerian bank and wallet accounts."),
+    ],
+  },
+  {
+    "slug": "automatic-budget", "short": "Automatic budget", "nav": None, "footer": True,
+    "eyebrow": "Budgeting",
+    "title": "An Automatic Budget That Pays Itself | SpenDrip",
+    "description": "Turn your monthly budget into scheduled payments: family support, upkeep, your own spending allowance and rent money go out on their own, with a monthly outlook and low-balance reminders.",
+    "h1": "A budget that pays itself",
+    "lead": "Most budgets fail on the day you have to follow them. With SpenDrip, each line of your budget becomes a scheduled payment, so the money goes where you planned on the day you planned, without you deciding again every time.",
+    "updated": "2026-10-06", "related": ["salary-split-nigeria", "priorities", "black-tax-nigeria"],
+    "sections": [
+      {"id": "idea", "h2": "Write the budget once, as drips", "html": """
+<div class="answer"><b>How to create a budget that sticks:</b> list what each month must cover, give each item an amount and a day, then make each one a scheduled payment. An <b>automatic budget</b> moves the money on those days, so each part of your pay goes to its job before you can spend it on something else.</div>
+<p>Here is a ₦400,000 salary, paid on the 25th, turned into drips:</p>
+<div class="tbl-wrap"><table class="tbl">
+<thead><tr><th>Budget line</th><th>Drip</th><th class="num">A month</th></tr></thead>
+<tbody>
+<tr><td>👵🏾 Mum</td><td>₦50,000 on the 26th (priority 1)</td><td class="num">₦50,000</td></tr>
+<tr><td>🍲 Upkeep</td><td>₦30,000 every Saturday to whoever runs the house</td><td class="num">₦120,000</td></tr>
+<tr><td>🏠 Rent money</td><td>₦60,000 on the 26th to your other account</td><td class="num">₦60,000</td></tr>
+<tr><td>🙋🏾 Your spending allowance</td><td>₦25,000 every Monday to your everyday account</td><td class="num">₦100,000</td></tr>
+<tr><td>⛽ Fuel</td><td>₦15,000 every Friday</td><td class="num">₦60,000</td></tr>
+</tbody></table></div>
+<p>What's left after the drips is yours to keep or spend. Fees are extra and shown before each plan starts; see the <a href="/fees/#calculator">fee calculator</a>.</p>"""},
+      {"id": "allowance", "h2": "Pay yourself an allowance", "html": """
+<p>The simplest way to stop a salary from disappearing in the first week: move it in weekly drips to the account you spend from. When this week's allowance is gone, you know to slow down, and next Monday's arrives on its own.</p>
+<p class="plan">Send <span class="chip">₦25,000</span> for <span class="chip">🙋🏾 My week</span> to <span class="chip">me</span> every <span class="chip">Monday</span> at <span class="chip">7:00 AM</span>.</p>"""},
+      {"id": "protect", "h2": "Protect the lines that matter", "html": """
+<p>Rank up to three drips as <a href="/priorities/">priorities</a>. SpenDrip keeps back what they still need for the rest of the month, so if money runs short, your allowance and fuel wait, not Mum or the rent.</p>"""},
+      {"id": "outlook", "h2": "Know your month before it starts", "html": """
+<ul>
+<li><b>On the 1st</b> you get an email with everything going out that month, fees included, and the exact amount to add if your balance won't cover it.</li>
+<li><b>A day ahead</b>, if a drip due tomorrow can't be covered, you get a note while there's still time to top up.</li>
+<li><b>Change the budget any time:</b> edit an amount, pause a line, or skip one payment.</li>
+</ul>"""},
+    ],
+    "faq": [
+      ("Is SpenDrip a savings app?", "No. SpenDrip holds money only to send it on schedule; it doesn't pay interest. To set money aside, you can drip it to another account of your own."),
+      ("Can I budget my salary automatically?", "Yes. Top up after payday and turn each budget line into a scheduled transfer: to family, to whoever runs the house, or to your own accounts."),
+      ("What if I can't cover the whole budget one month?", "Your priorities are covered first. Other drips wait, and you get a note with the exact amount to top up."),
+    ],
+  },
   # ------------------------------------------------------------------ guides
   {
     "slug": "black-tax-nigeria", "short": "Black tax", "nav": "Black tax", "footer": True, "type": "article",
@@ -332,7 +418,7 @@ PAGES = [
     "description": "A simple way to split your salary in Nigeria: the 50/30/20 rule worked out in naira, how to adapt it for family support, and how to make it automatic.",
     "h1": "How to split your salary in Nigeria (with worked naira examples)",
     "lead": "A salary split decides, before payday, where each naira goes. The 50/30/20 rule (needs, wants, savings) is a common starting point; for many Nigerian earners it works better with a fourth slice for family support.",
-    "updated": UPDATED, "related": ["black-tax-nigeria", "upkeep-allowance", "fees"],
+    "updated": UPDATED, "related": ["automatic-budget", "black-tax-nigeria", "upkeep-allowance"],
     "sections": [
       {"id": "rule", "h2": "The 50/30/20 rule", "html": """
 <div class="answer">The <b>50/30/20 rule</b> splits take-home pay into 50% for needs (rent, food, transport), 30% for wants, and 20% for savings and debt.</div>

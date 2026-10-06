@@ -16,6 +16,8 @@ Key facts (checked 3 October 2026):
 - [Security](https://spendrip.com/security/): identity checks, card handling, account-name checks
 - [Send money to parents monthly](https://spendrip.com/send-money-to-parents-monthly/)
 - [Upkeep allowance](https://spendrip.com/upkeep-allowance/)
+- [Household payroll](https://spendrip.com/household-payroll/): pay house help, driver and staff together, each their own amount
+- [Automatic budget](https://spendrip.com/automatic-budget/): turn each budget line into a scheduled payment
 - [Student allowance](https://spendrip.com/student-allowance/)
 - [Black tax in Nigeria (guide and calculator)](https://spendrip.com/black-tax-nigeria/)
 - [Standing order vs scheduled transfer](https://spendrip.com/standing-order-vs-scheduled-transfer/)
