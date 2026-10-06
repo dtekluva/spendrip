@@ -15,7 +15,7 @@ export const cardLabel = (c: SavedCard) => `${c.brand ? c.brand[0]!.toUpperCase(
 
 /** The "Pay with card or bank" panel on Add money (Paystack checkout: card, bank account or bank transfer). */
 export function CardPanel({ suggested }: { suggested: number }) {
-  const { reload, koboSay, openSheet, closeSheet, toast } = useStore();
+  const { reload, openSheet, closeSheet, confetti } = useStore();
   const [amount, setAmount] = useState(Math.max(suggested, 0) || 2_000_000);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [cards, setCards] = useState<SavedCard[]>([]);
@@ -35,12 +35,18 @@ export function CardPanel({ suggested }: { suggested: number }) {
   });
   const payWith = (card: SavedCard) => openSheet(
     <ConfirmCharge card={card} quote={quote!} onConfirm={() => run(async () => {
-      closeSheet();
-      const r = await api.post<ChargeResult>('/funding/card/charge', { card_id: card.id, amount_kobo: amount });
-      await reload();
-      if (r.status === 'success') { track('topup_completed', { method: 'saved_card', naira: Math.round(r.net_kobo / 100) }); koboSay('fill', `${N(r.net_kobo)} added from ${cardLabel(card)}.`); }
-      else if (r.status === 'failed') { setError(r.message || "The card was declined."); koboSay('puddle', "That card didn't go through."); }
-      else toast('Still confirming with your bank. We\'ll tell you when it lands.');
+      openSheet(<div style={{ textAlign: 'center', padding: '12px 0' }}><Kobo mood="waiting" size={90} /><Spinner label={`Charging ${cardLabel(card)}…`} /></div>);
+      try {
+        const r = await api.post<ChargeResult>('/funding/card/charge', { card_id: card.id, amount_kobo: amount });
+        await reload();
+        if (r.status === 'success') {
+          lastTopUp = { at: Date.now(), net_kobo: r.net_kobo, card_id: card.id };
+          track('topup_completed', { method: 'saved_card', naira: Math.round(r.net_kobo / 100) });
+          confetti();
+        }
+        openSheet(<ChargeDone result={r} card={card} />);
+        if (r.status === 'failed') setError(r.message || 'The card was declined.');
+      } catch (e) { closeSheet(); throw e; }
     })} />,
   );
 
@@ -78,17 +84,42 @@ export function CardPanel({ suggested }: { suggested: number }) {
   );
 }
 
+/** The last one-tap top-up in this session, to warn before an accidental second one. */
+let lastTopUp: { at: number; net_kobo: number; card_id: number } | null = null;
+const RECENT_MS = 10 * 60 * 1000;
+
 function ConfirmCharge({ card, quote, onConfirm }: { card: SavedCard; quote: Quote; onConfirm: () => void }) {
   const { closeSheet } = useStore();
+  const recent = lastTopUp && Date.now() - lastTopUp.at < RECENT_MS ? lastTopUp : null;
+  const mins = recent ? Math.max(1, Math.round((Date.now() - recent.at) / 60000)) : 0;
   return (
     <>
-      <h3>Top up {N(quote.net_kobo)}?</h3>
-      <p className="muted" style={{ marginTop: -6 }}>We'll charge {N(quote.gross_kobo)} to {cardLabel(card)}{quote.payer_covers_fee && quote.fee_kobo ? `, including the ${N(quote.fee_kobo)} card fee` : ''}.</p>
+      <h3>{recent ? 'Top up again?' : `Top up ${N(quote.net_kobo)}?`}</h3>
+      {recent && <div className="error-card" style={{ marginBottom: 10 }}>You already added {N(recent.net_kobo)} {mins === 1 ? 'a minute' : `${mins} minutes`} ago. Only continue if you want to add more.</div>}
+      <p className="muted" style={{ marginTop: recent ? 0 : -6 }}>We'll charge {N(quote.gross_kobo)} to {cardLabel(card)}{quote.payer_covers_fee && quote.fee_kobo ? `, including the ${N(quote.fee_kobo)} card fee` : ''}.</p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-soft" style={{ flex: 1 }} onClick={closeSheet}>Cancel</button>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={onConfirm}>Top up</button>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={onConfirm}>{recent ? `Yes, add ${N(quote.net_kobo)} more` : 'Top up'}</button>
       </div>
     </>
+  );
+}
+
+/** Stays open until the person taps Done, so a top-up can't be missed. */
+function ChargeDone({ result, card }: { result: ChargeResult; card: SavedCard }) {
+  const { closeSheet } = useStore();
+  const ok = result.status === 'success', pending = result.status === 'started';
+  return (
+    <div className="stack" style={{ alignItems: 'center', textAlign: 'center', gap: 10 }}>
+      <Kobo mood={ok ? 'celebrate' : pending ? 'waiting' : 'puddle'} size={110} />
+      <h3 style={{ margin: 0 }}>{ok ? `${N(result.net_kobo)} added 🎉` : pending ? 'Still confirming' : "That didn't go through"}</h3>
+      <p className="muted" style={{ margin: 0 }}>
+        {ok ? `From ${cardLabel(card)}. Your balance is now ${N(result.available_kobo)}.`
+          : pending ? "Your bank hasn't confirmed yet. We'll add the money as soon as it does, so don't top up again."
+            : `${(result.message || 'The card was declined').replace(/\.?$/, '.')} You were not charged.`}
+      </p>
+      <button className="btn btn-primary btn-block" onClick={closeSheet}>{ok ? 'Done' : 'OK'}</button>
+    </div>
   );
 }
 
