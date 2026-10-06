@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "drips",
     "notifications",
     "seasons",
+    "seo",
 ]
 
 MIDDLEWARE = [
@@ -223,6 +224,14 @@ EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
                  else "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")
 # Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
+# Monthly Google Search Console report (python manage.py seo_report). The key is a service account's JSON key, base64-encoded.
+SEARCH_CONSOLE = {
+    "SITE": env("GSC_SITE", "sc-domain:spendrip.com"),
+    "CREDENTIALS_B64": env("GSC_CREDENTIALS_B64", ""),
+    "CREDENTIALS_FILE": env("GSC_CREDENTIALS_FILE", ""),
+    "REPORT_TO": env("SEO_REPORT_TO", "hello@spendrip.com"),
+}
+
 EMAIL_ASSET_BASE = env("EMAIL_ASSET_BASE", "https://spendrip.com/email").rstrip("/")
 
 

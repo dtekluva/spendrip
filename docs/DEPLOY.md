@@ -165,3 +165,28 @@ When Liberty is live, set its callback URL to `https://<api-domain>/api/webhooks
   ```bash
   cd /opt/spendrip && docker compose -f deploy/docker-compose.umami.yml up -d
   ```
+
+## Monthly Search Console report
+
+`python manage.py seo_report` emails last month's Google search report for spendrip.com (Nigeria): headline numbers, top and new searches, quick wins (ranked 4 to 20), titles that need rewriting (top 5 but rarely clicked), content gaps, and sitemap pages that never showed up. Code: `backend/seo/`.
+
+**One-time setup (Google side, done by the account owner):**
+1. In Google Cloud Console, create a project (or use an existing one) and enable the **Google Search Console API**.
+2. IAM → Service accounts → create one (no roles needed) → Keys → Add key → JSON. Keep the downloaded file private.
+3. In Search Console, open the `spendrip.com` domain property → Settings → Users and permissions → Add user: the service account's email, permission **Restricted**.
+
+**Server:** add the key to `/etc/spendrip.env` as one base64 line, then restart the containers:
+
+```
+echo "GSC_CREDENTIALS_B64=$(base64 -w0 key.json)" >> /etc/spendrip.env && shred -u key.json
+cd /opt/spendrip && docker compose -f deploy/docker-compose.prod.yml up -d
+docker exec spendrip-worker-1 python manage.py seo_report --dry-run
+```
+
+Optional: `SEO_REPORT_TO` (default hello@spendrip.com), `GSC_SITE` (default `sc-domain:spendrip.com`).
+
+**Schedule:** root's crontab on the droplet runs it at 09:00 on the 4th of each month (Search Console data lags two to three days):
+
+```
+0 9 4 * * docker exec spendrip-worker-1 python manage.py seo_report >> /var/log/spendrip-seo.log 2>&1
+```
