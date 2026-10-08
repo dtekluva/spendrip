@@ -224,6 +224,9 @@ EMAIL_BACKEND = ("notifications.mailgun.MailgunBackend" if MAILGUN["API_KEY"]
                  else "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>")
 # Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
+# The Terms and Privacy policy version new accounts accept (spendrip.com/terms, /privacy). Bump when they change.
+TERMS_VERSION = "2026-10-08"
+
 # Auto-fill (automatic card top-ups). False stops every automatic charge, like PAYOUTS_ENABLED for payouts.
 AUTOFILL_ENABLED = env_bool("AUTOFILL_ENABLED", True)
 

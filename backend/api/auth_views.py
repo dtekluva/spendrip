@@ -147,7 +147,9 @@ class SignupVerifyOtp(APIView):
                 user = User(username=s["email"], email=s["email"], daily_cap_kobo=settings.SPENDRIP.get("DEFAULT_DAILY_CAP_KOBO") or None,
                             signup_source=s.get("source") or "direct", signup_landing=s.get("landing") or "")
                 user.set_unusable_password()
-                user.save()
+            # Signing up with "By continuing, you agree to the Terms and Privacy policy" on screen: record which version.
+            user.terms_version, user.terms_accepted_at = settings.TERMS_VERSION, timezone.now()
+            user.save()
             ledger.ensure_user_accounts(user)
         request.session.pop(SIGNUP, None)
         login(request, user, backend=BACKEND)

@@ -32,3 +32,13 @@ def test_older_or_failed_top_ups_dont_ask(demo, dev, card):
     CardCharge.objects.create(user=demo, reference="sdc_failed", net_kobo=1, fee_kobo=0, gross_kobo=1, status="failed", completed_at=timezone.now())
     r = unlocked_client(demo).post("/api/funding/card/charge", {"card_id": card.id, "amount_kobo": 2_000_000}, format="json")
     assert r.status_code == 200 and r.json()["status"] == "success"
+
+
+def test_sign_up_records_the_terms_version(dev, db, settings):
+    from rest_framework.test import APIClient
+    from accounts.models import User
+    c = APIClient()
+    r = c.post("/api/signup/start", {"email": "terms@example.com"}, format="json").json()
+    c.post("/api/signup/otp/verify", {"code": r["dev_code"]}, format="json")
+    u = User.objects.get(email="terms@example.com")
+    assert u.terms_version == settings.TERMS_VERSION and u.terms_accepted_at

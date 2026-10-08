@@ -59,7 +59,7 @@ def footer(pages: list[dict]) -> str:
         <div><b>Product</b><a href="/#how">How it works</a><a href="/#priorities">Priorities</a><a href="/#safety">Safety</a><a href="/fees/">Fees</a></div>
         <div><b>Guides</b>{guides}</div>
         <div><b>Get started</b><a href="{APP}">Create an account</a><a href="{APP}">Sign in</a><a href="/#faq">FAQ</a></div>
-        <div><b>Company</b><a href="/about/">About</a><a href="/contact/">Contact</a></div>
+        <div><b>Company</b><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
       </div>
     </div>
     <div class="legal"><span>© {date.today().year} SpenDrip. Built for Nigeria.</span><span>Payments are processed by Paystack.</span></div>

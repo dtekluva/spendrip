@@ -523,4 +523,159 @@ PAGES = [
 <p>SpenDrip will never ask for your card number, PIN, OTP or password, by phone, email or WhatsApp. Anyone who asks isn’t us.</p>"""},
     ],
   },
+  {
+    "slug": "privacy", "short": "Privacy", "nav": None, "footer": False, "eyebrow": "Privacy policy",
+    "title": "SpenDrip Privacy Policy",
+    "description": "What personal data SpenDrip collects, why, who processes it, how long we keep it, and your rights under the Nigeria Data Protection Act 2023.",
+    "h1": "Privacy policy",
+    "lead": "This policy explains what personal data SpenDrip collects, why we need it, who helps us process it, how long we keep it, and the rights you have over it. It applies to spendrip.com, the SpenDrip app at app.spendrip.com, and our emails and messages.",
+    "updated": "2026-10-08", "related": ["terms", "security", "contact"],
+    "sections": [
+      {"id": "who", "h2": "1. Who we are", "html": """
+<p>SpenDrip is operated by <b>Magenta Pass</b> (“SpenDrip”, “we”, “us”), a Nigerian business. We are the data controller for the personal data described here, under the Nigeria Data Protection Act 2023 (NDPA).</p>
+<p>Questions or requests about your data: <a href="mailto:hello@spendrip.com?subject=Privacy">hello@spendrip.com</a> with “Privacy” in the subject, or WhatsApp <a href="https://wa.me/2348022448089" rel="noopener">0802 244 8089</a>.</p>"""},
+      {"id": "collect", "h2": "2. What we collect", "html": """
+<div class="tbl-wrap"><table class="tbl">
+<thead><tr><th>What</th><th>Examples</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Account details</td><td>Name, email address, phone number, your PIN (stored only as a one-way hash), time zone, app settings</td><td>To create and secure your account and contact you</td></tr>
+<tr><td>Identity check</td><td>NIN or BVN (we keep the last 4 digits and a one-way hash, not the full number), what we read from your ID photo (name, date of birth, document type and number, expiry date), and the result of the live selfie check</td><td>To confirm who you are before money moves, prevent fraud, and meet anti-money-laundering rules</td></tr>
+<tr><td>People you pay</td><td>Their name as you label it, the bank account name and number, bank, and an optional WhatsApp number</td><td>To send the transfers you schedule, check the account name, and tell them when money lands if you ask us to</td></tr>
+<tr><td>Money</td><td>Your balance, top-ups, drips, fees, plans and schedules, and Auto-fill settings</td><td>To run the service, keep accurate records, and show you your history</td></tr>
+<tr><td>Cards</td><td>Card brand, last 4 digits, expiry and issuing bank. Your full card number is held by Paystack, not us; we keep only Paystack’s reusable token, encrypted</td><td>For one-tap top-ups and Auto-fill, if you choose them</td></tr>
+<tr><td>Device and usage</td><td>IP address, browser and device type, pages visited, and how the app is used</td><td>Security, fixing problems and improving the product</td></tr>
+<tr><td>Messages with us</td><td>What you send us by email, WhatsApp or phone</td><td>To help you and keep a record of what was agreed</td></tr>
+</tbody></table></div>
+<p><b>Photos from the identity check are not kept.</b> Your ID photo and selfies are read once to complete the check and then discarded; we keep only what was read from them and the result.</p>"""},
+      {"id": "basis", "h2": "3. Why we may use it (legal basis)", "html": """
+<ul>
+<li><b>Contract:</b> to provide the service you signed up for, such as sending your scheduled transfers.</li>
+<li><b>Legal obligation:</b> to verify identity, keep financial records, and report suspicious activity as anti-money-laundering and other laws require.</li>
+<li><b>Legitimate interests:</b> to keep the service secure, prevent fraud, and improve SpenDrip, in ways you would reasonably expect.</li>
+<li><b>Consent:</b> for optional things, such as WhatsApp messages to the people you pay, Auto-fill, and marketing emails. You can withdraw consent at any time in the app or by contacting us.</li>
+</ul>"""},
+      {"id": "share", "h2": "4. Who we share it with", "html": """
+<p>We never sell your personal data. We share it only with the companies that help us run SpenDrip, under contracts that require them to protect it, and only as much as each one needs:</p>
+<ul>
+<li><b>Paystack</b> (payments): card and bank payments, saved-card tokens, bank account name checks, BVN validation and transfers.</li>
+<li><b>Anthropic</b> (identity check): reads your ID photo and selfies to complete the check. The images are not used to train their models.</li>
+<li><b>Mailgun</b> (email delivery) and our WhatsApp messaging provider (messages to you, and to the people you pay when you turn it on).</li>
+<li><b>DigitalOcean</b> (servers and database) and <b>Netlify</b> (website and app hosting).</li>
+<li><b>Banks and payment networks</b> that carry each transfer, including the recipient’s bank.</li>
+</ul>
+<p>We also share data when the law requires it, for example with the Nigerian Financial Intelligence Unit, regulators, courts or the police, and to protect our users or SpenDrip from fraud or harm. If SpenDrip is sold or merged, your data may pass to the new owner, who must keep this policy’s protections.</p>"""},
+      {"id": "abroad", "h2": "5. Data stored outside Nigeria", "html": """
+<p>Our servers are in the United States, and some of the companies above process data in the United States or the European Union. When data leaves Nigeria we rely on the safeguards the NDPA allows, including contracts with these companies that require protection at least equal to Nigerian law.</p>"""},
+      {"id": "keep", "h2": "6. How long we keep it", "html": """
+<ul>
+<li><b>Identity and transaction records:</b> at least 5 years after your account closes, because anti-money-laundering rules require it.</li>
+<li><b>Account and plan data:</b> while your account is open, then as above.</li>
+<li><b>One-time sign-in codes:</b> stored only as a hash, and expire within minutes.</li>
+<li><b>Website and app analytics, including session recordings:</b> up to 12 months.</li>
+</ul>
+<p>When we no longer need data, we delete it or make it anonymous.</p>"""},
+      {"id": "analytics", "h2": "7. Cookies, analytics and session recordings", "html": """
+<ul>
+<li><b>Necessary cookies only:</b> the app uses a sign-in cookie and a security (CSRF) cookie. Without them you can’t stay signed in. We don’t use advertising cookies.</li>
+<li><b>Analytics:</b> we use Umami, which we host ourselves. It counts visits without cookies and without tracking you across other websites.</li>
+<li><b>Session recordings:</b> to find and fix confusing screens, we may record how pages are used (clicks, scrolling, page changes). In the app, all text and numbers on screen are hidden in recordings, and taps on the PIN pad aren’t recorded. Recordings stay on our own analytics server.</li>
+<li><b>Your device:</b> the app remembers some preferences, such as light or dark mode, in your browser’s storage.</li>
+</ul>
+<p>If we add advertising or third-party tracking in future, we will ask for your consent first and update this policy.</p>"""},
+      {"id": "security", "h2": "8. How we protect it", "html": """
+<p>Connections are encrypted (HTTPS), PINs and ID numbers are stored as one-way hashes, card tokens are encrypted, access to production systems is limited to the people who need it, and every movement of money is recorded in a double-entry ledger. No system is perfectly secure; if a breach puts your rights at risk, we will tell you and the Nigeria Data Protection Commission as the law requires. More on <a href="/security/">how SpenDrip keeps your money and identity safe</a>.</p>"""},
+      {"id": "rights", "h2": "9. Your rights", "html": """
+<p>Under the NDPA you can ask us to:</p>
+<ul>
+<li>tell you what personal data we hold about you and give you a copy;</li>
+<li>correct data that is wrong or incomplete;</li>
+<li>delete your data, where we don’t have to keep it by law;</li>
+<li>restrict or object to some uses, including direct marketing;</li>
+<li>move your data to another service in a common format;</li>
+<li>have a person review a decision made automatically. The identity check is automated; if it fails and you think it’s wrong, ask us and someone will look at it.</li>
+</ul>
+<p>Write to <a href="mailto:hello@spendrip.com?subject=Privacy">hello@spendrip.com</a>. We will reply within 30 days. If you’re not satisfied, you can complain to the <a href="https://ndpc.gov.ng" rel="noopener">Nigeria Data Protection Commission</a>.</p>"""},
+      {"id": "others", "h2": "10. Data about the people you pay", "html": """
+<p>When you add someone, you give us their bank details and, if you choose, their WhatsApp number. Please only add people who expect to receive money from you, and tell them you use SpenDrip. Recipients can ask us to stop WhatsApp messages or to see the data we hold about them.</p>"""},
+      {"id": "children", "h2": "11. Children", "html": """
+<p>SpenDrip accounts are for people aged 18 and over. You can send money to a child’s account, but we don’t knowingly create accounts for children.</p>"""},
+      {"id": "changes", "h2": "12. Changes to this policy", "html": """
+<p>If we make important changes, we will tell you by email or in the app before they take effect. The date at the top shows when this policy was last updated.</p>"""},
+    ],
+  },
+  {
+    "slug": "terms", "short": "Terms", "nav": None, "footer": False, "eyebrow": "Terms of use",
+    "title": "SpenDrip Terms of Use",
+    "description": "The terms for using SpenDrip: accounts and verification, your balance, scheduled transfers, fees, Auto-fill, limits, what you must not do, and our responsibilities.",
+    "h1": "Terms of use",
+    "lead": "These terms are the agreement between you and Magenta Pass, which operates SpenDrip. By creating an account or using SpenDrip you accept them, together with our Privacy policy. Please read them; they’re written to be clear.",
+    "updated": "2026-10-08", "related": ["privacy", "fees", "security"],
+    "sections": [
+      {"id": "what", "h2": "1. What SpenDrip is, and isn’t", "html": """
+<ul>
+<li>SpenDrip lets you add money to a SpenDrip balance and schedule transfers (“drips”) from it to bank and wallet accounts in Nigeria, including your own.</li>
+<li><b>SpenDrip is not a bank.</b> Your balance is not a bank deposit or a savings account, it earns no interest, and it is not insured by the Nigeria Deposit Insurance Corporation (NDIC).</li>
+<li>Payments and transfers are processed by our licensed payment partner, <b>Paystack</b>. Money you add is held in our settlement balance with Paystack until it is sent by a drip or returned to you. We keep it separate in our records, and we don’t use it for anything else.</li>
+<li>We don’t give financial, tax or investment advice.</li>
+</ul>"""},
+      {"id": "account", "h2": "2. Your account", "html": """
+<ul>
+<li>You must be at least 18, live in Nigeria, and open the account for yourself. One account per person.</li>
+<li>Before money moves, you must verify your identity with your NIN or BVN, a photo of your ID and a live selfie. We may ask for more information at any time, and set limits until we have it.</li>
+<li>The information you give us must be true and current.</li>
+<li>Keep your PIN, email and devices secure, and don’t share them. You are responsible for activity on your account unless it happened because of our failure. Tell us immediately at <a href="mailto:hello@spendrip.com">hello@spendrip.com</a> or 0802 244 8089 if you think someone else has access.</li>
+</ul>"""},
+      {"id": "balance", "h2": "3. Adding money and your balance", "html": """
+<ul>
+<li>You can add money by card, from your bank account or by bank transfer through Paystack. Only use payment methods that are yours.</li>
+<li>Money counts as added only once the payment is confirmed. If a payment is reversed or disputed, we may take the amount back from your balance.</li>
+<li>Your balance can be used only for drips and their fees. You can move it to your own bank account at any time with a drip to yourself, or by asking us.</li>
+<li>Balances, drips and top-ups have limits that depend on your verification. They’re shown in the app, and we may change them.</li>
+</ul>"""},
+      {"id": "drips", "h2": "4. Scheduled transfers (drips)", "html": """
+<ul>
+<li>You choose who gets paid, how much, and when. We check the account name with the bank before you save a person; you must make sure it’s the right person before you confirm.</li>
+<li>A drip goes out only if your balance covers it and its fees, it’s within your limits, and its plan isn’t paused. Priorities you set may hold back other drips, as explained in the app.</li>
+<li>We send each drip at or soon after its scheduled time. Banks and payment networks sometimes delay or fail transfers; we don’t control them and can’t guarantee the exact time money arrives.</li>
+<li>A transfer counts as sent only when the bank confirms it. If it fails, the money goes back to your balance.</li>
+<li>A transfer that reached the account you chose can’t be reversed by us. If you sent money to the wrong person, contact us and we will help you ask their bank, but we can’t promise it will be returned.</li>
+<li>Group payouts are all or nothing: if your balance can’t cover everyone, nobody on that payout is paid until it can.</li>
+</ul>"""},
+      {"id": "fees", "h2": "5. Fees", "html": """
+<p>Our current fees are on the <a href="/fees/">Fees page</a> and shown in the app before you save a plan or pay: the SpenDrip fee per drip (or per group payout), the transfer fee charged by our payment partner, the government’s stamp duty where it applies, and the card payment fee when you top up by card. Fees are taken from your balance when a drip goes out. We will give you at least 14 days’ notice before raising a fee.</p>"""},
+      {"id": "autofill", "h2": "6. Auto-fill", "html": """
+<p>If you turn on Auto-fill, you authorise us to charge the saved card you choose, within the limits and on the days you set, to top up your balance, until you turn it off. We message you before each payday top-up. You can skip a top-up, change your limits or turn Auto-fill off in the app at any time. Card fees apply to each charge.</p>"""},
+      {"id": "messages", "h2": "7. Messages", "html": """
+<p>We send you service messages (sign-in codes, receipts, low-balance and failed-transfer notices) by email, in the app and, where available, by WhatsApp. If you turn it on, we message the people you pay when money lands; you confirm you have their permission. Marketing messages are optional and you can stop them at any time.</p>"""},
+      {"id": "dont", "h2": "8. What you must not do", "html": """
+<ul>
+<li>Use SpenDrip for anything illegal, including fraud, money laundering, terrorist financing, gambling, or paying for illegal goods or services.</li>
+<li>Use someone else’s identity, card or bank account, or open an account for someone else.</li>
+<li>Receive money from other people into your SpenDrip balance or run a business through it.</li>
+<li>Try to break, overload, copy or get around the security of SpenDrip.</li>
+</ul>"""},
+      {"id": "suspend", "h2": "9. Holding, suspending and closing accounts", "html": """
+<ul>
+<li>We may pause drips, hold money, limit or close your account if we reasonably believe it’s needed to comply with the law, prevent fraud or harm, or because these terms were broken. Where the law allows, we will tell you why.</li>
+<li>We must report suspicious activity to the authorities, and we may not be allowed to tell you when we do.</li>
+<li>You can close your account at any time by contacting us. We will return your remaining balance to a bank account in your name, after any pending drips, fees or reversals, unless the law requires us to hold it.</li>
+</ul>"""},
+      {"id": "liability", "h2": "10. Our responsibility to you", "html": """
+<ul>
+<li>We will provide SpenDrip with reasonable care and skill. If we make a mistake that costs you money, such as sending more than you scheduled or to the wrong saved account, we will put it right.</li>
+<li>We are not responsible for losses caused by things outside our reasonable control, including bank or network outages, delays by other payment providers, details you entered wrongly, or someone using your account because you shared your PIN or device.</li>
+<li>We are not responsible for indirect losses, such as lost profits or opportunities.</li>
+<li>Unless the law says otherwise, our total responsibility to you for any claim is limited to the amount of the transfer or top-up involved plus the fees you paid us in the 12 months before the claim.</li>
+<li>Nothing in these terms limits responsibility that can’t be limited by law, including for fraud, or your rights under the Federal Competition and Consumer Protection Act.</li>
+</ul>"""},
+      {"id": "you", "h2": "11. Your responsibility to us", "html": """
+<p>If you break these terms or the law and that causes us a loss or a claim from someone else, you agree to cover our reasonable costs of dealing with it.</p>"""},
+      {"id": "service", "h2": "12. Changes to SpenDrip and these terms", "html": """
+<p>We may improve, change or stop parts of SpenDrip. If we change these terms in a way that matters, we will tell you by email or in the app at least 14 days before the change applies, unless the law or security requires it sooner. If you don’t agree, you can close your account before then.</p>"""},
+      {"id": "complaints", "h2": "13. Complaints and disputes", "html": """
+<p>Tell us first at <a href="mailto:hello@spendrip.com">hello@spendrip.com</a> or 0802 244 8089. We will acknowledge your complaint within 2 working days and aim to resolve it within 14 days. If you’re still not satisfied, you can contact the Federal Competition and Consumer Protection Commission (FCCPC). These terms are governed by the laws of the Federal Republic of Nigeria, and the courts of Lagos State will hear any dispute we can’t resolve together.</p>"""},
+      {"id": "contact-us", "h2": "14. Contact", "html": """
+<p>Magenta Pass, operator of SpenDrip. Email <a href="mailto:hello@spendrip.com">hello@spendrip.com</a>, phone or WhatsApp <a href="https://wa.me/2348022448089" rel="noopener">0802 244 8089</a>.</p>"""},
+    ],
+  },
 ]

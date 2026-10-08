@@ -42,6 +42,8 @@ class User(AbstractUser):
     tz = models.CharField(max_length=64, default="Africa/Lagos")
     daily_cap_kobo = models.BigIntegerField(null=True, blank=True)
     paused_all = models.BooleanField(default=False)
+    terms_version = models.CharField(max_length=10, blank=True)  # the Terms and Privacy policy version accepted at sign-up (their date)
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
     look = models.CharField(max_length=10, default="light")  # light (default) | themed | dark | auto (light by day, dark by night)
     notify_push = models.BooleanField(default=True)
     notify_whatsapp_recipients = models.BooleanField(default=True)

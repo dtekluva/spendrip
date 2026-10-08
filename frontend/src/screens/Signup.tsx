@@ -80,6 +80,7 @@ function EmailStep({ header, onNext }: { header: React.ReactNode; onNext: (maske
       <div className="kyc-actions">
         <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ok || busy} onClick={start}>Email me a code</button>
         <div className="lockline"><span>🔒</span><span>No spam. We only email you about your account and your drips.</span></div>
+        <p className="small muted" style={{ margin: '4px 0 0', textAlign: 'center' }}>By continuing, you agree to SpenDrip's <a href="https://spendrip.com/terms/" target="_blank" rel="noopener">Terms</a> and <a href="https://spendrip.com/privacy/" target="_blank" rel="noopener">Privacy policy</a>.</p>
       </div>
     </>
   );

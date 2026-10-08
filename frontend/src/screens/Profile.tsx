@@ -116,6 +116,7 @@ export default function Profile() {
         <div className="list">
           <SetRow icon="💧" title="Meet Kobo" sub="The little drop that keeps you company" onClick={() => nav('/kobo')} />
           <SetRow icon="🎨" title="Appearance" val={{ themed: 'Themed', light: 'Light', dark: 'Dark', auto: 'Time-aware' }[look]} onClick={() => openAppearance(store)} />
+          <SetRow icon="📜" title="Terms and privacy" sub="How SpenDrip works and how we use your data" onClick={() => window.open('https://spendrip.com/terms/', '_blank', 'noopener')} />
           <SetRow icon="🚪" title="Sign out" danger onClick={signOut} />
         </div>
         <p className="small muted" style={{ textAlign: 'center', margin: '4px 0 0' }}>SpenDrip 0.2{me?.dev_tools ? ' · test mode' : ''}</p>
