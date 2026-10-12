@@ -7,6 +7,7 @@ export interface FundingAccount { account_number: string; bank_name: string; acc
 export interface Me {
   signed_in: boolean;
   dev_tools: boolean;
+  boost_enabled?: boolean;
   locked?: boolean;
   signup?: { step: SignupStep; email_masked?: string } | null;
   user?: {

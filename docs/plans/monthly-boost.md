@@ -1,6 +1,8 @@
 # Monthly Boost: ₦50,000 to one SpenDrip user a month
 
-Status: **idea, 8 Oct 2026.** Not built. Needs the approvals in section 1 first.
+Status: **built 12 Oct 2026 as “Pays it forward”, switched off** (`BOOST_ENABLED=false`). Code: `backend/promos/`, `frontend/src/screens/Boost.tsx`. Turn on only after the approvals in section 1.
+
+**How to run a month:** people enter in the app (who they look after + a sentence, free). In the admin (Promotions → Boost entries) tick *shortlisted* on the best stories. After the month ends, announce where the public value will come from (e.g. “the NGX All-Share index at close on 1 Dec”), then `python manage.py boost_draw 2026-11 --public "<that value>"`. Fund the Paystack balance with the prize from company money, then `python manage.py boost_pay 2026-11`: ₦50,000 lands in the winner's balance (from the `promotions` ledger account) and they're told by email, push and in the app.
 
 ## The idea
 

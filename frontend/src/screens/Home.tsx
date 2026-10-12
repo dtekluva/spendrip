@@ -69,6 +69,13 @@ export default function Home() {
           {summary.balance.held_kobo > 0 && <p className="small" style={{ margin: '8px 0 0', color: 'var(--hero-muted)' }}>{N(summary.balance.held_kobo)} is on its way to someone right now.</p>}
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
+        {me?.boost_enabled && me.user?.kyc_status === 'verified' && (
+          <button className="autofill-card" style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }} onClick={() => nav('/pays-it-forward')}>
+            <Kobo mood="celebrate" size={52} />
+            <span style={{ minWidth: 0, flex: 1 }}><b style={{ display: 'block' }}>Pays it forward 💛</b>
+              <span className="small muted">Tell us who you look after. One story this month wins ₦50,000 for them. Free to enter.</span></span>
+          </button>
+        )}
         <VerifyCard />
         {summary.paused_all ? (
           <div className="paused-banner"><span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Kobo mood="sleep" size={40} />All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>

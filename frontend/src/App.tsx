@@ -18,6 +18,7 @@ import Activity from './screens/Activity';
 import Profile from './screens/Profile';
 import People from './screens/People';
 import AutoFill from './screens/AutoFill';
+import Boost from './screens/Boost';
 import NotFound from './screens/NotFound';
 import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
@@ -77,6 +78,7 @@ export default function App() {
             <Route path="/fund" element={<Fund />} />
             <Route path="/fund/card" element={<CardReturn />} />
             <Route path="/autofill" element={<AutoFill />} />
+            <Route path="/pays-it-forward" element={<Boost />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/people" element={<People />} />

@@ -920,3 +920,29 @@ class AutoFillNow(APIView):
                                        status=AutoFillAttempt.Status.SUCCESS if charge.status == CardCharge.Status.SUCCESS else AutoFillAttempt.Status.FAILED,
                                        reason=charge.message[:200], at=now)
         return Response({**charge_json(charge, u), "autofill": autofill_json(u)})
+
+
+# ------------------------------------------------------------------ Pays it forward (monthly prize for one story)
+
+from promos import services as boost  # noqa: E402
+from promos.models import BoostEntry  # noqa: E402
+
+
+class Boost(APIView):
+    """GET: is it open, can I enter, my entry this month, past winners. POST: enter or edit this month's story."""
+
+    def get(self, request):
+        u = request.user
+        e = BoostEntry.objects.filter(user=u, month__month=boost.month_key()).select_related("recipient").first()
+        return Response({
+            "enabled": settings.BOOST_ENABLED, "month": boost.month_key(), "prize_kobo": settings.BOOST_PRIZE_KOBO,
+            "why_not": boost.eligible(u), "story_max": boost.STORY_MAX,
+            "entry": {"recipient_id": e.recipient_id, "recipient": e.recipient.label if e.recipient else "", "story": e.story,
+                      "consent_publish": e.consent_publish} if e else None,
+            "winners": boost.winners(),
+        })
+
+    def post(self, request):
+        d = request.data
+        boost.enter(request.user, recipient_id=d.get("recipient_id"), story=d.get("story", ""), consent_publish=bool(d.get("consent_publish")))
+        return self.get(request)

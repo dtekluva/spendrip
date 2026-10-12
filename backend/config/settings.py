@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "notifications",
     "seasons",
     "seo",
+    "promos",
 ]
 
 MIDDLEWARE = [
@@ -226,6 +227,10 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SpenDrip <hello@mg.spendrip.com>
 # Images used in emails (Kobo etc.) are served by the landing site, landing/email/.
 # The Terms and Privacy policy version new accounts accept (spendrip.com/terms, /privacy). Bump when they change.
 TERMS_VERSION = "2026-10-08"
+
+# Pays it forward (monthly ₦50,000 for one user's story). Off until FCCPC/gaming approval. See docs/plans/monthly-boost.md.
+BOOST_ENABLED = env_bool("BOOST_ENABLED", False)
+BOOST_PRIZE_KOBO = int(env("BOOST_PRIZE_KOBO", "5000000"))
 
 # Auto-fill (automatic card top-ups). False stops every automatic charge, like PAYOUTS_ENABLED for payouts.
 AUTOFILL_ENABLED = env_bool("AUTOFILL_ENABLED", True)

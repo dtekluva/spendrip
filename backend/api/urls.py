@@ -56,6 +56,7 @@ urlpatterns = [
     path("funding/card/charge", app.SavedCardTopUp.as_view()),
     path("cards", app.Cards.as_view()),
     path("autofill", app.AutoFillView.as_view()),
+    path("boost", app.Boost.as_view()),
     path("autofill/off", app.AutoFillOff.as_view()),
     path("autofill/skip", app.AutoFillSkip.as_view()),
     path("autofill/fill-now", app.AutoFillNow.as_view()),

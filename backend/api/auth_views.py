@@ -43,7 +43,7 @@ def me_json(request) -> dict:
     fa = u.funding_accounts.first()
     return {
         "signed_in": True,
-        "dev_tools": dev,
+        "dev_tools": dev, "boost_enabled": settings.BOOST_ENABLED,
         "locked": not acc.is_unlocked(request),
         "user": {
             "first_name": u.first_name.title(), "last_name": u.last_name.title(), "email": u.email or "",
