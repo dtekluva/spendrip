@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: spendrip
       POSTGRES_DB: spendrip
     ports:
-      - "127.0.0.1:5434:5432"
+      - "127.0.0.1:${SPENDRIP_DB_PORT:-5434}:5432"  # set SPENDRIP_DB_PORT if another project holds 5434
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

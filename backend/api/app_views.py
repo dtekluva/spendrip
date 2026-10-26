@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from accounts import services as acc
 from accounts.services import FlowError
 from drips.models import Plan, Recipient, Run, RunBatch
-from drips.services import (engine_plans, fee_schedule, plan_fee_kobo, plan_progress, reschedule, retry_batch, save_lines,
+from drips.services import (typical_month, engine_plans, fee_schedule, plan_fee_kobo, plan_progress, reschedule, retry_batch, save_lines,
                             sent_today_kobo, user_forecast)
 from engine import (
     MAX_PLAN_MONTHS,
@@ -306,6 +306,7 @@ class Summary(APIView):
         return Response({
             "balance": {"available_kobo": bal.available_kobo, "held_kobo": bal.held_kobo, "total_kobo": bal.total_kobo},
             "forecast": forecast_json(user_forecast(user)),
+            "typical_month": typical_month(user),
             "fee_kobo": fee_schedule().service_kobo,  # SpenDrip's own fee; see "fees" for the full rules
             "fees": fees_json(),
             "paused_all": user.paused_all,

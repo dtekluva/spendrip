@@ -267,3 +267,30 @@ def retry_batch(batch: RunBatch, now: datetime | None = None) -> RunBatch:
                 fee_kobo=f.total_kobo, service_fee_kobo=f.service_kobo, provider_fee_kobo=f.provider_kobo, stamp_duty_kobo=f.stamp_duty_kobo)
             for r, f in zip(unpaid, parts)])
     return new
+
+
+def typical_month(user, now: datetime | None = None) -> dict:
+    """
+    What a normal month costs: every active plan's drips in the next full calendar month, fees included, at their
+    regular amounts (one-off changes aside). Counted even when everything is paused, so people see what resuming means.
+    """
+    now = now or timezone.now()
+    tz = ZoneInfo(user.tz or "Africa/Lagos")
+    local = now.astimezone(tz)
+    first = (local.replace(day=1, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=32)).replace(day=1)
+    end = (first + timedelta(days=32)).replace(day=1)
+    fees = fee_schedule()
+    plans = Plan.objects.filter(user=user, status=Plan.Status.ACTIVE).select_related("recipient").prefetch_related("lines")
+    rows, total = [], 0
+    for p in plans:
+        ep = p.to_engine()
+        n = len(occurrences(ep.schedule, first, end))
+        if not n:
+            continue
+        amount, fee = ep.cost_parts(fees, first=False)
+        rows.append({"plan_id": str(p.pk), "label": p.label, "emoji": p.emoji, "tint": p.tint, "times": n,
+                     "amount_kobo": amount, "fee_kobo": fee, "total_kobo": n * (amount + fee), "priority_rank": p.priority_rank})
+        total += n * (amount + fee)
+    rows.sort(key=lambda r: (r["priority_rank"] or 9, -r["total_kobo"]))
+    paused = Plan.objects.filter(user=user, status=Plan.Status.PAUSED).count()
+    return {"month": f"{first:%Y-%m}", "need_kobo": total, "plans": rows, "paused_plans": paused}

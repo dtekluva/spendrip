@@ -8,6 +8,7 @@ import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
 import { openAppearance } from './Appearance';
 import { VerifyCard } from './Verify';
+import type { TypicalMonth } from '../lib/types';
 
 export default function Home() {
   const [showAll, setShowAll] = useState(false);  // Coming up: 6 by default, the rest on request
@@ -40,6 +41,15 @@ export default function Home() {
   else if (waits.length) headline = `${waits.length} drip${waits.length > 1 ? 's' : ''} waiting on a top-up.`;
   else if (!plans.length) headline = "Let's set up your first plan.";
 
+  // A normal month: what active plans send in a full month, fees included, and how far the balance goes.
+  const tm = summary.typical_month;
+  const covers = tm && tm.need_kobo ? Math.floor(bal / tm.need_kobo) : 0;
+  const monthNote = !tm ? '' : summary.paused_all ? "That's what goes out each month once you resume."
+    : covers >= 2 ? `Your balance covers about ${covers} months. Lovely. 🎉`
+      : covers === 1 ? 'Your balance covers a full month. 🎉'
+        : `${N(tm.need_kobo - bal)} more covers all of ${MONL[Number(tm.month.slice(5, 7)) - 1]}.`;
+  const openMonth = () => tm && store.openSheet(<NormalMonth tm={tm} bal={bal} paused={summary.paused_all} onFund={() => { store.closeSheet(); nav('/fund'); }} onCalendar={() => { store.closeSheet(); nav('/calendar'); }} />);
+
   const resume = async () => { await api.patch('/me/settings', { paused_all: false }); await Promise.all([reload(), store.refreshMe()]); toast('All drips are back on'); };
 
   return (
@@ -67,6 +77,14 @@ export default function Home() {
             <div><span className="k"><span className="sw" style={{ background: 'var(--hero-free)' }} />Free to spend</span><b className="num">{N(Math.max(0, f.free_kobo))}</b></div>
           </div>
           {summary.balance.held_kobo > 0 && <p className="small" style={{ margin: '8px 0 0', color: 'var(--hero-muted)' }}>{N(summary.balance.held_kobo)} is on its way to someone right now.</p>}
+          {tm && tm.need_kobo > 0 && (
+            <button className="month-strip" onClick={openMonth} aria-label={`A normal month needs ${N(tm.need_kobo)}. See the breakdown.`}>
+              <span className="ms-ic" aria-hidden="true">🗓️</span>
+              <span className="ms-main"><span className="ms-k">A normal month</span><b className="num">{N(tm.need_kobo)}</b></span>
+              <span className="ms-chev" aria-hidden="true">›</span>
+              <span className="ms-note">{monthNote}</span>
+            </button>
+          )}
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
         {me?.boost_enabled && me.user?.kyc_status === 'verified' && (
@@ -137,5 +155,39 @@ export default function Home() {
         </div>
       </div></div>
     </div>
+  );
+}
+
+/** The breakdown behind "A normal month": each active plan, how often, and what it costs with fees. */
+function NormalMonth({ tm, bal, paused, onFund, onCalendar }: { tm: TypicalMonth; bal: number; paused: boolean; onFund: () => void; onCalendar: () => void }) {
+  const name = MONL[Number(tm.month.slice(5, 7)) - 1];
+  const short = Math.max(0, tm.need_kobo - bal);
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+        <Kobo mood={short ? 'waiting' : 'happy'} size={56} />
+        <div><h3 style={{ margin: 0 }}>A normal month: <span className="num">{N(tm.need_kobo)}</span></h3>
+          <span className="small muted">What your active plans send in a month like {name}, fees included.</span></div>
+      </div>
+      <div className="table" style={{ marginTop: 10 }}>
+        {tm.plans.map((p) => (
+          <div key={p.plan_id} className="trow"><span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+            <span><b>{p.label}</b>{p.priority_rank ? <span className="small muted"> · priority {p.priority_rank}</span> : null}<br />
+              <span className="small muted num">{p.times} × ({N(p.amount_kobo)} + {N(p.fee_kobo)} fees)</span></span>
+            <b className="num">{N(p.total_kobo)}</b></div>
+        ))}
+        <div className="ttotal" style={{ borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 12 }}><span>A normal month</span><b className="num">{N(tm.need_kobo)}</b></div>
+        <div className="ttotal"><span>You have</span><b className="num">{N(bal)}</b></div>
+      </div>
+      <p className="small muted" style={{ margin: '10px 0 0' }}>
+        {paused ? 'Everything is paused right now, so nothing goes out until you resume. ' : ''}
+        {tm.paused_plans ? `${tm.paused_plans} paused plan${tm.paused_plans === 1 ? " isn't" : "s aren't"} counted. ` : ''}
+        One-off changes and plans that end soon can make a real month a little different.
+      </p>
+      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <button className="btn btn-soft" style={{ flex: 1 }} onClick={onCalendar}>See the calendar</button>
+        {short > 0 && !paused && <button className="btn btn-primary" style={{ flex: 1 }} onClick={onFund}>Add {N(short)}</button>}
+      </div>
+    </>
   );
 }

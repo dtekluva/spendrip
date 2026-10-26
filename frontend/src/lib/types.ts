@@ -60,6 +60,13 @@ export interface Summary {
   fees?: FeeRules;
   paused_all: boolean;
   funding_account: FundingAccount | null;
+  typical_month?: TypicalMonth;
+}
+
+/** What a normal month costs: active plans' drips in the next full month, fees included (even while everything is paused). */
+export interface TypicalMonth {
+  month: string; need_kobo: number; paused_plans: number;
+  plans: { plan_id: string; label: string; emoji: string; tint: string; times: number; amount_kobo: number; fee_kobo: number; total_kobo: number; priority_rank: number | null }[];
 }
 
 export interface DraftLine { recipient_id: number; amount_kobo: number; next_amount_kobo: number | null; skip_next: boolean }

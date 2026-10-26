@@ -100,3 +100,18 @@ def test_reminders_never_break_the_tick(user, recipients, make_plan, monkeypatch
     make_plan("Mum", 10_000, recipients["mum"], frequency="monthly", month_day=2)
     monkeypatch.setattr(w, "send_reminders", lambda now: 1 / 0)
     assert "handled" in Worker(provider=MockPaymentProvider(), messenger=MockMessenger()).tick(lagos("2026-11-01T08:00"))
+
+
+def test_typical_month_counts_active_plans_even_when_everything_is_paused(user, recipients, make_plan):
+    from drips.services import typical_month
+    make_plan("Mum", 30_000, recipients["mum"], frequency="monthly", month_day=25)
+    make_plan("Fuel", 10_000, recipients["me"], frequency="weekly", weekday=5)
+    off = make_plan("Data", 5_000, recipients["me"], frequency="monthly", month_day=1)
+    off.status = "paused"
+    off.save()
+    user.paused_all = True
+    user.save()
+    t = typical_month(user, lagos("2026-10-26T12:00"))
+    # November: Mum once (₦30,050) + 4 Fridays of fuel (4 × ₦10,050)
+    assert t["month"] == "2026-11" and t["need_kobo"] == naira(30_050 + 4 * 10_050)
+    assert [r["label"] for r in t["plans"]] == ["Fuel", "Mum"] and t["paused_plans"] == 1
