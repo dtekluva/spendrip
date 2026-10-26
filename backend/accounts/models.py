@@ -49,6 +49,7 @@ class User(AbstractUser):
     notify_whatsapp_recipients = models.BooleanField(default=True)
     notify_daily_summary = models.BooleanField(default=True)
     notify_low_balance = models.BooleanField(default=True)
+    notify_finance_email = models.BooleanField(default=True)  # the monthly Finance email on the 1st
     notify_email = models.BooleanField(default=True)  # email me when a drip is delivered
 
     @property

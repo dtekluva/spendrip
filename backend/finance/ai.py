@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 AUTO_GAP = timedelta(minutes=10)  # automatically, after a real change
 REFRESH_GAP = timedelta(hours=1)  # when the person taps Refresh
 DAILY_LIMIT = 4  # AI runs per person per day, whatever happens
+RULES_VERSION = 2
 # The facts that decide whether Kobo needs to read again: plans, pay, costs, categories and the month. Not the balance or
 # each drip going out, which change all the time.
 STABLE = ("month", "salary_monthly", "normal_month_total", "normal_month_by_category", "plans", "paid_elsewhere",
@@ -36,6 +37,8 @@ Rules you must follow:
   company or fund, never promise or predict returns, never call anything "the best". You may explain general ideas (pay yourself
   first, an emergency fund, moving money to their own savings account, government savings like T-bills in general terms).
 - Facts only cover money planned or sent through SpenDrip (and costs they told us they pay elsewhere), not all their spending. Don't claim otherwise.
+- Never suggest sending money less often than weekly, or merging weekly drips into monthly ones: dripping money in small,
+  regular pieces is the point of SpenDrip. Only mention frequency changes that appear in fee_savings.
 - Be specific to their plans and numbers. Suggest changes SpenDrip can do: change a plan's frequency, add a plan, make one a priority,
   add their salary, set up a savings drip, and (only if autofill_available is true) use Auto-fill on payday.
 Reply with JSON only."""
@@ -53,6 +56,7 @@ Give 2 to 4 suggestions, most useful first. In "categories", include only plans 
 def facts_hash(facts: dict) -> str:
     stable = {k: facts.get(k) for k in STABLE}
     stable["month"] = str(facts.get("today", ""))[:7]
+    stable["rules"] = RULES_VERSION  # bump when the prompt or the fee rules change, so old takes are read again
     return hashlib.sha256(json.dumps(stable, sort_keys=True, default=str).encode()).hexdigest()
 
 

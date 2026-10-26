@@ -79,7 +79,13 @@ class Worker:
         except Exception:
             log.exception("auto-fill failed")
         try:
-            return {**send_reminders(now), **{f"autofill_{k}": v for k, v in filled.items()}}
+            from finance.monthly import send_finance_emails  # the monthly Finance email on the 1st
+            finance = send_finance_emails(now)
+        except Exception:
+            log.exception("finance emails failed")
+            finance = 0
+        try:
+            return {**send_reminders(now), **{f"autofill_{k}": v for k, v in filled.items()}, "finance_emails": finance}
         except Exception:  # a reminder must never stop payouts
             log.exception("reminders failed")
             return {}

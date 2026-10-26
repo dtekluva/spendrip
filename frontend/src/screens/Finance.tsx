@@ -200,9 +200,11 @@ const Fees: Renderer = ({ s, ctx }) => {
       {d.ideas.length ? (<>
         <p className="small muted" style={{ margin: 0 }}>Same money, fewer transfers. These changes would save about <b>{N(d.total_saving_kobo)}</b> a month:</p>
         <div className="fin-rows">{d.ideas.map((x: any) => (
-          <button key={x.plan_id} className="fin-row fin-row-btn" onClick={() => ctx.nav(`/plans/${x.plan_id}/edit`)}>
-            <span>{x.emoji}</span><span>{x.label}<br /><span className="tiny muted">{N(x.amount_kobo)} {x.from} → {N(x.new_amount_kobo)} {x.to}</span></span>
-            <b className="num" style={{ color: 'var(--mint)' }}>−{N(x.saving_kobo)}</b><span className="small muted">›</span></button>
+          <div key={x.plan_id} className="fin-row">
+            <span>{x.emoji}</span>
+            <button className="fin-link-btn" onClick={() => ctx.nav(`/plans/${x.plan_id}/edit`)}>{x.label}<br /><span className="tiny muted">{N(x.amount_kobo)} {x.from} → {N(x.new_amount_kobo)} {x.to} · saves {N(x.saving_kobo)}/mo</span></button>
+            <button className="link small" onClick={async () => ctx.setR(await api.put<Report>('/finance/profile', { dismiss: `fee:${x.plan_id}` }))}>Not for me</button>
+            <span /></div>
         ))}</div>
       </>) : <p className="small muted" style={{ margin: 0 }}>Your fees look lean. Nothing to change. 👌🏾</p>}
     </Card>

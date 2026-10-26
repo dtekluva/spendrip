@@ -23,7 +23,7 @@ from . import categories as cats
 from .models import Expense, FinanceProfile, SavingsOption
 
 MONTHS_BACK = 6
-FEE_SAVING_MIN_KOBO = 30_000  # only suggest a cadence change that saves at least ₦300 a month
+FEE_SAVING_MIN_KOBO = 50_000  # only suggest a cadence change that saves at least ₦500 a month
 ESSENTIALS = ("housing", "food")  # what most households pay; we ask if they're missing
 
 
@@ -103,22 +103,21 @@ class Facts:
 
     # ------------------------------------------------------------ derived
     def fee_savings(self) -> list[dict]:
-        """Cadence changes that would cut fees for the same money (daily → weekly, weekly → monthly)."""
+        """Daily drips that could go weekly for the same money and fewer fees. Never less often than weekly: sending in
+        small pieces is the point of a drip (a month of fuel money in one go is easy to overspend). Plans the person
+        said "not for me" to are skipped."""
         out = []
         for r in self.plan_rows:
             p = self.plans.get(r["plan_id"])
-            if not p or p.kind == "group" or p.status != Plan.Status.ACTIVE:
+            if not p or p.kind == "group" or p.status != Plan.Status.ACTIVE or p.frequency != "daily":
                 continue
-            if p.frequency == "daily":
-                to, per, times = "weekly", r["amount_kobo"] * 7, 52 / 12
-            elif p.frequency == "weekly":
-                to, per, times = "monthly", round(r["amount_kobo"] * 52 / 12 / 10_000) * 10_000, 1  # to the nearest ₦100
-            else:
+            if f"fee:{r['plan_id']}" in self.dismissed:
                 continue
+            per = r["amount_kobo"] * 7
             now_fees = r["fee_kobo"] * r["times"]
-            new_fees = round(fee_kobo(per) * times)
+            new_fees = round(fee_kobo(per) * 52 / 12)
             if now_fees - new_fees >= FEE_SAVING_MIN_KOBO:
-                out.append({"plan_id": r["plan_id"], "label": p.label, "emoji": p.emoji, "from": p.frequency, "to": to,
+                out.append({"plan_id": r["plan_id"], "label": p.label, "emoji": p.emoji, "from": "daily", "to": "weekly",
                             "amount_kobo": r["amount_kobo"], "new_amount_kobo": per, "fees_now_kobo": now_fees,
                             "fees_new_kobo": new_fees, "saving_kobo": now_fees - new_fees})
         return sorted(out, key=lambda x: -x["saving_kobo"])

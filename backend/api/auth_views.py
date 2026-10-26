@@ -55,6 +55,7 @@ def me_json(request) -> dict:
             "salary_kobo": getattr(getattr(u, "finance", None), "salary_kobo", None),
             "notify_push": u.notify_push, "notify_whatsapp_recipients": u.notify_whatsapp_recipients,
             "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance, "notify_email": u.notify_email,
+            "notify_finance_email": u.notify_finance_email,
             "funding_account": {"account_number": fa.account_number, "bank_name": fa.bank_name, "account_name": fa.account_name} if fa else None,
         },
     }
@@ -72,7 +73,7 @@ class MeUpdate(APIView):
     """Profile settings. Needs the app unlocked."""
 
     FIELDS = {"look": {"themed", "light", "dark", "auto"}, "paused_all": bool, "daily_cap_kobo": "cap",
-              "notify_push": bool, "notify_whatsapp_recipients": bool, "notify_daily_summary": bool, "notify_low_balance": bool, "notify_email": bool}
+              "notify_push": bool, "notify_whatsapp_recipients": bool, "notify_daily_summary": bool, "notify_low_balance": bool, "notify_email": bool, "notify_finance_email": bool}
 
     def patch(self, request):
         u = request.user

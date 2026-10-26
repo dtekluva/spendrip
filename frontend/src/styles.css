@@ -1000,3 +1000,4 @@ a{color:inherit}
 .fin-opt{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;border:1px solid var(--line)}
 .home-fin{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .tiny{font-size:12px}
+.fin-link-btn{background:transparent;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}

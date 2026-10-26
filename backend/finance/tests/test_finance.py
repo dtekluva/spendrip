@@ -133,10 +133,49 @@ def test_ai_cost_guards(user, recipients, make_plan, top_up):
         FinanceSnapshot.objects.update(created_at=FinanceSnapshot.objects.first().created_at - fin_ai.REFRESH_GAP)
         assert fin_ai.insights(user, report.Facts(user).for_ai(), force=True)[1] == "fresh"
         assert call.call_count == 2
-        # The daily limit stops everything, even a real change.
+        # The daily limit stops everything, even a real change long after the last run.
+        from django.utils import timezone
+        FinanceSnapshot.objects.all().delete()
+        today = timezone.localtime().replace(hour=0, minute=0, second=1, microsecond=0)
         for _ in range(fin_ai.DAILY_LIMIT):
             FinanceSnapshot.objects.create(user=user, month="2026-10", facts_hash="x", ai=answer)
-        FinanceSnapshot.objects.update(created_at=FinanceSnapshot.objects.order_by("created_at").first().created_at)
+        FinanceSnapshot.objects.update(created_at=today)  # all today, but more than AUTO_GAP ago (or exactly now, just after midnight)
         make_plan("Fuel", 10_000, recipients["me"], frequency="weekly", weekday=5)
-        assert fin_ai.insights(user, report.Facts(user).for_ai(), force=True)[1] in ("limit", "too_soon")
+        with mock.patch("finance.ai.AUTO_GAP", fin_ai.timedelta(0)):
+            assert fin_ai.insights(user, report.Facts(user).for_ai())[1] == "limit"
         assert call.call_count == 2
+
+
+def test_monthly_email_goes_once_on_the_first_to_people_who_sent(user, recipients, make_plan, settings):
+    from datetime import timedelta
+    from django.core import mail
+    from drips.models import Run
+    from finance.monthly import send_finance_emails
+    from notifications.models import OutboxMessage
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    user.email = "ada@example.com"
+    user.save()
+    p = make_plan("Mum", 30_000, recipients["mum"], frequency="monthly", month_day=25)
+    with mock.patch("finance.ai.text_json", return_value={"summary": "Steady month.", "suggestions": [{"title": "Save", "body": "Try a savings drip.", "kind": "savings"}], "categories": {}}):
+        assert send_finance_emails(lagos("2026-11-01T08:00")) == 0  # nobody sent anything yet
+        Run.objects.create(plan=p, user=user, scheduled_for=lagos("2026-10-25T09:00"), amount_kobo=3_000_000, fee_kobo=5_000, status="successful")
+        assert send_finance_emails(lagos("2026-11-01T08:00")) == 0  # before 9 AM
+        assert send_finance_emails(lagos("2026-11-01T09:05")) == 1
+        assert send_finance_emails(lagos("2026-11-01T12:00")) == 0  # once
+        assert send_finance_emails(lagos("2026-11-05T09:00")) == 0  # too late in the month
+    m = mail.outbox[-1]
+    assert "Your October in money: ₦30,000 sent" in m.subject and "Steady month." in m.body and "Family support" in m.body
+    assert OutboxMessage.objects.filter(template="finance_month").count() == 1
+    user.notify_finance_email = False
+    user.save()
+    from finance.monthly import candidates
+    assert user not in candidates(lagos("2026-12-01T09:00"))
+
+
+def test_fee_ideas_never_go_below_weekly_and_can_be_dismissed(user, recipients, make_plan):
+    make_plan("Transportation", 40_000, recipients["me"], frequency="weekly", weekday=1)
+    up = make_plan("Upkeep", 5_000, recipients["mum"], frequency="daily")
+    ideas = report.Facts(user).fee_savings()
+    assert [x["label"] for x in ideas] == ["Upkeep"]  # weekly Transportation is never pushed to monthly
+    FinanceProfile.objects.create(user=user, dismissed=[f"fee:{up.pk}"])
+    assert report.Facts(user).fee_savings() == []

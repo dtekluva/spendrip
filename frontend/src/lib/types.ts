@@ -17,7 +17,7 @@ export interface Me {
     limits: { max_balance_kobo: number; max_drip_kobo: number } | null;
     nin_last4: string; has_name: boolean;
     has_pin: boolean; pin_locked: boolean; has_face_id: boolean; look: Look; daily_cap_kobo: number | null; paused_all: boolean; salary_kobo?: number | null;
-    notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean; notify_email: boolean;
+    notify_push: boolean; notify_whatsapp_recipients: boolean; notify_daily_summary: boolean; notify_low_balance: boolean; notify_email: boolean; notify_finance_email?: boolean;
     funding_account: FundingAccount | null;
   };
 }
