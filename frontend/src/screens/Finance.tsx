@@ -279,10 +279,10 @@ const RENDERERS: Record<string, Renderer> = {
 /* ---------------------------------------------------------------- sheets */
 
 function SalarySheet({ ctx }: { ctx: Ctx }) {
-  const { closeSheet } = useStore();
+  const { closeSheet, refreshMe } = useStore();
   const [v, setV] = useState(ctx.r.salary_kobo ?? 0);
   const { busy, error, run } = useAction();
-  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); closeSheet(); ctx.askKobo(true); });
+  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); refreshMe(); closeSheet(); ctx.askKobo(true); });
   return (<>
     <h3>Your monthly take-home pay</h3>
     <p className="small muted" style={{ marginTop: -6 }}>What lands in your account each month after tax and deductions. Only you see it; it's used for your Finance report.</p>

@@ -52,6 +52,7 @@ def me_json(request) -> dict:
             "kyc_mode": acc.kyc_mode(), "limits": acc.limits(u),
             "bank_transfer_funding": settings.SPENDRIP.get("BANK_TRANSFER_FUNDING", True), "nin_last4": u.nin_last4, "has_name": bool(u.first_name), "has_pin": bool(u.pin_hash), "pin_locked": bool(u.locked_at),
             "has_face_id": u.passkeys.exists(), "look": u.look, "daily_cap_kobo": u.daily_cap_kobo, "paused_all": u.paused_all,
+            "salary_kobo": getattr(getattr(u, "finance", None), "salary_kobo", None),
             "notify_push": u.notify_push, "notify_whatsapp_recipients": u.notify_whatsapp_recipients,
             "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance, "notify_email": u.notify_email,
             "funding_account": {"account_number": fa.account_number, "bank_name": fa.bank_name, "account_name": fa.account_name} if fa else None,

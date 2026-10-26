@@ -108,6 +108,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
         </div>
         <div className="group-h">Money</div>
         <div className="list">
+          <SetRow icon="💼" title="Take-home pay" sub="Used in Finance to compare your month with your pay. Only you see it." val={u.salary_kobo ? N(u.salary_kobo) : 'Add'} onClick={() => openSheet(<SalarySheet />)} />
           <SetRow icon="🧢" title="Daily sending limit" sub="Most SpenDrip can send in one day" val={u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'No limit'} onClick={capSheet} />
           <SetRow icon="⏸" title="Pause everything" sub={u.paused_all ? 'No drips will go out until you turn this off' : 'Stop all drips at once. Nothing is deleted.'} on={u.paused_all}
             onClick={() => openSheet(u.paused_all ? confirmResumeAll(store) : confirmPauseAll(store))} />
@@ -213,4 +214,25 @@ function CardsSheet() {
       <p className="small muted">Paystack keeps your card details. SpenDrip stores only a token for it, encrypted.</p>
     </>
   );
+}
+
+function SalarySheet() {
+  const { me, closeSheet, toast, refreshMe } = useStore();
+  const [v, setV] = useState(me?.user?.salary_kobo ?? 0);
+  const { busy, error, run } = useAction();
+  const save = (value: number | null) => run(async () => {
+    await api.put('/finance/profile', { salary_kobo: value });
+    await refreshMe(); closeSheet(); toast(value ? 'Take-home pay saved' : 'Take-home pay removed');
+  });
+  return (<>
+    <h3>Your monthly take-home pay</h3>
+    <p className="small muted" style={{ marginTop: -6 }}>What lands in your account each month after tax and deductions. Only you see it; it's used for your Finance report.</p>
+    <div className="field"><label htmlFor="set-sal">Take-home pay (₦)</label>
+      <input id="set-sal" inputMode="numeric" value={v ? Math.round(v / 100).toLocaleString('en-NG') : ''} onChange={(e) => setV(Number(e.target.value.replace(/\D/g, '')) * 100)} autoFocus /></div>
+    {error && <p className="err">{error}</p>}
+    <div style={{ display: 'flex', gap: 8 }}>
+      {me?.user?.salary_kobo ? <button className="btn btn-soft" disabled={busy} onClick={() => save(null)}>Remove</button> : null}
+      <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || v < 1_000_000} onClick={() => save(v)}>Save</button>
+    </div>
+  </>);
 }
