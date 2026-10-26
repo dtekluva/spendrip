@@ -1,7 +1,6 @@
 """
 The monthly Finance email ("Your October in money"), sent from the worker on the 1st from 9 AM local, after the month
-outlook. Covers the month that just ended: what went out, where it went, against take-home pay, the best fee idea and
-Kobo's take. Only for people who sent at least one drip that month and haven't turned it off; once per person per month.
+outlook. Covers the month that just ended: what went out, where it went, against take-home pay, the and Kobo's take. Only for people who sent at least one drip that month and haven't turned it off; once per person per month.
 """
 from __future__ import annotations
 
@@ -76,7 +75,6 @@ def render(user, f: report.Facts, last: dict, before: dict, take: dict) -> tuple
     subject = f"📊 Your {month} in money: {N(last['sent_kobo'])} sent"
     rows = sorted(((cats.info(k), v) for k, v in last["by_cat"].items() if v), key=lambda x: -x[1])[:6]
     total = sum(v for _, v in rows) or 1
-    ideas = f.fee_savings()[:1]
     app = settings.SPENDRIP["PUBLIC_APP_URL"].rstrip("/")
     first = user.first_name.title() or "there"
 
@@ -87,9 +85,6 @@ def render(user, f: report.Facts, last: dict, before: dict, take: dict) -> tuple
     text += [f"  {c['emoji']} {c['label']}: {N(v)} ({round(v * 100 / total)}%)" for c, v in rows]
     if f.salary:
         text += ["", f"Against your take-home pay of {N(f.salary)}: a normal month plans {round(f.normal_total * 100 / f.salary)}% of it."]
-    if ideas:
-        x = ideas[0]
-        text += ["", f"Fee idea: send {x['label']} {x['to']} instead of {x['from']} to save about {N(x['saving_kobo'])} a month."]
     text += ["", "Kobo's take:", take["summary"], *[f"- {t['title']}: {t['body']}" for t in take["suggestions"][:3]],
              "", f"Open Finance: {app}/finance", "", "General information, not financial advice. Turn this email off in Settings → Notifications."]
 
@@ -102,8 +97,6 @@ def render(user, f: report.Facts, last: dict, before: dict, take: dict) -> tuple
                    for t in take["suggestions"][:3])
     salary = (f'<p style="margin:18px 0 0;font-size:14px;color:#3b4070">Against your take-home pay of <b>{N(f.salary)}</b>, a normal month plans '
               f'<b>{round(f.normal_total * 100 / f.salary)}%</b> of it.</p>') if f.salary else ""
-    idea = (f'<p style="margin:14px 0 0;padding:12px 14px;background:#EAF8F2;border-radius:12px;font-size:14px;color:#0E5C44">🧾 <b>Fee idea:</b> send '
-            f'{escape(ideas[0]["label"])} {ideas[0]["to"]} instead of {ideas[0]["from"]} to save about <b>{N(ideas[0]["saving_kobo"])}</b> a month.</p>') if ideas else ""
     tiles = "".join(
         f'<td style="padding:12px;background:#F4F5FB;border-radius:12px;width:33%"><div style="font-size:12px;color:#8a8fb5">{k}</div>'
         f'<div style="font-size:19px;font-weight:800;color:#0E1233">{v}</div><div style="font-size:12px;color:#3b4070">{s}</div></td>'
@@ -120,7 +113,7 @@ def render(user, f: report.Facts, last: dict, before: dict, take: dict) -> tuple
 <h2 style="margin:22px 0 8px;font-size:16px;color:#0E1233">Where it went</h2>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:6px;overflow:hidden"><tr>{bar}</tr></table>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:8px">{rows_html}</table>
-{salary}{idea}
+{salary}
 <h2 style="margin:22px 0 8px;font-size:16px;color:#0E1233">💧 Kobo's take</h2>
 <p style="margin:0 0 12px;font-size:15px;line-height:1.55;color:#0E1233">{escape(take["summary"])}</p>
 {tips}

@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 AUTO_GAP = timedelta(minutes=10)  # automatically, after a real change
 REFRESH_GAP = timedelta(hours=1)  # when the person taps Refresh
 DAILY_LIMIT = 4  # AI runs per person per day, whatever happens
-RULES_VERSION = 2
+RULES_VERSION = 3
 # The facts that decide whether Kobo needs to read again: plans, pay, costs, categories and the month. Not the balance or
 # each drip going out, which change all the time.
 STABLE = ("month", "salary_monthly", "normal_month_total", "normal_month_by_category", "plans", "paid_elsewhere",
@@ -37,8 +37,9 @@ Rules you must follow:
   company or fund, never promise or predict returns, never call anything "the best". You may explain general ideas (pay yourself
   first, an emergency fund, moving money to their own savings account, government savings like T-bills in general terms).
 - Facts only cover money planned or sent through SpenDrip (and costs they told us they pay elsewhere), not all their spending. Don't claim otherwise.
-- Never suggest sending money less often than weekly, or merging weekly drips into monthly ones: dripping money in small,
-  regular pieces is the point of SpenDrip. Only mention frequency changes that appear in fee_savings.
+- NEVER suggest anything that means fewer or smaller drips through SpenDrip: no sending less often, no merging or
+  combining drips, no cancelling, pausing or deleting plans, no cutting fees, no paying outside SpenDrip, no lump sums.
+  Dripping money in small, regular pieces is the point: it stops money being spent before its purpose.
 - Be specific to their plans and numbers. Suggest changes SpenDrip can do: change a plan's frequency, add a plan, make one a priority,
   add their salary, set up a savings drip, and (only if autofill_available is true) use Auto-fill on payday.
 Reply with JSON only."""
@@ -48,7 +49,7 @@ PROMPT = """Facts about this person's money (JSON):
 
 Return exactly this JSON shape:
 {{"summary": "2 or 3 sentences, at most 60 words, about their month and what stands out",
-  "suggestions": [{{"title": "at most 6 words", "body": "at most 35 words, specific, using their numbers", "kind": "fees|plan|savings|salary|family|general"}}],
+  "suggestions": [{{"title": "at most 6 words", "body": "at most 35 words, specific, using their numbers", "kind": "plan|savings|salary|family|general"}}],
   "categories": {{"<plan id>": "<one of {keys}>"}}}}
 Give 2 to 4 suggestions, most useful first. In "categories", include only plans whose category is "unknown"."""
 
@@ -90,7 +91,7 @@ def insights(user, facts: dict, *, force: bool = False) -> tuple[dict | None, st
     ai = {
         "summary": str(out.get("summary", ""))[:500],
         "suggestions": [{"title": str(x.get("title", ""))[:60], "body": str(x.get("body", ""))[:300],
-                         "kind": x.get("kind") if x.get("kind") in ("fees", "plan", "savings", "salary", "family", "general") else "general"}
+                         "kind": x.get("kind") if x.get("kind") in ("plan", "savings", "salary", "family", "general") else "general"}
                         for x in (out.get("suggestions") or [])[:4] if isinstance(x, dict) and x.get("body")],
         "categories": {str(k): v for k, v in (out.get("categories") or {}).items() if v in cats.CATEGORIES},
     }

@@ -68,12 +68,6 @@ def test_dismissing_a_missing_prompt(user):
     assert missing == ["food"]
 
 
-def test_fee_ideas_daily_to_weekly(user, recipients, make_plan):
-    make_plan("Upkeep", 5_000, recipients["mum"], frequency="daily")
-    ideas = kinds(user)["fees"]["data"]["ideas"]
-    assert ideas[0]["to"] == "weekly" and ideas[0]["new_amount_kobo"] == 3_500_000 and ideas[0]["saving_kobo"] > 0
-
-
 def test_ai_take_is_cached_until_the_numbers_change(user, recipients, make_plan):
     p = make_plan("Oga's money", 20_000, recipients["mum"], frequency="monthly", month_day=25)
     answer = {"summary": "A calm month.", "suggestions": [{"title": "Save first", "body": "Add a savings drip of ₦20,000.", "kind": "savings"}],
@@ -172,10 +166,13 @@ def test_monthly_email_goes_once_on_the_first_to_people_who_sent(user, recipient
     assert user not in candidates(lagos("2026-12-01T09:00"))
 
 
-def test_fee_ideas_never_go_below_weekly_and_can_be_dismissed(user, recipients, make_plan):
+
+
+def test_no_suggestions_that_mean_fewer_drips(user, recipients, make_plan):
+    make_plan("Upkeep", 5_000, recipients["mum"], frequency="daily")
     make_plan("Transportation", 40_000, recipients["me"], frequency="weekly", weekday=1)
-    up = make_plan("Upkeep", 5_000, recipients["mum"], frequency="daily")
-    ideas = report.Facts(user).fee_savings()
-    assert [x["label"] for x in ideas] == ["Upkeep"]  # weekly Transportation is never pushed to monthly
-    FinanceProfile.objects.create(user=user, dismissed=[f"fee:{up.pk}"])
-    assert report.Facts(user).fee_savings() == []
+    k = kinds(user)
+    assert "fees" not in k
+    assert all(t["kind"] != "fees" for t in k["insights"]["data"]["suggestions"])
+    assert "fee_savings" not in report.Facts(user).for_ai()
+    assert "NEVER suggest anything that means fewer or smaller drips" in fin_ai.SYSTEM

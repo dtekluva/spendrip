@@ -72,13 +72,12 @@ type Renderer = (p: { s: Section; ctx: Ctx }) => ReactNode;
 const Insights: Renderer = ({ s, ctx }) => {
   const { openSheet } = useStore();
   const d = s.data;
-  const icon: Record<string, string> = { fees: '🧾', plan: '➕', savings: '🐷', salary: '💼', family: '💛', general: '💡' };
+  const icon: Record<string, string> = { plan: '➕', savings: '🐷', salary: '💼', family: '💛', general: '💡' };
   const act = (kind: string) => {
     if (kind === 'salary') openSheet(<SalarySheet ctx={ctx} />);
     else if (kind === 'savings') ctx.nav('/plans/new?label=Savings&emoji=🐷');
     else if (kind === 'plan') ctx.nav('/plans/new');
     else if (kind === 'family') ctx.nav('/people');
-    else if (kind === 'fees') ctx.nav('/plans');
   };
   return (
     <Card s={s} right={<span className="small muted" style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
@@ -193,24 +192,6 @@ const Salary: Renderer = ({ s, ctx }) => {
   );
 };
 
-const Fees: Renderer = ({ s, ctx }) => {
-  const d = s.data;
-  return (
-    <Card s={s} right={<span className="small muted">about <b className="num">{N(d.month_fees_kobo)}</b>/mo</span>}>
-      {d.ideas.length ? (<>
-        <p className="small muted" style={{ margin: 0 }}>Same money, fewer transfers. These changes would save about <b>{N(d.total_saving_kobo)}</b> a month:</p>
-        <div className="fin-rows">{d.ideas.map((x: any) => (
-          <div key={x.plan_id} className="fin-row">
-            <span>{x.emoji}</span>
-            <button className="fin-link-btn" onClick={() => ctx.nav(`/plans/${x.plan_id}/edit`)}>{x.label}<br /><span className="tiny muted">{N(x.amount_kobo)} {x.from} → {N(x.new_amount_kobo)} {x.to} · saves {N(x.saving_kobo)}/mo</span></button>
-            <button className="link small" onClick={async () => ctx.setR(await api.put<Report>('/finance/profile', { dismiss: `fee:${x.plan_id}` }))}>Not for me</button>
-            <span /></div>
-        ))}</div>
-      </>) : <p className="small muted" style={{ margin: 0 }}>Your fees look lean. Nothing to change. 👌🏾</p>}
-    </Card>
-  );
-};
-
 const Trend: Renderer = ({ s }) => {
   const d = s.data;
   if (!d.months) return <Card s={s}><p className="small muted" style={{ margin: 0 }}>{d.note}</p></Card>;
@@ -278,7 +259,7 @@ const Savings: Renderer = ({ s, ctx }) => {
 };
 
 const RENDERERS: Record<string, Renderer> = {
-  insights: Insights, headline: Headline, missing: Missing, breakdown: Breakdown, salary: Salary, fees: Fees,
+  insights: Insights, headline: Headline, missing: Missing, breakdown: Breakdown, salary: Salary,
   trend: Trend, family: Family, next: Next, savings: Savings,
 };
 

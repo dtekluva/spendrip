@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from drips.models import Plan, Run
-from drips.services import fee_kobo, typical_month
+from drips.services import typical_month
 from ledger import services as ledger
 from ledger.models import Inflow
 
@@ -23,7 +23,6 @@ from . import categories as cats
 from .models import Expense, FinanceProfile, SavingsOption
 
 MONTHS_BACK = 6
-FEE_SAVING_MIN_KOBO = 50_000  # only suggest a cadence change that saves at least ₦500 a month
 ESSENTIALS = ("housing", "food")  # what most households pay; we ask if they're missing
 
 
@@ -102,26 +101,6 @@ class Facts:
         return key if src != "none" else "unknown"
 
     # ------------------------------------------------------------ derived
-    def fee_savings(self) -> list[dict]:
-        """Daily drips that could go weekly for the same money and fewer fees. Never less often than weekly: sending in
-        small pieces is the point of a drip (a month of fuel money in one go is easy to overspend). Plans the person
-        said "not for me" to are skipped."""
-        out = []
-        for r in self.plan_rows:
-            p = self.plans.get(r["plan_id"])
-            if not p or p.kind == "group" or p.status != Plan.Status.ACTIVE or p.frequency != "daily":
-                continue
-            if f"fee:{r['plan_id']}" in self.dismissed:
-                continue
-            per = r["amount_kobo"] * 7
-            now_fees = r["fee_kobo"] * r["times"]
-            new_fees = round(fee_kobo(per) * 52 / 12)
-            if now_fees - new_fees >= FEE_SAVING_MIN_KOBO:
-                out.append({"plan_id": r["plan_id"], "label": p.label, "emoji": p.emoji, "from": "daily", "to": "weekly",
-                            "amount_kobo": r["amount_kobo"], "new_amount_kobo": per, "fees_now_kobo": now_fees,
-                            "fees_new_kobo": new_fees, "saving_kobo": now_fees - new_fees})
-        return sorted(out, key=lambda x: -x["saving_kobo"])
-
     def missing(self) -> list[str]:
         have = set(self.by_cat)
         return [k for k in ESSENTIALS if k not in have and f"missing:{k}" not in self.dismissed]
@@ -144,8 +123,6 @@ class Facts:
             "sent_by_month": [{"month": m["month"], "sent": m["sent_kobo"] // 100, "fees": m["fees_kobo"] // 100, "topped_up": m["topups_kobo"] // 100}
                               for m in self.months],
             "last_month_vs_before_pct": _pct(last["sent_kobo"], before["sent_kobo"]),
-            "fee_savings": [{"plan": x["label"], "change": f"{x['from']} to {x['to']}", "saves_per_month": x["saving_kobo"] // 100}
-                            for x in self.fee_savings()],
             "missing_essentials": [cats.info(k)["label"] for k in self.missing()],
             "paused_everything": self.user.paused_all,
             "autofill_available": bool(getattr(settings, "AUTOFILL_ENABLED", False)),
@@ -189,13 +166,6 @@ def build(user, now: datetime | None = None, ai: dict | None = None) -> dict:
     else:
         s.append(_section("salary", "salary", "Against your salary", 40, {"salary_kobo": None, "guide": cats.GUIDE}))
 
-    savings = f.fee_savings()
-    month_fees = sum(r["fee_kobo"] * r["times"] for r in f.plan_rows)
-    if savings or month_fees:
-        s.append(_section("fees", "fees", "Fees, and how to cut them", 50, {
-            "month_fees_kobo": month_fees, "last_month_fees_kobo": last["fees_kobo"], "ideas": savings[:4],
-            "total_saving_kobo": sum(x["saving_kobo"] for x in savings[:4])}))
-
     with_sends = [m for m in f.months if m["sent_kobo"]]
     if len(with_sends) >= 2:
         s.append(_section("trend", "trend", "Your last 6 months", 60, {"months": [{
@@ -236,9 +206,6 @@ def build(user, now: datetime | None = None, ai: dict | None = None) -> dict:
 
 def rule_insights(f: Facts) -> dict:
     tips = []
-    for x in f.fee_savings()[:2]:
-        tips.append({"title": f"Cut fees on {x['label']}", "body": f"Sending {x['label']} {x['to']} instead of {x['from']} keeps the same money "
-                     f"going out and saves about ₦{x['saving_kobo'] // 100:,} a month in fees.", "kind": "fees"})
     for k in f.missing():
         tips.append({"title": f"Add {cats.info(k)['label'].lower()}", "body": "Most homes pay this every month. Add it, even if you pay it "
                      "another way, so your picture of the month is complete.", "kind": "plan"})
