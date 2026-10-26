@@ -954,9 +954,13 @@ a{color:inherit}
   border:0;border-radius:16px;background:var(--hero-ghost);color:var(--hero-ink);font:inherit;text-align:left;cursor:pointer;transition:transform .15s,filter .15s}
 .month-strip:hover{filter:brightness(.97)}
 .month-strip:active{transform:scale(.99)}
-.month-strip .ms-ic{grid-row:1/3;font-size:22px;line-height:1}
+.month-strip .ms-ring{grid-row:1/3;position:relative;width:38px;height:38px;display:grid;place-items:center}
+.month-strip .ms-ring svg{position:absolute;inset:0}
+.month-strip .ms-ring span{font-size:10px;font-weight:800;color:var(--hero-ink)}
+.month-strip .ms-tag{margin-right:6px;padding:1px 7px;border-radius:999px;background:var(--hero-track);font-size:11px;font-weight:700;vertical-align:1px}
+.month-strip .ms-main b small{font-size:12px;font-weight:700;color:var(--hero-muted);margin-left:1px}
 .month-strip .ms-main{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
-.month-strip .ms-k{font-size:13px;font-weight:700;color:var(--hero-muted)}
+.month-strip .ms-k{font-size:13px;font-weight:700;color:var(--hero-muted);white-space:nowrap}
 .month-strip .ms-main b{font-size:17px;font-weight:800}
 .month-strip .ms-chev{grid-row:1/3;grid-column:3;font-size:22px;color:var(--hero-muted)}
 .month-strip .ms-note{grid-column:2;font-size:13px;color:var(--hero-muted)}

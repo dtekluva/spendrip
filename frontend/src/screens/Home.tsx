@@ -43,11 +43,14 @@ export default function Home() {
 
   // A normal month: what active plans send in a full month, fees included, and how far the balance goes.
   const tm = summary.typical_month;
-  const covers = tm && tm.need_kobo ? Math.floor(bal / tm.need_kobo) : 0;
-  const monthNote = !tm ? '' : summary.paused_all ? "That's what goes out each month once you resume."
-    : covers >= 2 ? `Your balance covers about ${covers} months. Lovely. 🎉`
-      : covers === 1 ? 'Your balance covers a full month. 🎉'
-        : `${N(tm.need_kobo - bal)} more covers all of ${MONL[Number(tm.month.slice(5, 7)) - 1]}.`;
+  // How far the balance goes against a normal month: the ring fills to 100%, the note turns it into a date.
+  const cover = tm && tm.need_kobo ? bal / tm.need_kobo : 0;
+  const lastsUntil = new Date(Date.now() + cover * 30.4 * 864e5).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' });
+  const halves = (x: number) => { const h = Math.floor(x * 2) / 2; return `${Math.floor(h)}${h % 1 ? '½' : ''}`; };
+  const monthNote = !tm ? '' : summary.paused_all ? 'Resume to start sending again'
+    : cover >= 2 ? `Covered for about ${halves(cover)} months`
+      : cover >= 1 ? `A full month covered, until about ${lastsUntil}`
+        : `Lasts until about ${lastsUntil} · ${N(tm.need_kobo - bal)} more covers a month`;
   const openMonth = () => tm && store.openSheet(<NormalMonth tm={tm} bal={bal} paused={summary.paused_all} onFund={() => { store.closeSheet(); nav('/fund'); }} onCalendar={() => { store.closeSheet(); nav('/calendar'); }} />);
 
   const resume = async () => { await api.patch('/me/settings', { paused_all: false }); await Promise.all([reload(), store.refreshMe()]); toast('All drips are back on'); };
@@ -78,11 +81,12 @@ export default function Home() {
           </div>
           {summary.balance.held_kobo > 0 && <p className="small" style={{ margin: '8px 0 0', color: 'var(--hero-muted)' }}>{N(summary.balance.held_kobo)} is on its way to someone right now.</p>}
           {tm && tm.need_kobo > 0 && (
-            <button className="month-strip" onClick={openMonth} aria-label={`A normal month needs ${N(tm.need_kobo)}. See the breakdown.`}>
-              <span className="ms-ic" aria-hidden="true">🗓️</span>
-              <span className="ms-main"><span className="ms-k">A normal month</span><b className="num">{N(tm.need_kobo)}</b></span>
+            <button className="month-strip" onClick={openMonth} aria-label={`Monthly drips: ${N(tm.need_kobo)} a month. ${monthNote}. See the breakdown.`}>
+              <CoverRing value={cover} />
+              <span className="ms-main"><span className="ms-k">Monthly drips</span>
+                <b className="num">{N(tm.need_kobo)}<small>/mo</small></b></span>
               <span className="ms-chev" aria-hidden="true">›</span>
-              <span className="ms-note">{monthNote}</span>
+              <span className="ms-note">{summary.paused_all && <span className="ms-tag">Paused</span>}{monthNote}</span>
             </button>
           )}
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
@@ -166,7 +170,7 @@ function NormalMonth({ tm, bal, paused, onFund, onCalendar }: { tm: TypicalMonth
     <>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 6 }}>
         <Kobo mood={short ? 'waiting' : 'happy'} size={56} />
-        <div><h3 style={{ margin: 0 }}>A normal month: <span className="num">{N(tm.need_kobo)}</span></h3>
+        <div><h3 style={{ margin: 0 }}>Monthly drips: <span className="num">{N(tm.need_kobo)}</span></h3>
           <span className="small muted">What your active plans send in a month like {name}, fees included.</span></div>
       </div>
       <div className="table" style={{ marginTop: 10 }}>
@@ -176,7 +180,7 @@ function NormalMonth({ tm, bal, paused, onFund, onCalendar }: { tm: TypicalMonth
               <span className="small muted num">{p.times} × ({N(p.amount_kobo)} + {N(p.fee_kobo)} fees)</span></span>
             <b className="num">{N(p.total_kobo)}</b></div>
         ))}
-        <div className="ttotal" style={{ borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 12 }}><span>A normal month</span><b className="num">{N(tm.need_kobo)}</b></div>
+        <div className="ttotal" style={{ borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 12 }}><span>Every month</span><b className="num">{N(tm.need_kobo)}</b></div>
         <div className="ttotal"><span>You have</span><b className="num">{N(bal)}</b></div>
       </div>
       <p className="small muted" style={{ margin: '10px 0 0' }}>
@@ -189,5 +193,21 @@ function NormalMonth({ tm, bal, paused, onFund, onCalendar }: { tm: TypicalMonth
         {short > 0 && !paused && <button className="btn btn-primary" style={{ flex: 1 }} onClick={onFund}>Add {N(short)}</button>}
       </div>
     </>
+  );
+}
+
+/** A small ring that fills as the balance covers more of a normal month (full, with a tick, at one month or more). */
+function CoverRing({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(1, value));
+  const c = 2 * Math.PI * 15;
+  return (
+    <span className="ms-ring" aria-hidden="true">
+      <svg viewBox="0 0 36 36" width="38" height="38">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="var(--hero-track)" strokeWidth="4" />
+        <circle cx="18" cy="18" r="15" fill="none" stroke="var(--hero-prot)" strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={`${pct * c} ${c}`} transform="rotate(-90 18 18)" style={{ transition: 'stroke-dasharray .6s ease' }} />
+      </svg>
+      <span>{pct >= 1 ? '✓' : `${Math.round(pct * 100)}%`}</span>
+    </span>
   );
 }
