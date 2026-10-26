@@ -14,7 +14,7 @@ import { useAction } from '../components/ui';
 
 interface Section { kind: string; id: string; title: string; priority: number; span: 1 | 2; data: any }
 interface Cat { key: string; label: string; emoji: string; group: string }
-interface Report { sections: Section[]; ai_status: 'fresh' | 'cached' | 'stale' | 'error' | 'none'; salary_kobo: number | null; categories: Cat[] }
+interface Report { sections: Section[]; ai_status: 'fresh' | 'cached' | 'stale' | 'too_soon' | 'limit' | 'error' | 'none'; ai_updated_at: string | null; salary_kobo: number | null; categories: Cat[] }
 
 const CAT_COLOURS: Record<string, string> = {
   housing: '#2F44F5', food: '#12B283', transport: '#FFB938', bills: '#7C5CFF', education: '#00A3C4', health: '#FF6B6B',
@@ -81,7 +81,9 @@ const Insights: Renderer = ({ s, ctx }) => {
     else if (kind === 'fees') ctx.nav('/plans');
   };
   return (
-    <Card s={s} right={<button className="link small" disabled={ctx.aiBusy} onClick={() => ctx.askKobo(true)}>{ctx.aiBusy ? 'Reading…' : 'Refresh'}</button>}>
+    <Card s={s} right={<span className="small muted" style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+      {ctx.r.ai_updated_at && <span>Updated {new Date(ctx.r.ai_updated_at).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
+      <button className="link small" disabled={ctx.aiBusy} onClick={() => ctx.askKobo(true)}>{ctx.aiBusy ? 'Reading…' : 'Refresh'}</button></span>}>
       <div className="fin-take">
         <Kobo mood={ctx.aiBusy ? 'waiting' : 'happy'} size={64} />
         <p className={ctx.aiBusy && d.source !== 'ai' ? 'fin-shimmer' : ''}>{ctx.aiBusy && d.source !== 'ai' ? 'Kobo is reading your month…' : d.summary}</p>
@@ -94,6 +96,8 @@ const Insights: Renderer = ({ s, ctx }) => {
           </button>
         ))}</div>
       )}
+      {ctx.r.ai_status === 'too_soon' && <p className="tiny muted" style={{ margin: 0 }}>Kobo read your month less than an hour ago. It updates by itself when your plans, pay or costs change.</p>}
+      {ctx.r.ai_status === 'limit' && <p className="tiny muted" style={{ margin: 0 }}>Kobo has read your month enough for today. A fresh take tomorrow.</p>}
       {d.source === 'ai' && <p className="tiny muted" style={{ margin: 0 }}>Written by AI from your numbers. Check before acting.</p>}
     </Card>
   );
@@ -282,7 +286,7 @@ function SalarySheet({ ctx }: { ctx: Ctx }) {
   const { closeSheet, refreshMe } = useStore();
   const [v, setV] = useState(ctx.r.salary_kobo ?? 0);
   const { busy, error, run } = useAction();
-  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); refreshMe(); closeSheet(); ctx.askKobo(true); });
+  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); refreshMe(); closeSheet(); ctx.askKobo(); });
   return (<>
     <h3>Your monthly take-home pay</h3>
     <p className="small muted" style={{ marginTop: -6 }}>What lands in your account each month after tax and deductions. Only you see it; it's used for your Finance report.</p>
@@ -303,7 +307,7 @@ function ExpenseSheet({ ctx, category = 'housing', label = '' }: { ctx: Ctx; cat
   const [amount, setAmount] = useState(0);
   const [every, setEvery] = useState<'week' | 'month' | 'year'>(category === 'housing' ? 'year' : 'month');
   const { busy, error, run } = useAction();
-  const save = () => run(async () => { ctx.setR(await api.post<Report>('/finance/expenses', { label: name, category: cat, amount_kobo: amount, every })); closeSheet(); ctx.askKobo(true); });
+  const save = () => run(async () => { ctx.setR(await api.post<Report>('/finance/expenses', { label: name, category: cat, amount_kobo: amount, every })); closeSheet(); ctx.askKobo(); });
   return (<>
     <h3>A cost you pay elsewhere</h3>
     <p className="small muted" style={{ marginTop: -6 }}>For money that doesn't go through SpenDrip, like rent paid straight to your landlord. It's only counted in your report.</p>
@@ -320,7 +324,7 @@ function ExpenseSheet({ ctx, category = 'housing', label = '' }: { ctx: Ctx; cat
 
 function CategorySheet({ ctx, planId, label, current, cats }: { ctx: Ctx; planId: string; label: string; current: string; cats: Cat[] }) {
   const { closeSheet } = useStore();
-  const pick = async (key: string) => { ctx.setR(await api.put<Report>(`/finance/plans/${planId}/category`, { category: key })); closeSheet(); ctx.askKobo(true); };
+  const pick = async (key: string) => { ctx.setR(await api.put<Report>(`/finance/plans/${planId}/category`, { category: key })); closeSheet(); ctx.askKobo(); };
   return (<>
     <h3>What is {label} for?</h3>
     <div className="opt-list">{cats.map((c) => (

@@ -120,3 +120,23 @@ def test_api(user, recipients, make_plan, settings):
     assert user.plans.first().category == "family"
     with mock.patch("finance.ai.text_json", return_value={"summary": "Hi.", "suggestions": [], "categories": {}}):
         assert c.post("/api/finance", {}, format="json").json()["ai_status"] == "fresh"
+
+
+def test_ai_cost_guards(user, recipients, make_plan, top_up):
+    make_plan("Mum", 30_000, recipients["mum"], frequency="monthly", month_day=25)
+    answer = {"summary": "Fine.", "suggestions": [], "categories": {}}
+    with mock.patch("finance.ai.text_json", return_value=answer) as call:
+        assert fin_ai.insights(user, report.Facts(user).for_ai())[1] == "fresh"
+        top_up(10_000)  # balance moves: not a reason to read again
+        assert fin_ai.insights(user, report.Facts(user).for_ai())[1] == "cached"
+        assert fin_ai.insights(user, report.Facts(user).for_ai(), force=True)[1] == "too_soon"  # Refresh within the hour
+        FinanceSnapshot.objects.update(created_at=FinanceSnapshot.objects.first().created_at - fin_ai.REFRESH_GAP)
+        assert fin_ai.insights(user, report.Facts(user).for_ai(), force=True)[1] == "fresh"
+        assert call.call_count == 2
+        # The daily limit stops everything, even a real change.
+        for _ in range(fin_ai.DAILY_LIMIT):
+            FinanceSnapshot.objects.create(user=user, month="2026-10", facts_hash="x", ai=answer)
+        FinanceSnapshot.objects.update(created_at=FinanceSnapshot.objects.order_by("created_at").first().created_at)
+        make_plan("Fuel", 10_000, recipients["me"], frequency="weekly", weekday=5)
+        assert fin_ai.insights(user, report.Facts(user).for_ai(), force=True)[1] in ("limit", "too_soon")
+        assert call.call_count == 2

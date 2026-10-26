@@ -968,7 +968,9 @@ def finance_json(user, *, with_ai: bool = False, force: bool = False) -> dict:
         ai, status = fin_ai.insights(user, built["facts"].for_ai(), force=force)
         if ai:
             built = fin_report.build(user, ai=ai)
-    return {"sections": built["sections"], "ai_status": status, "salary_kobo": built["facts"].salary,
+    snap = fin_ai.latest(user)
+    return {"sections": built["sections"], "ai_status": status, "ai_updated_at": snap.created_at if snap else None,
+            "salary_kobo": built["facts"].salary,
             "categories": [fin_cats.info(k) for k in fin_cats.CATEGORIES]}
 
 

@@ -17,7 +17,14 @@ from . import categories as cats
 from .models import FinanceSnapshot
 
 log = logging.getLogger(__name__)
-MIN_GAP = timedelta(minutes=10)  # don't call the AI again sooner than this, even if numbers change
+# Cost guards. Kobo re-reads the month only when something that matters changed (see STABLE), and never more than:
+AUTO_GAP = timedelta(minutes=10)  # automatically, after a real change
+REFRESH_GAP = timedelta(hours=1)  # when the person taps Refresh
+DAILY_LIMIT = 4  # AI runs per person per day, whatever happens
+# The facts that decide whether Kobo needs to read again: plans, pay, costs, categories and the month. Not the balance or
+# each drip going out, which change all the time.
+STABLE = ("month", "salary_monthly", "normal_month_total", "normal_month_by_category", "plans", "paid_elsewhere",
+          "missing_essentials", "paused_everything", "autofill_available")
 
 SYSTEM = """You are Kobo, the friendly money guide inside SpenDrip, a Nigerian app that sends people's scheduled transfers
 (drips) to family, staff and themselves. You write a short monthly money summary and practical suggestions.
@@ -44,7 +51,14 @@ Give 2 to 4 suggestions, most useful first. In "categories", include only plans 
 
 
 def facts_hash(facts: dict) -> str:
-    return hashlib.sha256(json.dumps(facts, sort_keys=True, default=str).encode()).hexdigest()
+    stable = {k: facts.get(k) for k in STABLE}
+    stable["month"] = str(facts.get("today", ""))[:7]
+    return hashlib.sha256(json.dumps(stable, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def runs_today(user) -> int:
+    start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    return FinanceSnapshot.objects.filter(user=user, created_at__gte=start).count()
 
 
 def latest(user) -> FinanceSnapshot | None:
@@ -52,13 +66,18 @@ def latest(user) -> FinanceSnapshot | None:
 
 
 def insights(user, facts: dict, *, force: bool = False) -> tuple[dict | None, str]:
-    """(ai dict or None, status) — status is fresh | cached | stale | error."""
+    """(ai dict or None, status) — fresh | cached | stale | too_soon | limit | error. Only "fresh" called the AI."""
     h = facts_hash(facts)
     snap = latest(user)
+    age = timezone.now() - snap.created_at if snap else None
     if snap and snap.facts_hash == h and not force:
         return snap.ai, "cached"
-    if snap and not force and timezone.now() - snap.created_at < MIN_GAP:
+    if snap and not force and age < AUTO_GAP:
         return snap.ai, "stale"
+    if snap and force and age < REFRESH_GAP:
+        return snap.ai, "too_soon"
+    if runs_today(user) >= DAILY_LIMIT:
+        return (snap.ai if snap else None), "limit"
     try:
         out = text_json(PROMPT.format(facts=json.dumps(facts, ensure_ascii=False, default=str), keys=", ".join(cats.CATEGORIES)), system=SYSTEM)
     except Exception as e:  # the report still works without the AI
