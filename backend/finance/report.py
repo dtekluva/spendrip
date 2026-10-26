@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.utils import timezone
 
 from drips.models import Plan, Run
@@ -148,6 +149,7 @@ class Facts:
                             for x in self.fee_savings()],
             "missing_essentials": [cats.info(k)["label"] for k in self.missing()],
             "paused_everything": self.user.paused_all,
+            "autofill_available": bool(getattr(settings, "AUTOFILL_ENABLED", False)),
             "guide": "40% needs, 30% family and wants, 20% savings, 10% buffer (SpenDrip's salary-split guide)",
         }
 

@@ -30,7 +30,7 @@ Rules you must follow:
   first, an emergency fund, moving money to their own savings account, government savings like T-bills in general terms).
 - Facts only cover money planned or sent through SpenDrip (and costs they told us they pay elsewhere), not all their spending. Don't claim otherwise.
 - Be specific to their plans and numbers. Suggest changes SpenDrip can do: change a plan's frequency, add a plan, make one a priority,
-  add their salary, set up a savings drip, use Auto-fill on payday.
+  add their salary, set up a savings drip, and (only if autofill_available is true) use Auto-fill on payday.
 Reply with JSON only."""
 
 PROMPT = """Facts about this person's money (JSON):
