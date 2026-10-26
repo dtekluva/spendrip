@@ -8,6 +8,7 @@ import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
 import { openAppearance } from './Appearance';
 import { VerifyCard } from './Verify';
+import { confirmResumeAll } from './pauseConfirm';
 import type { TypicalMonth } from '../lib/types';
 
 export default function Home() {
@@ -53,7 +54,7 @@ export default function Home() {
         : `Lasts until about ${lastsUntil} · ${N(tm.need_kobo - bal)} more covers a month`;
   const openMonth = () => tm && store.openSheet(<NormalMonth tm={tm} bal={bal} paused={summary.paused_all} onFund={() => { store.closeSheet(); nav('/fund'); }} onCalendar={() => { store.closeSheet(); nav('/calendar'); }} />);
 
-  const resume = async () => { await api.patch('/me/settings', { paused_all: false }); await Promise.all([reload(), store.refreshMe()]); toast('All drips are back on'); };
+  const resume = () => store.openSheet(confirmResumeAll(store));
 
   return (
     <div className="stack">
@@ -63,6 +64,7 @@ export default function Home() {
           <span style={{ display: 'flex', gap: 8 }}>
             <button className="icon-btn" aria-label="Appearance" onClick={() => openAppearance(store)}>{Icon.look}</button>
             <button className="icon-btn" aria-label="Activity" onClick={() => nav('/activity')}>{Icon.bell}</button>
+            <button className="icon-btn" aria-label="Settings" onClick={() => nav('/settings')}>{Icon.gear}</button>
             <button className="avatar" aria-label="Profile" onClick={() => nav('/profile')}>{initials}</button>
           </span>
         </div>

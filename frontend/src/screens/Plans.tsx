@@ -7,6 +7,7 @@ import { useStore } from '../lib/store';
 import type { Plan } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Switch } from '../components/ui';
+import { confirmPlanPause } from './pauseConfirm';
 
 /** "Drip 4 of 17 · ends Fri 29 Jan", "Starts Sun 1 Nov", "Ending soon" and the like. */
 function planMeta(p: Plan) {
@@ -56,12 +57,7 @@ export default function Plans() {
     const msg = rank ? `${p.label} is priority ${Math.min(rank, prio.filter((x) => x.id !== p.id).length + 1)}` : `${p.label} is no longer a priority`;
     toast(r.dropped_priorities.length ? `${msg}. ${r.dropped_priorities.join(', ')} dropped out (max 3).` : msg, undo ? { label: 'Undo', run: undo } : undefined);
   };
-  const togglePause = async (p: Plan) => {
-    const status = p.status === 'active' ? 'paused' : 'active';
-    await api.patch(`/plans/${p.id}`, { status }); await reload();
-    toast(status === 'paused' ? `${p.label} paused` : `${p.label} is sending again`,
-      status === 'paused' ? { label: 'Undo', run: async () => { await api.patch(`/plans/${p.id}`, { status: 'active' }); reload(); } } : undefined);
-  };
+  const togglePause = (p: Plan) => openSheet(confirmPlanPause(store, p));
   const addPriority = (slot: number) => {
     const cands = plans.filter((p) => !p.priority_rank);
     openSheet(<>
@@ -172,7 +168,8 @@ export default function Plans() {
 }
 
 function PlanSheet({ plan }: { plan: Plan }) {
-  const { plans, reload, toast, closeSheet, openSheet } = useStore();
+  const store = useStore();
+  const { plans, reload, toast, closeSheet, openSheet } = store;
   const nav = useNavigate();
   const [confirm, setConfirm] = useState(false);
   const p = plans.find((x) => x.id === plan.id) ?? plan;
@@ -182,10 +179,7 @@ function PlanSheet({ plan }: { plan: Plan }) {
     toast((k ? `${p.label} is a priority 🛡` : `${p.label} is no longer a priority`) + (r.dropped_priorities.length ? `. ${r.dropped_priorities.join(', ')} dropped out.` : ''));
     openSheet(<PlanSheet plan={p} />);
   };
-  const pause = async () => {
-    await api.patch(`/plans/${p.id}`, { status: p.status === 'active' ? 'paused' : 'active' }); await reload();
-    openSheet(<PlanSheet plan={p} />);
-  };
+  const pause = () => openSheet(confirmPlanPause(store, p, () => openSheet(<PlanSheet plan={p} />)));
   const del = async () => {
     await api.del(`/plans/${p.id}`); await reload(); closeSheet(); toast(`${p.label} deleted. Past transfers stay in Activity.`);
   };

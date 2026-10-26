@@ -81,6 +81,7 @@ export default function App() {
             <Route path="/pays-it-forward" element={<Boost />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Profile mode="settings" />} />
             <Route path="/people" element={<People />} />
             <Route path="/kobo" element={<KoboGallery />} />
             <Route path="/verify" element={<Verify />} />

@@ -3,7 +3,7 @@ import { api } from './api';
 import type { Look, Me, Plan, Recipient, ShownLook, Summary } from './types';
 import { KoboMoment, type KoboMood } from '../components/Kobo';
 
-interface Store {
+export interface Store {
   me: Me | null;
   summary: Summary | null;
   plans: Plan[];

@@ -11,6 +11,7 @@ import { AddRecipient } from './NewPlan';
 import { cardLabel, type SavedCard } from './CardTopUp';
 import { useEffect } from 'react';
 import { VerifyCard } from './Verify';
+import { confirmPauseAll, confirmResumeAll } from './pauseConfirm';
 
 type Row = { icon: string; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
@@ -20,7 +21,8 @@ const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
   </button>
 );
 
-export default function Profile() {
+/** Profile (you, your verification, your account) and Settings (security, money, notifications, app) share their helpers. */
+export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'settings' }) {
   const store = useStore();
   const { me, recipients, setMe, refreshMe, reload, toast, openSheet, closeSheet, look } = store;
   const nav = useNavigate();
@@ -57,6 +59,7 @@ export default function Profile() {
 
   return (
     <div className="stack">
+      {mode === 'profile' ? (<>
       <div className="close-row"><button className="link" onClick={() => nav('/')}>← Home</button><span className="eyebrow">Profile</span></div>
       <div className="cols cols-profile"><div className="col stack">
         <div className="card prof-head">
@@ -88,6 +91,15 @@ export default function Profile() {
               <p className="small muted">These apply while your account is verified with BVN and ID. Higher limits come with a face check, which we're adding soon.</p>
             </>) : <p className="muted">No extra limits on this account. Your daily sending limit is {u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'off'}.</p>}</>)} />
         </div>
+        <div className="group-h">Settings</div>
+        <div className="list">
+          <SetRow icon="⚙️" title="Settings" sub="Security, money, notifications and app" onClick={() => nav('/settings')} />
+        </div>
+      </div></div>
+      </>) : (<>
+      <div className="close-row"><button className="link" onClick={() => nav('/')}>← Home</button><span className="eyebrow">Settings</span></div>
+      <h1 className="h1" style={{ margin: 0 }}>Settings</h1>
+      <div className="cols cols-profile"><div className="col stack">
         <div className="group-h">Security</div>
         <div className="list">
           <SetRow icon="🙂" title="Face ID" sub="Open the app without typing your PIN" on={u.has_face_id} onClick={faceId} />
@@ -98,12 +110,13 @@ export default function Profile() {
         <div className="list">
           <SetRow icon="🧢" title="Daily sending limit" sub="Most SpenDrip can send in one day" val={u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'No limit'} onClick={capSheet} />
           <SetRow icon="⏸" title="Pause everything" sub={u.paused_all ? 'No drips will go out until you turn this off' : 'Stop all drips at once. Nothing is deleted.'} on={u.paused_all}
-            onClick={() => save({ paused_all: !u.paused_all }, u.paused_all ? 'All drips are back on' : 'All drips paused')} />
+            onClick={() => openSheet(u.paused_all ? confirmResumeAll(store) : confirmPauseAll(store))} />
           <SetRow icon="👥" title="People" sub={people.map((r) => r.label).join(', ') || 'No one yet'} val={String(people.length)} onClick={peopleSheet} />
           <SetRow icon="⛽" title="Auto-fill" sub="Top up from your card on payday, automatically" onClick={() => nav('/autofill')} />
           <SetRow icon="💳" title="Saved cards" sub="For one-tap top-ups" onClick={() => openSheet(<CardsSheet />)} />
           <SetRow icon="🧾" title="Fees per drip" sub="₦50 SpenDrip fee, plus Paystack's transfer fee (₦10–₦50) and ₦50 stamp duty on ₦10,000+. Always included in your totals." />
         </div>
+      </div><div className="col stack">
         <div className="group-h">Notifications</div>
         <div className="list">
           <SetRow icon="✉️" title="Email me when a drip lands" sub={u.email ? `Sent to ${u.email}` : 'Add an email to get these'} on={u.notify_email} onClick={() => save({ notify_email: !u.notify_email }, 'Saved')} />
@@ -122,6 +135,7 @@ export default function Profile() {
         </div>
         <p className="small muted" style={{ textAlign: 'center', margin: '4px 0 0' }}>SpenDrip 0.2{me?.dev_tools ? ' · test mode' : ''}</p>
       </div></div>
+      </>)}
     </div>
   );
 }
