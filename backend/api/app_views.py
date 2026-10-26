@@ -947,3 +947,105 @@ class Boost(APIView):
         d = request.data
         boost.enter(request.user, recipient_id=d.get("recipient_id"), story=d.get("story", ""), consent_publish=bool(d.get("consent_publish")))
         return self.get(request)
+
+
+# ------------------------------------------------------------------ Finance (report, salary, expenses, categories, AI)
+
+from finance import ai as fin_ai  # noqa: E402
+from finance import categories as fin_cats  # noqa: E402
+from finance import report as fin_report  # noqa: E402
+from finance.models import Expense, FinanceProfile  # noqa: E402
+
+
+def finance_json(user, *, with_ai: bool = False, force: bool = False) -> dict:
+    """The report. Without with_ai it's instant and uses Kobo's last take; with it, the AI reads the month again if
+    the numbers changed (ai_status: fresh | cached | stale | error | none)."""
+    snap = fin_ai.latest(user)
+    built = fin_report.build(user, ai=snap.ai if snap else None)
+    hash_now = fin_ai.facts_hash(built["facts"].for_ai())
+    status = ("cached" if snap.facts_hash == hash_now else "stale") if snap else "none"
+    if with_ai:
+        ai, status = fin_ai.insights(user, built["facts"].for_ai(), force=force)
+        if ai:
+            built = fin_report.build(user, ai=ai)
+    return {"sections": built["sections"], "ai_status": status, "salary_kobo": built["facts"].salary,
+            "categories": [fin_cats.info(k) for k in fin_cats.CATEGORIES]}
+
+
+class Finance(APIView):
+    """GET the report (fast, with the last AI take). POST asks Kobo (the AI) to read it again if the numbers changed."""
+
+    def get(self, request):
+        return Response(finance_json(request.user))
+
+    def post(self, request):
+        return Response(finance_json(request.user, with_ai=True, force=bool(request.data.get("force"))))
+
+
+class FinanceProfileView(APIView):
+    def put(self, request):
+        prof, _ = FinanceProfile.objects.get_or_create(user=request.user)
+        d = request.data
+        if "salary_kobo" in d:
+            v = d.get("salary_kobo")
+            if v in (None, "", 0):
+                prof.salary_kobo = None
+            else:
+                try:
+                    v = int(v)
+                except (TypeError, ValueError):
+                    raise FlowError("Enter your take-home pay.")
+                if not 1_000_000 <= v <= 100_000_000_000:
+                    raise FlowError("Enter a monthly amount between ₦10,000 and ₦1,000,000,000.")
+                prof.salary_kobo = v
+        if d.get("dismiss"):
+            key = str(d["dismiss"])[:40]
+            if key not in prof.dismissed:
+                prof.dismissed = [*prof.dismissed, key]
+        prof.save()
+        return Response(finance_json(request.user))
+
+
+class FinanceExpenses(APIView):
+    """Regular costs paid outside SpenDrip (rent, market by hand), so the report sees the whole month."""
+
+    def post(self, request):
+        d = request.data
+        label = " ".join(str(d.get("label", "")).split())[:40]
+        cat = d.get("category")
+        every = d.get("every", "month")
+        try:
+            amount = int(d.get("amount_kobo"))
+        except (TypeError, ValueError):
+            raise FlowError("Enter an amount.")
+        if not label:
+            raise FlowError("Give it a name, like Rent.")
+        if cat not in fin_cats.CATEGORIES:
+            raise FlowError("Choose a category.")
+        if every not in ("week", "month", "year"):
+            raise FlowError("Choose how often.")
+        if not 10_000 <= amount <= 100_000_000_000:
+            raise FlowError("Enter an amount between ₦100 and ₦1,000,000,000.")
+        if Expense.objects.filter(user=request.user).count() >= 30:
+            raise FlowError("You can add up to 30 costs.")
+        Expense.objects.create(user=request.user, label=label, category=cat, amount_kobo=amount, every=every)
+        return Response(finance_json(request.user), status=201)
+
+
+class FinanceExpenseDetail(APIView):
+    def delete(self, request, pk):
+        Expense.objects.filter(user=request.user, pk=pk).delete()
+        return Response(finance_json(request.user))
+
+
+class FinanceCategory(APIView):
+    """The person corrects a plan's category; it sticks."""
+
+    def put(self, request, pk):
+        cat = request.data.get("category")
+        if cat not in fin_cats.CATEGORIES and cat != "":
+            raise FlowError("Choose a category.")
+        n = Plan.objects.filter(user=request.user, pk=pk).exclude(status=Plan.Status.DELETED).update(category=cat or "")
+        if not n:
+            raise FlowError("That plan doesn't exist.", status=404)
+        return Response(finance_json(request.user))

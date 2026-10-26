@@ -70,6 +70,7 @@ class Plan(models.Model):
     finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     priority_rank = models.PositiveSmallIntegerField(null=True, blank=True)  # 1–3
+    category = models.CharField(max_length=16, blank=True)  # set by the person in Finance; blank = guessed from the name
     provider = models.CharField(max_length=20, default="liberty")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

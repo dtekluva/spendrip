@@ -30,16 +30,24 @@ def media_type(data: bytes) -> str:
 
 def vision_json(prompt: str, image: bytes, *, max_tokens: int = 700, session: requests.Session | None = None) -> dict:
     """Send one image and a prompt that asks for a JSON object; return that object."""
+    return _json_call([
+        {"type": "image", "source": {"type": "base64", "media_type": media_type(image), "data": base64.b64encode(image).decode()}},
+        {"type": "text", "text": prompt},
+    ], max_tokens=max_tokens, session=session)
+
+
+def text_json(prompt: str, *, system: str = "", max_tokens: int = 1200, session: requests.Session | None = None) -> dict:
+    """Send a text prompt that asks for a JSON object; return that object."""
+    return _json_call([{"type": "text", "text": prompt}], system=system, max_tokens=max_tokens, session=session)
+
+
+def _json_call(content: list, *, system: str = "", max_tokens: int, session: requests.Session | None = None) -> dict:
     cfg = settings.ANTHROPIC
     if not cfg["API_KEY"]:
         raise ProviderError("ANTHROPIC_API_KEY is not set")
-    body = {
-        "model": cfg["MODEL"], "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": media_type(image), "data": base64.b64encode(image).decode()}},
-            {"type": "text", "text": prompt},
-        ]}],
-    }
+    body = {"model": cfg["MODEL"], "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]}
+    if system:
+        body["system"] = system
     headers = {"x-api-key": cfg["API_KEY"], "anthropic-version": "2023-06-01", "content-type": "application/json"}
     for attempt in range(3):
         last = attempt == 2

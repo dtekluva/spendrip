@@ -529,7 +529,7 @@ PAGES = [
     "description": "What personal data SpenDrip collects, why, who processes it, how long we keep it, and your rights under the Nigeria Data Protection Act 2023.",
     "h1": "Privacy policy",
     "lead": "This policy explains what personal data SpenDrip collects, why we need it, who helps us process it, how long we keep it, and the rights you have over it. It applies to spendrip.com, the SpenDrip app at app.spendrip.com, and our emails and messages.",
-    "updated": "2026-10-08", "related": ["terms", "security", "contact"],
+    "updated": "2026-10-26", "related": ["terms", "security", "contact"],
     "sections": [
       {"id": "who", "h2": "1. Who we are", "html": """
 <p>SpenDrip is operated by <b>Magenta Pass</b> (“SpenDrip”, “we”, “us”), a Nigerian business. We are the data controller for the personal data described here, under the Nigeria Data Protection Act 2023 (NDPA).</p>
@@ -542,6 +542,7 @@ PAGES = [
 <tr><td>Identity check</td><td>NIN or BVN (we keep the last 4 digits and a one-way hash, not the full number), what we read from your ID photo (name, date of birth, document type and number, expiry date), and the result of the live selfie check</td><td>To confirm who you are before money moves, prevent fraud, and meet anti-money-laundering rules</td></tr>
 <tr><td>People you pay</td><td>Their name as you label it, the bank account name and number, bank, and an optional WhatsApp number</td><td>To send the transfers you schedule, check the account name, and tell them when money lands if you ask us to</td></tr>
 <tr><td>Money</td><td>Your balance, top-ups, drips, fees, plans and schedules, and Auto-fill settings</td><td>To run the service, keep accurate records, and show you your history</td></tr>
+<tr><td>Finance report</td><td>Your take-home pay and costs you pay elsewhere, if you add them, and the category of each plan</td><td>To show your Finance report: where your money goes, against your pay, and suggestions</td></tr>
 <tr><td>Cards</td><td>Card brand, last 4 digits, expiry and issuing bank. Your full card number is held by Paystack, not us; we keep only Paystack’s reusable token, encrypted</td><td>For one-tap top-ups and Auto-fill, if you choose them</td></tr>
 <tr><td>Device and usage</td><td>IP address, browser and device type, pages visited, and how the app is used</td><td>Security, fixing problems and improving the product</td></tr>
 <tr><td>Messages with us</td><td>What you send us by email, WhatsApp or phone</td><td>To help you and keep a record of what was agreed</td></tr>
@@ -558,7 +559,7 @@ PAGES = [
 <p>We never sell your personal data. We share it only with the companies that help us run SpenDrip, under contracts that require them to protect it, and only as much as each one needs:</p>
 <ul>
 <li><b>Paystack</b> (payments): card and bank payments, saved-card tokens, bank account name checks, BVN validation and transfers.</li>
-<li><b>Anthropic</b> (identity check): reads your ID photo and selfies to complete the check. The images are not used to train their models.</li>
+<li><b>Anthropic</b> (AI): reads your ID photo and selfies to complete the identity check, and writes the summary and suggestions in your Finance report from your plan names, categories, amounts and (if you add it) your take-home pay. Anthropic doesn’t use this data to train its models.</li>
 <li><b>Mailgun</b> (email delivery) and our WhatsApp messaging provider (messages to you, and to the people you pay when you turn it on).</li>
 <li><b>DigitalOcean</b> (servers and database) and <b>Netlify</b> (website and app hosting).</li>
 <li><b>Banks and payment networks</b> that carry each transfer, including the recipient’s bank.</li>

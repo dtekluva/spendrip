@@ -964,3 +964,39 @@ a{color:inherit}
 .month-strip .ms-main b{font-size:17px;font-weight:800}
 .month-strip .ms-chev{grid-row:1/3;grid-column:3;font-size:22px;color:var(--hero-muted)}
 .month-strip .ms-note{grid-column:2;font-size:13px;color:var(--hero-muted)}
+
+/* ---------------------------------------------------------------- Finance */
+.fin-grid{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
+@container app (min-width: 860px){ .fin-grid{grid-template-columns:repeat(2,minmax(0,1fr))} .fin-card.span-2{grid-column:1/-1} }
+.fin-card{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fin-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.fin-h h2{margin:0;font-size:16px}
+.fin-big{font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:-.02em;line-height:1.1}
+.fin-big small{font-size:14px;color:var(--muted);font-weight:700}
+.fin-take{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.fin-take p{margin:0;flex:1;min-width:200px;line-height:1.5}
+.fin-emoji{font-size:30px}
+.fin-shimmer{color:var(--muted);animation:finPulse 1.4s ease-in-out infinite}
+@keyframes finPulse{50%{opacity:.45}}
+.fin-tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+.fin-tip{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:12px;border-radius:14px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;cursor:pointer}
+.fin-tip > span:last-child{display:flex;flex-direction:column;gap:3px}
+.fin-tip-ic{font-size:20px;line-height:1}
+.fin-stack{display:flex;height:14px;border-radius:999px;overflow:hidden;gap:2px}
+.fin-stack span{display:block;height:100%}
+.fin-rows{display:flex;flex-direction:column}
+.fin-row{display:grid;grid-template-columns:22px 1fr auto auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.fin-row:last-child{border-bottom:0}
+.fin-row-btn{background:transparent;border:0;border-bottom:1px solid var(--line);color:inherit;font:inherit;text-align:left;cursor:pointer;width:100%}
+.fin-row .sw{width:12px;height:12px;border-radius:4px}
+.fin-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fin-meter{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+.fin-meter span{display:block;height:100%;background:var(--cobalt);border-radius:999px}
+.fin-bars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;height:170px}
+.fin-bar{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.fin-bar-col{flex:1;width:100%;max-width:46px;display:flex;align-items:flex-end;background:color-mix(in srgb,var(--cobalt) 8%,transparent);border-radius:10px;overflow:hidden}
+.fin-bar-col div{width:100%;background:var(--cobalt);border-radius:10px 10px 0 0;transition:height .6s ease}
+.fin-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.fin-opt{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;border:1px solid var(--line)}
+.home-fin{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.tiny{font-size:12px}

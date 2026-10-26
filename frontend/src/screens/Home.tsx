@@ -100,6 +100,11 @@ export default function Home() {
               <span className="small muted">Tell us who you look after. One story this month wins ₦50,000 for them. Free to enter.</span></span>
           </button>
         )}
+        <button className="card home-fin" onClick={() => nav('/finance')}>
+          <span style={{ fontSize: 26 }}>📊</span>
+          <span style={{ minWidth: 0, flex: 1 }}><b style={{ display: 'block' }}>Finance</b><span className="small muted">Where your money goes, your fees, and Kobo's tips</span></span>
+          <span className="muted">›</span>
+        </button>
         <VerifyCard />
         {summary.paused_all ? (
           <div className="paused-banner"><span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Kobo mood="sleep" size={40} />All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>

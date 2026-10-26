@@ -25,6 +25,7 @@ export default function Nav() {
       <button className="fab" aria-label="New plan" onClick={() => nav('/plans/new')}>{Icon.plus}<span className="fab-label">New plan</span></button>
       {tab('/activity', 'Activity', Icon.activity)}
       {tab('/fund', 'Add money', Icon.fund)}
+      {tab('/finance', 'Finance', Icon.finance, 'web-only')}
       {tab('/people', 'People', Icon.person, 'web-only')}
       {tab('/calendar', 'Calendar', Icon.calendar, 'web-only')}
       <NavLink to="/settings" className="tab web-only nav-foot">{Icon.gear}Settings</NavLink>
