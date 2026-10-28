@@ -67,7 +67,9 @@ def runs_today(user) -> int:
 
 
 def latest(user) -> FinanceSnapshot | None:
-    return FinanceSnapshot.objects.filter(user=user).order_by("-created_at").first()
+    """The newest take written under the current rules (older ones may hold advice we no longer give)."""
+    snap = FinanceSnapshot.objects.filter(user=user).order_by("-created_at").first()
+    return snap if snap and snap.ai.get("rules") == RULES_VERSION else None
 
 
 def insights(user, facts: dict, *, force: bool = False) -> tuple[dict | None, str]:
@@ -94,6 +96,7 @@ def insights(user, facts: dict, *, force: bool = False) -> tuple[dict | None, st
                          "kind": x.get("kind") if x.get("kind") in ("plan", "savings", "salary", "family", "general") else "general"}
                         for x in (out.get("suggestions") or [])[:4] if isinstance(x, dict) and x.get("body")],
         "categories": {str(k): v for k, v in (out.get("categories") or {}).items() if v in cats.CATEGORIES},
+        "rules": RULES_VERSION,
     }
     FinanceSnapshot.objects.create(user=user, month=facts.get("today", "")[:7], facts_hash=h, ai=ai)
     return ai, "fresh"

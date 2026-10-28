@@ -61,6 +61,7 @@ export interface Summary {
   paused_all: boolean;
   funding_account: FundingAccount | null;
   typical_month?: TypicalMonth;
+  committed?: { salary_kobo: number; committed_kobo: number; free_kobo: number; pct: number } | null;
 }
 
 /** What a normal month costs: active plans' drips in the next full month, fees included (even while everything is paused). */

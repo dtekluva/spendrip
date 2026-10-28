@@ -32,8 +32,8 @@ def test_user_choice_beats_the_guess(user, recipients, make_plan):
 
 def test_new_user_gets_a_tidy_report(user):
     k = kinds(user)
-    assert {"headline", "insights", "salary", "trend", "savings"} <= set(k)
-    assert "breakdown" not in k and k["trend"]["data"]["months"] is None and k["salary"]["data"]["salary_kobo"] is None
+    assert {"headline", "insights", "committed", "trend", "savings"} <= set(k)
+    assert "breakdown" not in k and "salary" not in k and k["trend"]["data"]["months"] is None and k["committed"]["data"]["salary_kobo"] is None
     assert {"missing"} <= set(k)  # rent and feeding prompts
 
 
@@ -47,6 +47,8 @@ def test_breakdown_salary_family_and_missing(user, recipients, make_plan):
     k = {x["kind"]: x for x in s}
     rows = {r["key"]: r for r in k["breakdown"]["data"]["rows"]}
     assert rows["food"]["kobo"] == 30 * (500_000 + 5_000) and rows["family"]["kobo"] > 0  # 30 days in November, ₦50 fee each (test fees)
+    c = k["committed"]["data"]
+    assert c["committed_kobo"] == k["breakdown"]["data"]["total_kobo"] and c["free_kobo"] == 50_000_000 - c["committed_kobo"]
     sal = k["salary"]["data"]
     assert sal["salary_kobo"] == 50_000_000 and sal["planned_pct"] == round(k["breakdown"]["data"]["total_kobo"] * 100 / 50_000_000)
     assert k["family"]["data"]["people"] == ["Mum"]
@@ -132,7 +134,7 @@ def test_ai_cost_guards(user, recipients, make_plan, top_up):
         FinanceSnapshot.objects.all().delete()
         today = timezone.localtime().replace(hour=0, minute=0, second=1, microsecond=0)
         for _ in range(fin_ai.DAILY_LIMIT):
-            FinanceSnapshot.objects.create(user=user, month="2026-10", facts_hash="x", ai=answer)
+            FinanceSnapshot.objects.create(user=user, month="2026-10", facts_hash="x", ai={**answer, "rules": fin_ai.RULES_VERSION})
         FinanceSnapshot.objects.update(created_at=today)  # all today, but more than AUTO_GAP ago (or exactly now, just after midnight)
         make_plan("Fuel", 10_000, recipients["me"], frequency="weekly", weekday=5)
         with mock.patch("finance.ai.AUTO_GAP", fin_ai.timedelta(0)):
@@ -176,3 +178,12 @@ def test_no_suggestions_that_mean_fewer_drips(user, recipients, make_plan):
     assert all(t["kind"] != "fees" for t in k["insights"]["data"]["suggestions"])
     assert "fee_savings" not in report.Facts(user).for_ai()
     assert "NEVER suggest anything that means fewer or smaller drips" in fin_ai.SYSTEM
+
+
+def test_takes_from_older_rules_are_never_shown(user, recipients, make_plan):
+    make_plan("Upkeep", 5_000, recipients["mum"], frequency="daily")
+    FinanceSnapshot.objects.create(user=user, month="2026-10", facts_hash="x",
+                                   ai={"summary": "Old.", "suggestions": [{"title": "Trim fees", "body": "Send weekly.", "kind": "fees"}], "categories": {}})
+    assert fin_ai.latest(user) is None
+    ins = next(x for x in report.build(user)["sections"] if x["kind"] == "insights")["data"]
+    assert ins["source"] == "rules" and all("fee" not in t["title"].lower() for t in ins["suggestions"])

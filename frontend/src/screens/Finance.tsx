@@ -102,6 +102,35 @@ const Insights: Renderer = ({ s, ctx }) => {
   );
 };
 
+const Committed: Renderer = ({ s, ctx }) => {
+  const { openSheet } = useStore();
+  const d = s.data;
+  if (!d.salary_kobo) return (
+    <Card s={s}>
+      <div className="fin-take"><Kobo mood="happy" size={56} />
+        <p style={{ margin: 0 }}><b>How much of your pay is already planned?</b><br /><span className="small muted">Add your take-home pay and SpenDrip shows what your plans commit from payday, and what's free to decide.</span></p>
+        <button className="btn btn-primary" onClick={() => openSheet(<SalarySheet ctx={ctx} />)}>Add take-home pay</button></div>
+    </Card>
+  );
+  const over = d.free_kobo < 0;
+  return (
+    <Card s={s} right={<button className="link small" onClick={() => openSheet(<SalarySheet ctx={ctx} />)}>Edit pay</button>}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'baseline' }}>
+        <div><div className="fin-big num" style={{ color: over ? 'var(--red)' : undefined }}>{N(Math.abs(d.free_kobo))}</div>
+          <span className="small muted">{over ? 'more than your pay is planned' : 'free to decide this month'}</span></div>
+        <div><div className="fin-big num" style={{ fontSize: 22 }}>{N(d.committed_kobo)}</div>
+          <span className="small muted">committed from payday ({d.pct}% of {N(d.salary_kobo)})</span></div>
+      </div>
+      <div className="fin-commit-bar" role="img" aria-label={`${d.pct}% of your pay is committed`}>
+        {d.parts.map((p: any) => <span key={p.key} style={{ width: `${Math.max(1, (p.kobo * 100) / Math.max(d.salary_kobo, d.committed_kobo))}%`, background: GROUP_COLOURS[p.key] }} title={p.label} />)}
+      </div>
+      <div className="fin-legend">{d.parts.map((p: any) => <span key={p.key}><i style={{ background: GROUP_COLOURS[p.key] }} />{p.label} {N(p.kobo)}</span>)}
+        {!over && <span><i style={{ background: 'var(--line)' }} />Free {N(d.free_kobo)}</span>}</div>
+    </Card>
+  );
+};
+const GROUP_COLOURS: Record<string, string> = { needs: '#2F44F5', family: '#FF4F8B', savings: '#0FA376', wants: '#FFB938' };
+
 const Headline: Renderer = ({ s }) => {
   const d = s.data;
   return (
@@ -259,17 +288,17 @@ const Savings: Renderer = ({ s, ctx }) => {
 };
 
 const RENDERERS: Record<string, Renderer> = {
-  insights: Insights, headline: Headline, missing: Missing, breakdown: Breakdown, salary: Salary,
+  insights: Insights, committed: Committed, headline: Headline, missing: Missing, breakdown: Breakdown, salary: Salary,
   trend: Trend, family: Family, next: Next, savings: Savings,
 };
 
 /* ---------------------------------------------------------------- sheets */
 
 function SalarySheet({ ctx }: { ctx: Ctx }) {
-  const { closeSheet, refreshMe } = useStore();
+  const { closeSheet, refreshMe, reload } = useStore();
   const [v, setV] = useState(ctx.r.salary_kobo ?? 0);
   const { busy, error, run } = useAction();
-  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); refreshMe(); closeSheet(); ctx.askKobo(); });
+  const save = (value: number | null) => run(async () => { ctx.setR(await api.put<Report>('/finance/profile', { salary_kobo: value })); refreshMe(); reload(); closeSheet(); ctx.askKobo(); });
   return (<>
     <h3>Your monthly take-home pay</h3>
     <p className="small muted" style={{ marginTop: -6 }}>What lands in your account each month after tax and deductions. Only you see it; it's used for your Finance report.</p>

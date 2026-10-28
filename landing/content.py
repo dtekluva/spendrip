@@ -473,7 +473,7 @@ PAGES = [
     "title": "About SpenDrip: Scheduled Transfers Built in Nigeria",
     "description": "SpenDrip is a Nigerian app for scheduled transfers. Set money to go out on the day and time you choose, to yourself or the people you look after, with every fee shown first.",
     "h1": "Money that shows up on time",
-    "lead": "SpenDrip is a Nigerian app for scheduled transfers. You top up one balance and set “drips”: payments that go out by themselves, daily, weekly or monthly, to your own account or to anyone with a Nigerian bank or wallet account.",
+    "lead": "SpenDrip is a Nigerian app for planning your month from payday and automating the payments you plan. You see what your pay already commits, top up one balance, and set “drips”: payments that go out by themselves, daily, weekly or monthly, to your own account or to anyone with a Nigerian bank or wallet account.",
     "updated": UPDATED, "related": ["security", "fees", "scheduled-transfers"],
     "sections": [
       {"id": "why", "h2": "Why we built it", "html": """

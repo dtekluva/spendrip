@@ -157,14 +157,21 @@ def build(user, now: datetime | None = None, ai: dict | None = None) -> dict:
             "expenses": [{"id": e.pk, "label": e.label, "category": e.category, "amount_kobo": e.amount_kobo, "every": e.every,
                           "monthly_kobo": e.monthly_kobo} for e in f.expenses]}, span=2))
 
+    # Committed vs free, from payday: the first thing Finance answers.
+    if f.salary:
+        s.append(_section("committed", "committed", "Your pay this month", 7, {
+            "salary_kobo": f.salary, "committed_kobo": f.normal_total, "free_kobo": f.salary - f.normal_total,
+            "pct": round(f.normal_total * 100 / f.salary),
+            "parts": [{"key": k, "label": cats.GROUPS[k], "kobo": f.by_group.get(k, 0)} for k in ("needs", "family", "savings", "wants") if f.by_group.get(k)]}, span=2))
+    else:
+        s.append(_section("committed", "committed", "Your pay this month", 7, {"salary_kobo": None}, span=2))
+
     if f.salary:
         g = f.by_group
         groups = [{"key": k, "label": cats.GROUPS[k], "kobo": g.get(k, 0), "pct": round(g.get(k, 0) * 100 / f.salary)} for k in ("needs", "family", "savings", "wants")]
-        s.append(_section("salary", "salary", "Against your salary", 40, {
+        s.append(_section("salary", "salary", "Against the guide", 40, {
             "salary_kobo": f.salary, "planned_kobo": f.normal_total, "left_kobo": f.salary - f.normal_total,
             "planned_pct": round(f.normal_total * 100 / f.salary), "groups": groups, "guide": cats.GUIDE}))
-    else:
-        s.append(_section("salary", "salary", "Against your salary", 40, {"salary_kobo": None, "guide": cats.GUIDE}))
 
     with_sends = [m for m in f.months if m["sent_kobo"]]
     if len(with_sends) >= 2:

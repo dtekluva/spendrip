@@ -296,6 +296,17 @@ def _dt(v):
 
 # ------------------------------------------------------------------ summary
 
+def committed_json(user, tm: dict) -> dict | None:
+    """From take-home pay: how much a normal month already commits (drips plus costs paid elsewhere), and what's free."""
+    from finance.models import Expense, FinanceProfile
+    prof = FinanceProfile.objects.filter(user=user).first()
+    if not prof or not prof.salary_kobo:
+        return None
+    committed = tm["need_kobo"] + sum(e.monthly_kobo for e in Expense.objects.filter(user=user))
+    return {"salary_kobo": prof.salary_kobo, "committed_kobo": committed, "free_kobo": prof.salary_kobo - committed,
+            "pct": round(committed * 100 / prof.salary_kobo)}
+
+
 class Summary(APIView):
     """What Home needs: balance plus this month's forecast."""
 
@@ -306,7 +317,8 @@ class Summary(APIView):
         return Response({
             "balance": {"available_kobo": bal.available_kobo, "held_kobo": bal.held_kobo, "total_kobo": bal.total_kobo},
             "forecast": forecast_json(user_forecast(user)),
-            "typical_month": typical_month(user),
+            "typical_month": (tm := typical_month(user)),
+            "committed": committed_json(user, tm),
             "fee_kobo": fee_schedule().service_kobo,  # SpenDrip's own fee; see "fees" for the full rules
             "fees": fees_json(),
             "paused_all": user.paused_all,

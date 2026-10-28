@@ -91,6 +91,12 @@ export default function Home() {
               <span className="ms-note">{summary.paused_all && <span className="ms-tag">Paused</span>}{monthNote}</span>
             </button>
           )}
+          {summary.committed && (
+            <button className="pay-line" onClick={() => nav('/finance')}>
+              <span className="pay-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, summary.committed.pct)}%` }} /></span>
+              <span><b>{summary.committed.pct}%</b> of your {N(summary.committed.salary_kobo)} pay is planned · <b>{summary.committed.free_kobo >= 0 ? `${N(summary.committed.free_kobo)} free to decide` : `${N(-summary.committed.free_kobo)} over your pay`}</b></span>
+            </button>
+          )}
           <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
         {me?.boost_enabled && me.user?.kyc_status === 'verified' && (

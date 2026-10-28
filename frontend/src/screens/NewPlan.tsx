@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import PaySheet from '../components/PaySheet';
 import { addDaysISO, addMonthsISO, dateLabel, dayLabel, dayLabelY, fmtTime, ISO_WD, N, ord, todayISO } from '../lib/format';
 import { useStore } from '../lib/store';
 import { feeLines, feeTotal, groupFeeLines, groupFeeTotal } from '../lib/fees';
@@ -31,7 +32,7 @@ export default function NewPlan() {
   const { id } = useParams();
   const editing = id ? Number(id) : null;
   const store = useStore();
-  const { plans, recipients, reload, toast, confetti, openSheet, closeSheet, koboSay } = store;
+  const { plans, recipients, reload, toast, confetti, openSheet, closeSheet, koboSay, me } = store;
   const nav = useNavigate();
   const existing = plans.find((p) => p.id === editing);
   const [params] = useSearchParams();
@@ -144,6 +145,7 @@ export default function NewPlan() {
       : r.plan.next_at ? `${dayLabel(r.plan.next_at)}, ${fmtTime(r.plan.time_local)}` : 'soon';
     if (editing) toast(`${r.plan.label} updated`);
     else koboSay('celebrate', `${r.plan.label} is live! First drip ${first}.`);
+    if (!editing && plans.length === 0 && !me?.user?.salary_kobo) window.setTimeout(() => openSheet(<PaySheet intro />), 1600);  // first plan: how much of your pay is planned?
     if (r.dropped_priorities.length) toast(`${r.dropped_priorities.join(', ')} is no longer a priority (max 3).`);
   });
 
