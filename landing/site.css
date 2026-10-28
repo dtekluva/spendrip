@@ -47,8 +47,8 @@ nav .ctas .btn{height:44px;padding:0 18px;font-size:15px}
 
 /* hero */
 .hero{padding:56px 0 24px}
-.hero-top{display:grid;grid-template-columns:1.45fr 1fr;gap:40px;align-items:end}
-.hero h1{font-size:clamp(38px,5.6vw,74px)}
+.hero-top{display:grid;grid-template-columns:1.45fr 1fr;gap:48px;align-items:center}
+.hero h1{font-size:clamp(38px,5vw,66px)}
 .hero h1 .drop{display:inline-block;width:.66em;height:.92em;vertical-align:-.1em;margin:0 .06em 0 0}
 h1 .drop,h2 .drop{overflow:visible;transform-origin:50% 100%;animation:k-hop 2.8s cubic-bezier(.3,0,.3,1) infinite}
 @keyframes k-hop{0%,60%,100%{transform:none}70%{transform:scale(1.08,.92)}80%{transform:translateY(-14%) scale(.95,1.05)}90%{transform:scale(1.04,.96)}}
@@ -246,3 +246,8 @@ footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
 .plan-bar{display:flex;gap:2px;height:12px;border-radius:9px;overflow:hidden;margin-bottom:8px}
 .plan-bar i{display:block;height:100%}
 .small-print{margin:18px auto 0;max-width:760px;text-align:center;font-size:13px;color:var(--muted)}
+
+/* hero headline as three deliberate lines on wide screens; natural wrapping on phones */
+.hero h1.h1-lines{line-height:1.08;text-wrap:initial}
+.hero h1.h1-lines span{display:block}
+@media (min-width:861px){ .hero h1.h1-lines span{white-space:nowrap} }
