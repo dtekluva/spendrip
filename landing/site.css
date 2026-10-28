@@ -255,5 +255,5 @@ footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
 .hero-side{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px 56px;align-items:end;margin-top:30px;padding-bottom:8px}
 .hero-copy .lead{margin:0 0 12px;max-width:640px}
 .hero-copy .hero-examples{margin:0}
-.hero-act{display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-self:end}
-@media (max-width:860px){ .hero-side{grid-template-columns:1fr} .hero-act{justify-self:start} }
+.hero-act{display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-self:end;padding-left:24px}  /* 24px more room after the description */
+@media (max-width:860px){ .hero-side{grid-template-columns:1fr} .hero-act{justify-self:start;padding-left:0} }
