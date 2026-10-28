@@ -10,7 +10,7 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
 a{color:inherit}
 img,svg{max-width:100%}
-.wrap{max-width:1180px;margin:0 auto;padding-inline:20px}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(20px,3vw,40px)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 24px;border-radius:16px;font-weight:800;font-size:16px;text-decoration:none;border:0;cursor:pointer;font-family:var(--body);transition:transform .15s ease, box-shadow .2s}
 .btn:active{transform:scale(.97)}
 .btn:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
@@ -47,8 +47,8 @@ nav .ctas .btn{height:44px;padding:0 18px;font-size:15px}
 
 /* hero */
 .hero{padding:56px 0 24px}
-.hero-top{display:grid;grid-template-columns:1.45fr 1fr;gap:48px;align-items:center}
-.hero h1{font-size:clamp(38px,5vw,66px)}
+.hero-top{display:block}
+.hero h1{font-size:clamp(36px,4.9vw,68px)}
 .hero h1 .drop{display:inline-block;width:.66em;height:.92em;vertical-align:-.1em;margin:0 .06em 0 0}
 h1 .drop,h2 .drop{overflow:visible;transform-origin:50% 100%;animation:k-hop 2.8s cubic-bezier(.3,0,.3,1) infinite}
 @keyframes k-hop{0%,60%,100%{transform:none}70%{transform:scale(1.08,.92)}80%{transform:translateY(-14%) scale(.95,1.05)}90%{transform:scale(1.04,.96)}}
@@ -247,7 +247,11 @@ footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
 .plan-bar i{display:block;height:100%}
 .small-print{margin:18px auto 0;max-width:760px;text-align:center;font-size:13px;color:var(--muted)}
 
-/* hero headline as three deliberate lines on wide screens; natural wrapping on phones */
-.hero h1.h1-lines{line-height:1.08;text-wrap:initial}
+/* hero: headline across the full width in two lines, then the copy and the buttons side by side */
+.hero h1.h1-lines{line-height:1.04;text-wrap:balance}
 .hero h1.h1-lines span{display:block}
-@media (min-width:861px){ .hero h1.h1-lines span{white-space:nowrap} }
+.hero-side{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px 56px;align-items:end;margin-top:30px;padding-bottom:10px}
+.hero-copy .lead{margin:0 0 12px;max-width:620px}
+.hero-copy .hero-examples{margin:0}
+.hero-act{display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-self:end}
+@media (max-width:860px){ .hero-side{grid-template-columns:1fr} .hero-act{justify-self:start} }
