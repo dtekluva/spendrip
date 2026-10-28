@@ -47,7 +47,7 @@ nav .ctas .btn{height:44px;padding:0 18px;font-size:15px}
 
 /* hero */
 .hero{padding:56px 0 24px}
-.hero-top{display:grid;grid-template-columns:minmax(0,1.38fr) minmax(0,1fr);gap:64px;align-items:start}
+.hero-top{display:block}
 .hero h1{font-size:clamp(36px,4.2vw,60px)}
 .hero h1 .drop{display:inline-block;width:.66em;height:.92em;vertical-align:-.1em;margin:0 .06em 0 0}
 h1 .drop,h2 .drop{overflow:visible;transform-origin:50% 100%;animation:k-hop 2.8s cubic-bezier(.3,0,.3,1) infinite}
@@ -247,19 +247,13 @@ footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
 .plan-bar i{display:block;height:100%}
 .small-print{margin:18px auto 0;max-width:760px;text-align:center;font-size:13px;color:var(--muted)}
 
-/* hero (option A): headline on the left in three short lines, copy and buttons in a column on the right */
-.hero h1.h1-lines{line-height:1.1;text-wrap:initial}
-.hero h1.h1-lines span{display:block}
-.hero h1.h1-lines .tone{color:var(--cobalt,#2436F2)}
-@media (min-width:1100px){ .hero h1.h1-lines span{white-space:nowrap} }
-.hero-side{display:flex;flex-direction:column;gap:20px;padding-bottom:8px}
-.hero-side .lead{margin:0 0 12px}
-.hero-side .hero-examples{margin:0}
-.hero-act{display:flex;flex-direction:column;gap:16px;align-items:flex-start;margin-top:30px}
-.hero-side{padding-top:var(--hero-eyebrow,30px)}
-@media (max-width:860px){ .hero-side{padding-top:0} }
-@media (max-width:860px){
-  .hero-top{display:flex;flex-direction:column;gap:22px}
-  .hero-title{display:contents}
-  .hero-title .eyebrow{order:1;margin-bottom:-10px!important} .hero h1{order:2} .hero-side{order:3} .hero-act{order:4;margin-top:0}
-}
+/* hero (option C): one big line, then a smaller second line in cobalt; copy and buttons in a row below */
+.hero-top{display:block}
+.hero h1.h1-c{font-size:clamp(42px,6vw,84px);line-height:1.05}
+.hero h1.h1-c .sub{display:block;margin-top:10px;font-weight:800;letter-spacing:-.02em;line-height:1.15;font-size:clamp(26px,3vw,42px);color:var(--cobalt,#2436F2)}
+.hero h1.h1-c .sub .drop{width:.75em;height:1em}
+.hero-side{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px 56px;align-items:end;margin-top:30px;padding-bottom:8px}
+.hero-copy .lead{margin:0 0 12px;max-width:640px}
+.hero-copy .hero-examples{margin:0}
+.hero-act{display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-self:end}
+@media (max-width:860px){ .hero-side{grid-template-columns:1fr} .hero-act{justify-self:start} }
