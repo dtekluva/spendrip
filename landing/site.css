@@ -260,22 +260,22 @@ footer .legal{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
 
 /* Icons: the app's set (design/icons), inlined per page by design/icons/build.py. Plan tiles take their colour from
    icons.css; duotone pairs blue lines with a soft yellow fill (white lines on navy). */
-.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em}
+svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em}
 .i-duo{color:var(--cobalt);--duo-acc:var(--sun);--duo-op:.9}
 .pt{background:var(--pt-bg) !important;color:var(--pt-ink)}
-.pt .i{width:56%;height:56%}
+.pt svg.i{width:56%;height:56%}
 .tx{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;flex:none;vertical-align:-5px}
 .chip .tx{width:24px;height:24px;margin:0 6px 0 -6px}
 .prow{display:inline-flex;align-items:center;gap:8px}
 .tag{display:inline-flex;align-items:center;gap:4px}
-.ph-top .i{width:20px;height:20px}
-.ph-hello{display:flex;align-items:center;gap:4px}.ph-hello .i{width:16px;height:16px;color:#fff;--duo-op:.8}
-.chip-float small .i{color:var(--mint);width:15px;height:15px}
-.feature .ic .i,.sitem .ic .i{width:28px;height:28px}
+.ph-top svg.i{width:20px;height:20px}
+.ph-hello{display:flex;align-items:center;gap:4px}.ph-hello svg.i{width:16px;height:16px;color:#fff;--duo-op:.8}
+.chip-float small svg.i{color:var(--mint);width:15px;height:15px}
+.feature .ic svg.i,.sitem .ic svg.i{width:28px;height:28px}
 .sitem .ic .i-duo{color:#fff;--duo-op:.95}
 .guide .gi{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#EEF0FE}
-.guide .gi .i{width:30px;height:30px}
+.guide .gi svg.i{width:30px;height:30px}
 .porder{grid-template-columns:34px auto 1fr auto}
 .porder .tx{width:28px;height:28px;border-radius:9px}
-.pill .i{width:16px;height:16px}
+.pill svg.i{width:16px;height:16px}
 .tx{margin-right:6px}.chip .tx{margin-right:6px}
