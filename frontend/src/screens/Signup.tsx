@@ -6,6 +6,7 @@ import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
 import { source, track } from '../lib/analytics';
 import Kobo, { KoboLoader } from '../components/Kobo';
+import { Feature, Ic } from '../icons';
 
 /** Sign-up: email → code → name → PIN → Face ID. Identity checks come later, from inside the app (see Verify). */
 type Step = 'email' | 'code' | 'name' | 'pin' | 'face' | 'done';
@@ -79,7 +80,7 @@ function EmailStep({ header, onNext }: { header: React.ReactNode; onNext: (maske
       {error && <div className="error-card">{error}</div>}
       <div className="kyc-actions">
         <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!ok || busy} onClick={start}>Email me a code</button>
-        <div className="lockline"><span>🔒</span><span>No spam. We only email you about your account and your drips.</span></div>
+        <div className="lockline"><Ic name="lock" /><span>No spam. We only email you about your account and your drips.</span></div>
         <p className="small muted" style={{ margin: '4px 0 0', textAlign: 'center' }}>By continuing, you agree to SpenDrip's <a href="https://spendrip.com/terms/" target="_blank" rel="noopener">Terms</a> and <a href="https://spendrip.com/privacy/" target="_blank" rel="noopener">Privacy policy</a>.</p>
       </div>
     </>
@@ -138,7 +139,7 @@ function OtpStep({ header, emailMasked, devCode, setDevCode, onNext }: {
   const [sentNote, setSentNote] = useState('');
   const resendCode = () => {
     setResending(true); setSentNote(''); setError('');
-    run(async () => { const r = await api.post<any>('/signup/otp/resend'); setDevCode(r.dev_code ?? ''); resend.restart(); setSentNote('New code sent ✓ Check your inbox.'); })
+    run(async () => { const r = await api.post<any>('/signup/otp/resend'); setDevCode(r.dev_code ?? ''); resend.restart(); setSentNote('New code sent. Check your inbox.'); })
       .finally(() => setResending(false));
   };
   const change = (v: string) => {
@@ -236,7 +237,7 @@ function DoneStep({ header, onGo }: { header: React.ReactNode; onGo: (to: 'home'
     <>
       {header}
       <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
-      <h2 style={{ textAlign: 'center' }}>You're in, {me?.user?.first_name ?? 'friend'} 🎉</h2>
+      <h2 className="h-celebrate">You're in, {me?.user?.first_name ?? 'friend'}<Feature name="celebrate" className="h-ic" /></h2>
       <p className="lead" style={{ textAlign: 'center' }}>Set up your plans now. When you're ready to add money, verify your identity. It takes about two minutes.</p>
       <div className="kyc-actions">
         <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={() => onGo('new')}>Create my first plan</button>

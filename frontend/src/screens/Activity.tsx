@@ -7,6 +7,7 @@ import type { ActivityItem } from '../lib/types';
 import { StatusPill, useAction } from '../components/ui';
 import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
+import { Ic, PlanIcon } from '../icons';
 
 const GROUP_REASON: Record<string, string> = {
   protected_for_priorities: 'Waited to keep your priorities safe. Nobody was paid.', insufficient_funds: "Your balance couldn't cover everyone, so nobody was paid.",
@@ -33,7 +34,7 @@ function GroupRow({ a, onRetried }: { a: ActivityItem; onRetried: () => void }) 
   return (
     <details className="act act-group">
       <summary>
-        <span className={`ic t-${a.plan!.tint}`}>{a.plan!.emoji}</span>
+        <PlanIcon emoji={a.plan!.emoji} className="act-tile" />
         <div style={{ minWidth: 0 }}><b>{title}</b><div className="small muted">{out ? `${n} people · tap to see each` : GROUP_REASON[a.reason ?? ''] ?? 'Nobody was paid.'} · {fmtTime(a.at)}</div>
           {a.status === 'waited' && <button className="link small" style={{ marginTop: 6 }} onClick={() => nav('/fund')}>Top up</button>}</div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -98,7 +99,7 @@ export default function Activity() {
             <div key={i} className={extra}>
               {head}
               <div className="act">
-                <span className={`ic t-${isIn ? 'mint' : a.plan!.tint}`}>{isIn ? '⬇️' : a.plan!.emoji}</span>
+                {isIn ? <span className="tile act-tile pt pt-green"><Ic name="received" /></span> : <PlanIcon emoji={a.plan!.emoji} className="act-tile" />}
                 <div style={{ minWidth: 0 }}><b>{title}</b><div className="small muted">{sub} · {fmtTime(a.at)}</div>
                   {a.whatsapp && <div className="wa"><div className="wa-h">WhatsApp to {a.whatsapp.to}{a.whatsapp.status === 'mocked' ? ' · preview (not sent yet)' : ''}</div>{a.whatsapp.body}</div>}
                   {(a.status === 'sent' || a.status === 'sending') && !!a.fee_lines?.length && (

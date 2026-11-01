@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { registerSW } from 'virtual:pwa-register';
+import { Feature } from '../icons';
 
 /**
  * The app is cached for offline use, so a new version only arrives in the background. Check for one on launch,
@@ -41,7 +42,7 @@ export default function UpdateBar() {
   if (!ready) return null;
   return (
     <div className="update-bar" role="status">
-      <span>✨ A new version of SpenDrip is ready</span>
+      <span className="b-ic"><Feature name="sparkle" />A new version of SpenDrip is ready</span>
       <span className="acts">
         <button className="btn btn-primary" onClick={() => { setReady(false); applyUpdate(); }}>Refresh</button>
         <button className="link small" aria-label="Later" onClick={() => setReady(false)}>Later</button>

@@ -27,6 +27,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/icons.css">
 <link rel="stylesheet" href="/article.css">
 <script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
 <script defer src="https://stats.spendrip.com/recorder.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476"></script>
@@ -101,6 +102,7 @@
 
 </head>
 <body>
+<!-- icons:start --><svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="i-plan-family" viewBox="0 0 256 256" fill="currentColor"><path d="M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z"/></symbol><symbol id="i-plan-help" viewBox="0 0 256 256" fill="currentColor"><path d="M254.3,107.91,228.78,56.85a16,16,0,0,0-21.47-7.15L182.44,62.13,130.05,48.27a8.14,8.14,0,0,0-4.1,0L73.56,62.13,48.69,49.7a16,16,0,0,0-21.47,7.15L1.7,107.9a16,16,0,0,0,7.15,21.47l27,13.51,55.49,39.63a8.06,8.06,0,0,0,2.71,1.25l64,16a8,8,0,0,0,7.6-2.1l40-40,15.08-15.08,26.42-13.21a16,16,0,0,0,7.15-21.46Zm-54.89,33.37L165,113.72a8,8,0,0,0-10.68.61C136.51,132.27,116.66,130,104,122L147.24,80h31.81l27.21,54.41Zm-41.87,41.86L99.42,168.61l-49.2-35.14,28-56L128,64.28l9.8,2.59-45,43.68-.08.09a16,16,0,0,0,2.72,24.81c20.56,13.13,45.37,11,64.91-5L188,152.66Zm-25.72,34.8a8,8,0,0,1-7.75,6.06,8.13,8.13,0,0,1-1.95-.24L80.41,213.33a7.89,7.89,0,0,1-2.71-1.25L51.35,193.26a8,8,0,0,1,9.3-13l25.11,17.94L126,208.24A8,8,0,0,1,131.82,217.94Z"/></symbol><symbol id="i-plan-upkeep" viewBox="0 0 256 256" fill="currentColor"><path d="M88,48V16a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Zm40,8a8,8,0,0,0,8-8V16a8,8,0,0,0-16,0V48A8,8,0,0,0,128,56Zm32,0a8,8,0,0,0,8-8V16a8,8,0,0,0-16,0V48A8,8,0,0,0,160,56Zm94.4,35.2a8,8,0,0,0-11.2-1.6L224,104V80a8,8,0,0,0-8-8H40a8,8,0,0,0-8,8v24L12.8,89.6a8,8,0,0,0-9.6,12.8L32,124v60a32,32,0,0,0,32,32H192a32,32,0,0,0,32-32V124l28.8-21.6A8,8,0,0,0,254.4,91.2Z"/></symbol></svg><!-- icons:end -->
 <nav class="top" id="nav">
   <div class="wrap bar">
     <a class="logo wm" href="/" aria-label="SpenDrip home">spendr<span class="i">ı<svg viewBox="0 0 40 52"><path d="M20 0S0 24 0 33a20 20 0 0 0 40 0C40 24 20 0 20 0z"/></svg></span>p</a>
@@ -129,9 +131,9 @@
 <div class="tbl-wrap"><table class="tbl">
 <thead><tr><th>Plan</th><th>Rank</th><th class="num">Still needed in November</th><th>What happens</th></tr></thead>
 <tbody>
-<tr><td>🍲 Upkeep, ₦5,000 every day</td><td>1</td><td class="num">₦151,800</td><td>Protected</td></tr>
-<tr><td>💛 Mum, ₦30,000 on the 30th</td><td>2</td><td class="num">₦30,125</td><td>Protected</td></tr>
-<tr><td>🤝 Cousin, ₦25,000 on the 30th</td><td>None</td><td class="num">₦25,125</td><td>Waits for a top-up</td></tr>
+<tr><td><span class="tx pt pt-yellow"><svg class="i" aria-hidden="true"><use href="#i-plan-upkeep"/></svg></span>Upkeep, ₦5,000 every day</td><td>1</td><td class="num">₦151,800</td><td>Protected</td></tr>
+<tr><td><span class="tx pt pt-pink"><svg class="i" aria-hidden="true"><use href="#i-plan-family"/></svg></span>Mum, ₦30,000 on the 30th</td><td>2</td><td class="num">₦30,125</td><td>Protected</td></tr>
+<tr><td><span class="tx pt pt-pink"><svg class="i" aria-hidden="true"><use href="#i-plan-help"/></svg></span>Cousin, ₦25,000 on the 30th</td><td>None</td><td class="num">₦25,125</td><td>Waits for a top-up</td></tr>
 </tbody></table></div>
 <p>Upkeep and Mum need ₦181,925 between them, so ₦8,075 is free. The cousin's drip waits rather than eating into Upkeep and Mum, and SpenDrip tells you to top up ₦17,050 so everyone gets paid. (Amounts include fees: ₦60 per upkeep drip, ₦125 for each of the others.)</p></section><section class="art-sec"><h2 id="set">Setting priorities</h2>
 <p>Tap <b>Protect it</b> in any plan's sentence, or open <b>Plans</b> and drag your three most important drips into order. When a priority plan ends, the ones below move up.</p></section><section class="art-sec"><h2 id="faq">Questions people ask</h2><div class="faq"><details><summary>How many priorities can I have?</summary><p>Up to three. Making a fourth plan a priority pushes the lowest one out of the list.</p></details><details><summary>Does a priority drip ever fail because of a lower drip?</summary><p>No. Lower drips can only use money that isn't needed by higher priorities for the rest of the month.</p></details></div></section></div>

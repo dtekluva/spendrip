@@ -7,6 +7,7 @@ import { Icon, Spinner, useAction } from '../components/ui';
 import Kobo, { KoboLoader } from '../components/Kobo';
 import { track } from '../lib/analytics';
 import { N } from '../lib/format';
+import { Feature, Ic } from '../icons';
 
 /** Verify your identity, from inside the app: a photo of your ID, then three face angles. Unlocks adding money and sending it. */
 type Step = 'document' | 'liveness' | 'done';
@@ -90,7 +91,7 @@ function useUpload(path: string, extra: Record<string, string> = {}) {
   return { preview, blob, take, send, reset: () => { setBlob(null); setPreview(''); } };
 }
 
-const FileButton = ({ label, capture, onPick, primary }: { label: string; capture?: 'user' | 'environment'; onPick: (b: Blob) => void; primary?: boolean }) => (
+const FileButton = ({ label, capture, onPick, primary }: { label: React.ReactNode; capture?: 'user' | 'environment'; onPick: (b: Blob) => void; primary?: boolean }) => (
   <label className={`btn ${primary ? 'btn-primary' : 'btn-soft'} btn-block file-btn`} style={primary ? { height: 56 } : undefined}>
     {label}<input type="file" accept="image/*" capture={capture} onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
   </label>
@@ -131,7 +132,7 @@ function IdCam({ onShot, onCancel }: { onShot: (b: Blob) => void; onCancel: () =
   if (failed) return (
     <div className="stack" style={{ gap: 10 }}>
       <p className="small muted" style={{ margin: 0, textAlign: 'center' }}>We can't open the camera here. Use your phone's camera or pick a photo instead.</p>
-      <FileButton primary label="📷 Open camera" capture="environment" onPick={onShot} />
+      <FileButton primary label={<><Ic name="camera" />Open camera</>} capture="environment" onPick={onShot} />
       <FileButton label="Upload from gallery" onPick={onShot} />
     </div>
   );
@@ -180,7 +181,7 @@ function DocStep({ header, dev, onNext }: { header: React.ReactNode; dev: boolea
           </>
         ) : cam ? null : (
           <>
-            <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={() => setCam(true)}>📷 Take a photo</button>
+            <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={() => setCam(true)}><Ic name="camera" />Take a photo</button>
             <FileButton label="Upload from gallery" onPick={up.take} />
             {dev && <button className="demo-link" onClick={async () => up.take(await sampleBlob('id'))}>Use a sample ID (demo)</button>}
           </>
@@ -276,7 +277,7 @@ function FaceCam({ pose, onShot }: { pose: Pose; onShot: (b: Blob) => void }) {
       <div className="facecam-view">
         <video ref={video} autoPlay playsInline muted />
         <div className={`oval pose-${pose}`} aria-hidden="true" />
-        {t.arrow && <span className={`turn-arrow ${pose}`} aria-hidden="true">{t.arrow}</span>}
+        {t.arrow && <span className={`turn-arrow ${pose}`} aria-hidden="true"><Ic name={t.arrow === '←' ? 'arrow-left' : 'arrow-right'} /></span>}
         {count > 0 && <span className="count" aria-live="assertive">{count}</span>}
       </div>
       <button className="btn btn-primary btn-block" style={{ height: 56 }} disabled={!stream || count > 0} onClick={take}>
@@ -308,13 +309,13 @@ function LivenessStep({ header, dev, onNext }: { header: React.ReactNode; dev: b
       <p className="lead">{pose ? POSE_TEXT[pose].hint : 'This shows it\'s really you, live, and not a photo of someone.'}</p>
       {order && (
         <div className="pose-steps" aria-label={`Photo ${Math.min(n + 1, 3)} of 3`}>
-          {order.map((p, k) => <span key={k} className={k < n ? 'done' : k === n ? 'now' : ''}>{k < n ? '✓' : k + 1}</span>)}
+          {order.map((p, k) => <span key={k} className={k < n ? 'done' : k === n ? 'now' : ''}>{k < n ? <Ic name="check" /> : k + 1}</span>)}
         </div>
       )}
       {busy ? <KoboLoader mood="waiting" size={70} label="Checking your photos…" /> : error ? <div className="error-card">{error}</div> : null}
       {pose && !busy && <FaceCam key={`${n}-${pose}`} pose={pose} onShot={add} />}
       {dev && pose && !busy && <button className="demo-link" onClick={async () => add(await samplePose(pose))}>Use a sample photo (demo)</button>}
-      <div className="lockline"><span>🔒</span><span>We only use these photos to check it's you. We don't share them with the people you pay.</span></div>
+      <div className="lockline"><Ic name="lock" /><span>We only use these photos to check it's you. We don't share them with the people you pay.</span></div>
     </>
   );
 }
@@ -328,7 +329,7 @@ function DoneStep({ header }: { header: React.ReactNode }) {
     <>
       {header}
       <div style={{ display: 'grid', placeItems: 'center', marginTop: 34 }}><Kobo mood="celebrate" size={110} /></div>
-      <h2 style={{ textAlign: 'center' }}>You're verified, {me?.user?.first_name ?? 'friend'} 🎉</h2>
+      <h2 className="h-celebrate">You're verified, {me?.user?.first_name ?? 'friend'}<Feature name="celebrate" className="h-ic" /></h2>
       <p className="lead" style={{ textAlign: 'center' }}>{fa ? 'Your SpenDrip account is ready. Send money to it any time to fund your plans.' : 'You can now add money by card or bank and start sending.'}</p>
       {me?.user?.limits && <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>For now: up to {N(me.user.limits.max_drip_kobo)} per drip and {N(me.user.limits.max_balance_kobo)} in your balance.</p>}
       {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
@@ -351,7 +352,7 @@ export function VerifyCard({ compact = false }: { compact?: boolean }) {
   const started = s !== 'not_started';
   return (
     <div className="card verify-card">
-      <span className="vc-ic">🪪</span>
+      <span className="vc-ic"><Feature name="id" /></span>
       <div style={{ minWidth: 0 }}>
         <b>{started ? 'Finish verifying your identity' : 'Verify your identity'}</b>
         {!compact && <p className="small muted" style={{ margin: '2px 0 0' }}>Needed before you can add money and start sending. A photo of your ID and three quick face photos. About 2 minutes.</p>}

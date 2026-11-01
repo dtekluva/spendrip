@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import type { Plan, Recipient } from '../lib/types';
 import { AddRecipient } from './NewPlan';
 import Kobo from '../components/Kobo';
+import { Ic, PlanIcon } from '../icons';
 
 /** Plans that pay this person: their own single plans, plus any group they're on. */
 export function plansFor(r: Recipient, plans: Plan[]) {
@@ -30,7 +31,7 @@ export default function People() {
     openSheet(
       <>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}>
-          <span className={`tile t-${personColour(r)}`}>{r.is_self ? '🙋' : r.label[0]}</span>
+          <span className={`tile t-${personColour(r)}`}>{r.is_self ? <Ic name="profile" /> : r.label[0]}</span>
           <div><h3 style={{ margin: 0 }}>{r.label}</h3><div className="muted small">{r.verified_account_name} · {r.bank_name} ••{r.account_last4}</div></div>
         </div>
         <div className="kv"><span className="muted">WhatsApp when money lands</span><b>{r.is_self ? 'Not needed' : r.whatsapp ? (r.notify_whatsapp ? 'On' : 'Off') : 'No number'}</b></div>
@@ -39,9 +40,9 @@ export default function People() {
           <div className="opt-list" style={{ marginTop: 12 }}>
             {using.map((p) => (
               <button key={p.id} className="opt" onClick={() => { closeSheet(); nav(`/plans?open=${p.id}`); }}>
-                <span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+                <PlanIcon emoji={p.emoji} size="sm" />
                 <span><b>{p.label}</b><br /><span className="small muted">{p.kind === 'group' ? `${N(p.lines?.find((l) => l.recipient.id === r.id)?.amount_kobo ?? 0)} in a group of ${p.lines?.length}` : N(p.amount_kobo)}{p.status === 'paused' ? ' · paused' : ''}</span></span>
-                <span className="small muted">›</span>
+                <Ic name="chevron" className="muted" />
               </button>
             ))}
           </div>
@@ -64,7 +65,7 @@ export default function People() {
             const n = plansFor(r, plans).length;
             return (
               <button key={r.id} className="set-row" onClick={() => open(r)}>
-                <span className={`tile sm t-${personColour(r)}`}>{r.is_self ? '🙋' : r.label[0]}</span>
+                <span className={`tile sm t-${personColour(r)}`}>{r.is_self ? <Ic name="profile" /> : r.label[0]}</span>
                 <span style={{ minWidth: 0 }}><b>{r.label}{r.is_self ? ' (you)' : ''}</b>
                   <span className="sub">{r.verified_account_name} · {r.bank_name} ••{r.account_last4} · {n ? `${n} plan${n === 1 ? '' : 's'}` : 'no plans yet'}{r.whatsapp && r.notify_whatsapp ? ' · WhatsApp on' : ''}</span></span>
               </button>
@@ -72,7 +73,7 @@ export default function People() {
           })}
         </div>
         {!people.length && <div className="card kobo-empty"><Kobo mood="peek" size={64} /><span className="muted">Nobody yet. Add the first person you want to pay.</span></div>}
-        <button className="btn btn-primary btn-block" onClick={add}>＋ Add someone</button>
+        <button className="btn btn-primary btn-block" onClick={add}><Ic name="plus" />Add someone</button>
       </div><div className="col stack">
         <div className="card act-sum">
           <div className="eyebrow">Good to know</div>

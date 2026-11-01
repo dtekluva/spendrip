@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Kobo, { KOBO_MOODS, koboEngine, type KoboMood } from '../components/Kobo';
 import { useStore } from '../lib/store';
+import { Ic } from '../icons';
 
 /** Compare the Rive and code versions, watch Rive blend between moods, and see every mood at once. */
 export default function KoboGallery() {
@@ -25,7 +26,7 @@ export default function KoboGallery() {
   const current = KOBO_MOODS.find((m) => m.mood === mood)!;
   return (
     <div className="stack">
-      <div className="close-row"><button className="link" onClick={() => nav('/profile')}>← Profile</button><span className="eyebrow">Meet Kobo</span></div>
+      <div className="close-row"><button className="link b-ic" onClick={() => nav('/profile')}><Ic name="arrow-left" />Profile</button><span className="eyebrow">Meet Kobo</span></div>
       <div><h1 className="h1" style={{ margin: 0 }}>Hi, I'm Kobo 👋</h1>
         <p className="muted" style={{ margin: '4px 0 0', maxWidth: '46ch' }}>I'm the drop that carries your money where it needs to go, on time. Pick a mood and watch both versions of me switch.</p></div>
 

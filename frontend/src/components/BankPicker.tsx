@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Ic } from '../icons';
 
 export interface Bank { name: string; nip_code: string }
 
@@ -49,7 +50,7 @@ export default function BankPicker({ banks, value, onChange, id }: { banks: Bank
         onFocus={() => { setOpen(true); setHi(0); }}
         onChange={(e) => { setText(e.target.value); setOpen(true); setHi(0); if (chosen) onChange(''); }}
         onKeyDown={onKey} />
-      {chosen && !open && <span className="bank-ok" aria-hidden="true">✓</span>}
+      {chosen && !open && <span className="bank-ok" aria-hidden="true"><Ic name="check" /></span>}
       {open && (
         <ul id={listId} role="listbox" className="bank-list">
           {shown.map((b, i) => (

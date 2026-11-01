@@ -17,3 +17,6 @@ coverage/
 
 # deployment credentials (DigitalOcean token etc.) - never commit
 .env.deploy
+
+# icon review screenshots (regenerate with design/icons/capture.py)
+design/icons/review/

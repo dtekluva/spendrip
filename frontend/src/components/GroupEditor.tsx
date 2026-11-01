@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import type { DraftLine, Recipient } from '../lib/types';
 import { AddRecipient } from '../screens/NewPlan';
 import { Spinner } from './ui';
+import { Ic } from '../icons';
 
 const MAX_PEOPLE = 50;
 const naira = (s: string) => Math.round(Number(String(s).replace(/[₦,\s]/g, '')) * 100) || 0;
@@ -38,7 +39,7 @@ export default function GroupEditor({ lines: start, onDone }: { lines: DraftLine
 
   if (mode === 'saved') return <SavedPicker taken={lines.map((l) => l.recipient_id)} onBack={() => setMode('')} onNew={() => setMode('new')}
     onPick={(rs) => { add(rs); setMode(''); }} />;
-  if (mode === 'new') return <><button className="link small" onClick={() => setMode('')}>← Back to the list</button>
+  if (mode === 'new') return <><button className="link small b-ic" onClick={() => setMode('')}><Ic name="arrow-left" />Back to the list</button>
     <AddRecipient onSaved={(r) => { add([r]); setMode(''); }} /></>;
   if (mode === 'paste') return <PasteList onBack={() => setMode('')} onAdd={(rows) => {
     setLines((ls) => [...ls.filter((l) => !rows.some((r) => r.recipient_id === l.recipient_id)), ...rows].slice(0, MAX_PEOPLE)); setMode('');
@@ -54,7 +55,7 @@ export default function GroupEditor({ lines: start, onDone }: { lines: DraftLine
           const tooBig = maxEach != null && l.amount_kobo > maxEach;
           return (
             <div key={l.recipient_id} className={`g-row ${l.skip_next ? 'skipped' : ''}`}>
-              <span className={`tile sm t-${r?.is_self ? 'cobalt' : 'hibiscus'}`}>{r?.is_self ? '🙋' : (r?.label ?? '?')[0]}</span>
+              <span className={`tile sm t-${r?.is_self ? 'cobalt' : 'hibiscus'}`}>{r?.is_self ? <Ic name="profile" /> : (r?.label ?? '?')[0]}</span>
               <span className="g-who"><b>{r?.label ?? 'Someone'}</b>
                 <span className="small muted">{r ? `${r.verified_account_name} · ${r.bank_name} ••${r.account_last4}` : ''}</span>
                 {(l.skip_next || l.next_amount_kobo != null) && (
@@ -70,7 +71,7 @@ export default function GroupEditor({ lines: start, onDone }: { lines: DraftLine
                     <input id={`nx${i}`} inputMode="numeric" placeholder={`Same as usual (₦${toNaira(l.amount_kobo) || 0})`} value={toNaira(l.next_amount_kobo)}
                       onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); setLine(i, { next_amount_kobo: v ? naira(v) : null }); }} /></div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="btn btn-soft" aria-pressed={l.skip_next} onClick={() => setLine(i, { skip_next: !l.skip_next })}>{l.skip_next ? '↩︎ Pay next time' : '⏭ Skip next payout'}</button>
+                    <button className="btn btn-soft" aria-pressed={l.skip_next} onClick={() => setLine(i, { skip_next: !l.skip_next })}>{l.skip_next ? <><Ic name="undo" />Pay next time</> : <><Ic name="skip" />Skip next payout</>}</button>
                     <button className="btn btn-soft" style={{ color: 'var(--red)' }} onClick={() => { setLines((ls) => ls.filter((_, j) => j !== i)); setOpen(null); }}>Remove</button>
                   </div>
                   <p className="small muted" style={{ margin: 0 }}>One-off changes clear themselves after the next payout.</p>
@@ -82,9 +83,9 @@ export default function GroupEditor({ lines: start, onDone }: { lines: DraftLine
       </div>
       {lines.length < MAX_PEOPLE && (
         <div className="g-add">
-          <button className="btn btn-soft" onClick={() => setMode('saved')}>＋ Saved people</button>
-          <button className="btn btn-soft" onClick={() => setMode('new')}>＋ Someone new</button>
-          <button className="btn btn-soft" onClick={() => setMode('paste')}>📋 Paste a list</button>
+          <button className="btn btn-soft" onClick={() => setMode('saved')}><Ic name="plus" />Saved people</button>
+          <button className="btn btn-soft" onClick={() => setMode('new')}><Ic name="plus" />Someone new</button>
+          <button className="btn btn-soft" onClick={() => setMode('paste')}><Ic name="paste" />Paste a list</button>
         </div>
       )}
       <div className="g-foot">
@@ -104,19 +105,19 @@ function SavedPicker({ taken, onPick, onBack, onNew }: { taken: number[]; onPick
   const free = recipients.filter((r) => !taken.includes(r.id) && !r.label.endsWith('(removed)'));
   return (
     <>
-      {taken.length > 0 && <button className="link small" onClick={onBack}>← Back to the list</button>}
+      {taken.length > 0 && <button className="link small b-ic" onClick={onBack}><Ic name="arrow-left" />Back to the list</button>}
       <h3>Pick people</h3>
       <div className="opt-list">
         {free.map((r) => {
           const on = sel.includes(r.id);
           return (
             <button key={r.id} className="opt" aria-pressed={on} onClick={() => setSel(on ? sel.filter((x) => x !== r.id) : [...sel, r.id])}>
-              <span className={`tile sm t-${r.is_self ? 'cobalt' : 'hibiscus'}`}>{r.is_self ? '🙋' : r.label[0]}</span>
-              <span><b>{r.label}</b><br /><span className="small muted">{r.bank_name} ••{r.account_last4}</span></span><span className="check">✓</span>
+              <span className={`tile sm t-${r.is_self ? 'cobalt' : 'hibiscus'}`}>{r.is_self ? <Ic name="profile" /> : r.label[0]}</span>
+              <span><b>{r.label}</b><br /><span className="small muted">{r.bank_name} ••{r.account_last4}</span></span><span className="check"><Ic name="check" /></span>
             </button>
           );
         })}
-        <button className="opt" onClick={onNew}><span className="tile sm t-mint">＋</span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
+        <button className="opt" onClick={onNew}><span className="tile sm t-mint"><Ic name="plus" /></span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
       </div>
       <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} disabled={!sel.length}
         onClick={() => onPick(recipients.filter((r) => sel.includes(r.id)))}>Add {sel.length || ''} {sel.length === 1 ? 'person' : 'people'}</button>
@@ -212,7 +213,7 @@ function PasteList({ onBack, onAdd }: { onBack: () => void; onAdd: (lines: Draft
 
   return (
     <>
-      <button className="link small" onClick={onBack}>← Back to the list</button>
+      <button className="link small b-ic" onClick={onBack}><Ic name="arrow-left" />Back to the list</button>
       <h3>Paste a list</h3>
       {!rows ? (<>
         <p className="small muted" style={{ marginTop: -6 }}>One person per line: name, account number, bank, amount. Copy it from WhatsApp, Notes or a spreadsheet.</p>
@@ -223,7 +224,7 @@ function PasteList({ onBack, onAdd }: { onBack: () => void; onAdd: (lines: Draft
         <div className="paste-rows">
           {rows.map((r, i) => (
             <div key={i} className={`paste-row ${r.state}`}>
-              <span className="st" aria-hidden="true">{r.state === 'ok' ? '✓' : r.state === 'bad' ? '✗' : '…'}</span>
+              <span className="st" aria-hidden="true">{r.state === 'ok' ? <Ic name="check" /> : r.state === 'bad' ? <Ic name="close" /> : '…'}</span>
               <span style={{ minWidth: 0 }}><b>{r.name}</b> <span className="num">{r.amount ? N(r.amount) : ''}</span><br />
                 <span className="small muted">{r.state === 'ok' ? `${r.account_name} · ${r.bank!.name} ••${r.account.slice(-4)}`
                   : r.state === 'bad' ? r.error : `${r.bank?.name ?? ''} ${r.account}`}</span></span>
@@ -231,7 +232,7 @@ function PasteList({ onBack, onAdd }: { onBack: () => void; onAdd: (lines: Draft
           ))}
         </div>
         {busy && <Spinner label="Checking names with the banks…" />}
-        {!busy && rows.some((r) => r.state === 'bad') && <p className="small muted">Rows with ✗ won't be added. Fix them in your list and check again, or add them one by one.</p>}
+        {!busy && rows.some((r) => r.state === 'bad') && <p className="small muted">Rows marked with a cross won't be added. Fix them in your list and check again, or add them one by one.</p>}
         {err && <div className="error-card">{err}</div>}
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => setRows(null)}>Edit list</button>

@@ -47,12 +47,12 @@ export function cadence(p: Pick<Plan, 'frequency' | 'weekday' | 'month_day' | 'm
 }
 
 /** Greeting for the person's own time of day (their device clock, wherever they are). */
-export function greeting(now = new Date()): { text: string; emoji: string } {
+export function greeting(now = new Date()): { text: string; icon: 'morning' | 'afternoon' | 'night' } {
   const h = now.getHours();
-  if (h < 5) return { text: 'Good morning', emoji: '🌙' };  // after midnight it's morning, even if it's still dark
-  if (h < 12) return { text: 'Good morning', emoji: '☀️' };
-  if (h < 17) return { text: 'Good afternoon', emoji: '🌤️' };
-  return { text: 'Good evening', emoji: '🌙' };  // 5 pm until midnight
+  if (h < 5) return { text: 'Good morning', icon: 'night' };  // after midnight it's morning, even if it's still dark
+  if (h < 12) return { text: 'Good morning', icon: 'morning' };
+  if (h < 17) return { text: 'Good afternoon', icon: 'afternoon' };
+  return { text: 'Good evening', icon: 'night' };  // 5 pm until midnight
 }
 export const greet = () => greeting().text;
 

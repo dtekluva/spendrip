@@ -8,6 +8,7 @@ import type { Plan } from '../lib/types';
 import RankPicker from '../components/RankPicker';
 import { Icon, Switch } from '../components/ui';
 import { confirmPlanPause } from './pauseConfirm';
+import { Ic, PlanIcon } from '../icons';
 
 /** "Drip 4 of 17 · ends Fri 29 Jan", "Starts Sun 1 Nov", "Ending soon" and the like. */
 function planMeta(p: Plan) {
@@ -65,7 +66,7 @@ export default function Plans() {
       <div className="opt-list">
         {cands.map((p) => (
           <button key={p.id} className="opt" onClick={() => { store.closeSheet(); setRank(p, slot); }}>
-            <span className={`tile sm t-${p.tint}`}>{p.emoji}</span><span><b>{p.label}</b><br /><span className="small muted">{N(p.amount_kobo)} · {cadence(p)}</span></span><span />
+            <PlanIcon emoji={p.emoji} size="sm" /><span><b>{p.label}</b><br /><span className="small muted">{N(p.amount_kobo)} · {cadence(p)}</span></span><span />
           </button>
         ))}
         {!cands.length && <p className="muted">Every plan is already a priority.</p>}
@@ -83,17 +84,17 @@ export default function Plans() {
       <div className="cols cols-plans"><div className="col stack">
         <p className="muted col-head">Rest of this month: <b className="num" style={{ color: 'var(--ink)' }}>{N(total)}</b> including {N(fees)} in fees.</p>
         <div className="card prio-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><span className="eyebrow">🛡 Priority order</span><span className="small muted">{prio.length}/3</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><span className="eyebrow eyebrow-ic"><Ic name="priority" />Priority order</span><span className="small muted">{prio.length}/3</span></div>
           {[0, 1, 2].map((i) => {
             const p = prio[i];
-            if (!p) return <button key={i} className="prio-row empty" onClick={() => addPriority(i + 1)}><span className="rank">{i + 1}</span><span className="muted" style={{ fontWeight: 700 }}>＋ Add priority {i + 1}</span><span /></button>;
+            if (!p) return <button key={i} className="prio-row empty" onClick={() => addPriority(i + 1)}><span className="rank">{i + 1}</span><span className="muted" style={{ fontWeight: 700, display: 'flex', gap: 6, alignItems: 'center' }}><Ic name="plus" />Add priority {i + 1}</span><span /></button>;
             return (
               <div key={p.id} className="prio-row"><span className="rank">{i + 1}</span>
-                <span style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}><span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+                <span style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}><PlanIcon emoji={p.emoji} size="sm" />
                   <span style={{ minWidth: 0 }}><b>{p.label}</b><br /><span className="small muted">{N(p.amount_kobo)} · {cadence(p)}</span></span></span>
                 <span style={{ display: 'flex', gap: 6 }}>
-                  {i > 0 && <button className="mini-btn" aria-label={`Move ${p.label} up`} onClick={() => setRank(p, i)}>↑</button>}
-                  <button className="mini-btn" aria-label={`Remove ${p.label} from priorities`} onClick={() => setRank(p, 0, () => setRank(p, i + 1))}>✕</button>
+                  {i > 0 && <button className="mini-btn" aria-label={`Move ${p.label} up`} onClick={() => setRank(p, i)}><Ic name="arrow-up" /></button>}
+                  <button className="mini-btn" aria-label={`Remove ${p.label} from priorities`} onClick={() => setRank(p, 0, () => setRank(p, i + 1))}><Ic name="close" /></button>
                 </span>
               </div>
             );
@@ -115,9 +116,9 @@ export default function Plans() {
             const { soon } = planMeta(p);
             return (
               <button key={p.id} className={`plan-card ${p.status === 'paused' ? 'paused' : ''}`} onClick={() => openSheet(<PlanSheet plan={p} />)}>
-                <span className={`tile t-${p.tint}`}>{p.emoji}</span>
+                <PlanIcon emoji={p.emoji} />
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span className="nm">{p.label} {p.priority_rank && <span className="pill p-prot">🛡 Priority {p.priority_rank}</span>}
+                  <span className="nm">{p.label} {p.priority_rank && <span className="pill p-prot"><Ic name="protected" />Priority {p.priority_rank}</span>}
                     {p.status === 'paused' && <span className="pill p-off">Paused</span>}
                     {p.state === 'scheduled' && <span className="pill p-sched">Starts {dateLabel(p.start_date)}</span>}
                     {soon && <span className="pill p-wait">Ending soon</span>}
@@ -134,7 +135,7 @@ export default function Plans() {
             );
           })}
           {!current.length && <div className="card">{show === 'paused' ? 'Nothing is paused. Every plan is sending.' : show === 'running'
-            ? 'Nothing is running. Resume a paused plan or tap ＋ to make one.' : 'No plans yet. Tap ＋ to make one.'}</div>}
+            ? 'Nothing is running. Resume a paused plan or tap New plan to make one.' : 'No plans yet. Tap New plan to make one.'}</div>}
         </div>
         {!!finished.length && (
           <details className="finished-list">
@@ -142,7 +143,7 @@ export default function Plans() {
             <div className="plan-list">
               {finished.map((p) => (
                 <div key={p.id} className="plan-card done">
-                  <span className={`tile t-${p.tint}`}>{p.emoji}</span>
+                  <PlanIcon emoji={p.emoji} />
                   <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span className="nm">{p.label} <span className="pill p-off">Finished</span></span>
                     <span className="small muted">{N(p.amount_kobo)} · {cadence(p)} · to {toWhom(p)}</span>
@@ -159,8 +160,8 @@ export default function Plans() {
         )}
         </div>
         <div className="plan-actions">
-          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new')}>＋ New plan</button>
-          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new?group=1')}>👥 Pay several people</button>
+          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new')}><Ic name="plus" />New plan</button>
+          <button className="btn btn-soft" style={{ flex: 1 }} onClick={() => nav('/plans/new?group=1')}><Ic name="people" />Pay several people</button>
         </div>
       </div></div>
     </div>
@@ -176,7 +177,7 @@ function PlanSheet({ plan }: { plan: Plan }) {
   const rank = async (k: number) => {
     const r = await api.patch<{ dropped_priorities: string[] }>(`/plans/${p.id}`, { priority_rank: k });
     await reload();
-    toast((k ? `${p.label} is a priority 🛡` : `${p.label} is no longer a priority`) + (r.dropped_priorities.length ? `. ${r.dropped_priorities.join(', ')} dropped out.` : ''));
+    toast((k ? `${p.label} is now priority ${k}` : `${p.label} is no longer a priority`) + (r.dropped_priorities.length ? `. ${r.dropped_priorities.join(', ')} dropped out.` : ''));
     openSheet(<PlanSheet plan={p} />);
   };
   const pause = () => openSheet(confirmPlanPause(store, p, () => openSheet(<PlanSheet plan={p} />)));
@@ -185,7 +186,7 @@ function PlanSheet({ plan }: { plan: Plan }) {
   };
   return (
     <>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}><span className={`tile t-${p.tint}`}>{p.emoji}</span>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}><PlanIcon emoji={p.emoji} />
         <div><h3 style={{ margin: 0 }}>{p.label}</h3><div className="muted small">{p.kind === 'group' || !p.recipient ? `${N(p.amount_kobo)} to ${toWhom(p)}, paid together`
           : `${N(p.amount_kobo)} to ${p.recipient.label} (${p.recipient.bank_name} ••${p.recipient.account_last4})`}</div></div></div>
       {p.kind === 'group' && <GroupPeople p={p} onEdit={() => { closeSheet(); nav(`/plans/${p.id}/edit?people=1`); }} />}
@@ -201,10 +202,10 @@ function PlanSheet({ plan }: { plan: Plan }) {
       ) : (<>
       <div className="opt-list">
         <div className="opt" style={{ cursor: 'default', gridTemplateColumns: '1fr' }}>
-          <span><b>🛡 Priority</b><br /><span className="small muted">1 is paid first. Lower priorities and other plans can't touch the money it needs.</span></span>
+          <span><b className="b-ic"><Ic name="priority" />Priority</b><br /><span className="small muted">1 is paid first. Lower priorities and other plans can't touch the money it needs.</span></span>
           <RankPicker plans={plans} id={p.id} current={p.priority_rank ?? 0} onPick={rank} />
         </div>
-        <div className="opt" style={{ cursor: 'default' }}><span>⏯</span><span><b>Sending</b><br /><span className="small muted">Turn off to pause. Nothing is lost.</span></span>
+        <div className="opt" style={{ cursor: 'default' }}><span className="opt-ic"><Ic name="pause" /></span><span><b>Sending</b><br /><span className="small muted">Turn off to pause. Nothing is lost.</span></span>
           <Switch on={p.status === 'active'} label="Sending" onChange={pause} /></div>
       </div>
       </>)}

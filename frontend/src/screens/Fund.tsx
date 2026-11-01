@@ -9,6 +9,7 @@ import { useAction } from '../components/ui';
 import { CardPanel } from './CardTopUp';
 import { feeTotal } from '../lib/fees';
 import { VerifyCard } from './Verify';
+import { Feature, Ic, PlanIcon } from '../icons';
 
 export default function Fund() {
   const { summary, plans, me, reload, confetti, koboSay, toast } = useStore();
@@ -23,7 +24,7 @@ export default function Fund() {
   const counts = new Map<number, number>();
   f.events.forEach((e) => counts.set(e.plan_id, (counts.get(e.plan_id) ?? 0) + 1));
   const prio = plans.filter((p) => p.priority_rank).sort((a, b) => a.priority_rank! - b.priority_rank!);
-  const groups: [string, typeof plans][] = [...prio.map((p) => [`🛡 Priority ${p.priority_rank}`, [p]] as [string, typeof plans]), ['Other plans', plans.filter((p) => !p.priority_rank)]];
+  const groups: [string, typeof plans][] = [...prio.map((p) => [`Priority ${p.priority_rank}`, [p]] as [string, typeof plans]), ['Other plans', plans.filter((p) => !p.priority_rank)]];
   const number = fa?.account_number.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3') ?? '';
 
   const copy = async () => {
@@ -40,7 +41,7 @@ export default function Fund() {
 
   return (
     <div className="stack">
-      <div><div className="eyebrow">Add money</div><h1 className="h1">{f.top_up_kobo ? `Top up ${N(f.top_up_kobo)} to cover ${month}` : `${month} is covered 🎉`}</h1></div>
+      <div><div className="eyebrow">Add money</div><h1 className="h1">{f.top_up_kobo ? `Top up ${N(f.top_up_kobo)} to cover ${month}` : <span className="b-ic">{month} is covered<Feature name="celebrate" className="h-ic" /></span>}</h1></div>
       <div className="cols cols-fund"><div className="col stack">
         {fa ? (
           <div className="acct">
@@ -72,9 +73,9 @@ export default function Fund() {
             if (!rows.length) return null;
             return (
               <div key={g}>
-                <div className="tgroup">{g}</div>
+                <div className="tgroup b-ic">{g !== 'Other plans' && <Ic name="protected" />}{g}</div>
                 {rows.map((p) => { const n = counts.get(p.id)!; return (
-                  <div key={p.id} className="trow"><span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+                  <div key={p.id} className="trow"><PlanIcon emoji={p.emoji} size="sm" />
                     <span><b>{p.label}</b><br /><span className="small muted num">{n} × ({N(p.amount_kobo)} + {N(feeOf(p.amount_kobo))} fees)</span></span><b className="num">{N(n * (p.amount_kobo + feeOf(p.amount_kobo)))}</b></div>
                 ); })}
               </div>
@@ -102,7 +103,7 @@ function AutoFillCard({ onOpen }: { onOpen: () => void }) {
     <div className="autofill-card">
       <Kobo mood="fill" size={56} />
       <div style={{ minWidth: 0, flex: 1 }}>
-        <span className="pill" style={{ background: on ? 'var(--mint)' : 'var(--sun)', color: '#0B1040' }}>{on ? '⛽ Auto-fill is on' : a?.paused_reason ? 'Auto-fill paused' : 'New'}</span>
+        <span className="pill" style={{ background: on ? 'var(--mint)' : 'var(--sun)', color: '#0B1040' }}>{on ? <><Ic name="autofill" />Auto-fill is on</> : a?.paused_reason ? 'Auto-fill paused' : 'New'}</span>
         <b style={{ display: 'block', margin: '6px 0 2px', fontSize: 17 }}>{on ? 'Your drips top themselves up' : 'Never top up by hand again'}</b>
         <span className="small muted">{on ? next || 'Before a drip, if you\u2019re short.' : 'Auto-fill tops up from your card on payday, and before a drip if you\u2019re short. You set the limits.'}</span>
       </div>

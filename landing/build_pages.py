@@ -21,6 +21,27 @@ APP = "https://app.spendrip.com"
 TODAY = date.today().isoformat()
 HOME_UPDATED = "2026-10-03"
 
+# Plan emoji in page copy ("⛽ Fuel") show as the app's plan tiles, from the shared icon system (design/icons).
+ICONS = json.loads((ROOT.parent / "design/icons/manifest.json").read_text())
+_plain = lambda e: re.sub("[\U0001F3FB-\U0001F3FF\uFE0F]", "", e)
+PLAN_EMOJI: dict[str, dict] = {}
+for _p in ICONS["plans"]:
+    for _e in [_p["emoji"], *_p["also"]]:
+        PLAN_EMOJI.setdefault(_plain(_e), _p)
+_ONE = "[\U0001F300-\U0001FAFF\u2600-\u27BF][\U0001F3FB-\U0001F3FF\uFE0F]?"
+EMOJI_SEQ = re.compile(f"{_ONE}(?:\u200D{_ONE})* ")
+
+
+def plan_icons(page: str) -> str:
+    """Swap known plan emoji in the <body> for tiles; anything else stays as written."""
+    def tile(m: re.Match) -> str:
+        p = PLAN_EMOJI.get(_plain(m.group(0)[:-1]))
+        return (f'<span class="tx pt pt-{p["hue"]}"><svg class="i" aria-hidden="true"><use href="#i-plan-{p["key"]}"/></svg></span>'
+                if p else m.group(0))
+    head, sep, body = page.partition("<body>")
+    return head + sep + EMOJI_SEQ.sub(tile, body)
+
+
 DROP = '<svg viewBox="0 0 40 52"><path d="M20 0S0 24 0 33a20 20 0 0 0 40 0C40 24 20 0 20 0z"/></svg>'
 WORDMARK = f'spendr<span class="i">ı{DROP}</span>p'
 
@@ -133,6 +154,7 @@ def page_html(p: dict, pages: list[dict]) -> str:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/icons.css">
 <link rel="stylesheet" href="/article.css">
 <script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
 <script defer src="https://stats.spendrip.com/recorder.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476"></script>
@@ -143,6 +165,7 @@ def page_html(p: dict, pages: list[dict]) -> str:
 {"".join(f'<script src="/{x}" defer></script>' for x in p.get("scripts", []))}
 </head>
 <body>
+<!-- icons:start --><!-- icons:end -->
 {nav(pages)}
 <main class="article">
   <div class="wrap art-wrap">
@@ -211,6 +234,7 @@ def not_found_html(pages: list[dict]) -> str:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/icons.css">
 <link rel="stylesheet" href="/article.css">
 <script defer src="https://stats.spendrip.com/k.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476" data-domains="spendrip.com"></script>
 <script defer src="https://stats.spendrip.com/recorder.js" data-website-id="51431cff-9282-4431-aaf6-22c3d7e6e476"></script>
@@ -237,6 +261,7 @@ def not_found_html(pages: list[dict]) -> str:
 </script>
 </head>
 <body>
+<!-- icons:start --><!-- icons:end -->
 {nav(pages)}
 <main class="article">
   <div class="wrap art-wrap">
@@ -276,12 +301,17 @@ def main():
     for p in pages:
         out = ROOT / p["slug"] / "index.html"
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(page_html(p, pages))
+        out.write_text(plan_icons(page_html(p, pages)))
         print("wrote", out.relative_to(ROOT))
     (ROOT / "sitemap.xml").write_text(sitemap(pages))
     (ROOT / "404.html").write_text(not_found_html(pages))
     print("wrote 404.html")
     print("wrote sitemap.xml with", len(pages) + 1, "URLs")
+    # Inline the icon symbols each page now uses.
+    import sys
+    sys.path.insert(0, str(ROOT.parent / "design/icons"))
+    import build
+    build.main()
 
 
 if __name__ == "__main__":

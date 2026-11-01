@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
 import { track } from '../lib/analytics';
 import { Spinner, useAction } from '../components/ui';
+import { Feature, Ic } from '../icons';
 
 export interface SavedCard { id: number; brand: string; last4: string; bank: string; exp: string }
 interface Quote { available: boolean; test_mode: boolean; net_kobo: number; fee_kobo: number; gross_kobo: number; payer_covers_fee: boolean }
@@ -91,7 +92,7 @@ export function CardPanel({ suggested }: { suggested: number }) {
       <label className="small" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
         <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} /> If I pay by card, save it for one-tap top-ups
       </label>
-      <p className="small muted" style={{ margin: 0 }}>🔒 You'll pay on Paystack's secure page: by card, from your bank account, or by bank transfer. SpenDrip never sees your card or bank login.{quote?.test_mode ? ' Test mode: no real card is charged.' : ''}</p>
+      <p className="small muted b-ic" style={{ margin: 0, alignItems: 'flex-start' }}><Ic name="lock" /><span>You'll pay on Paystack's secure page: by card, from your bank account, or by bank transfer. SpenDrip never sees your card or bank login.{quote?.test_mode ? ' Test mode: no real card is charged.' : ''}</span></p>
     </div>
   );
 }
@@ -127,7 +128,7 @@ function ChargeDone({ result, card }: { result: ChargeResult; card: SavedCard })
   return (
     <div className="stack" style={{ alignItems: 'center', textAlign: 'center', gap: 10 }}>
       <Kobo mood={ok ? 'celebrate' : pending ? 'waiting' : 'puddle'} size={110} />
-      <h3 style={{ margin: 0 }}>{ok ? `${N(result.net_kobo)} added 🎉` : pending ? 'Still confirming' : "That didn't go through"}</h3>
+      <h3 style={{ margin: 0 }}>{ok ? <span className="b-ic">{N(result.net_kobo)} added<Feature name="celebrate" /></span> : pending ? 'Still confirming' : "That didn't go through"}</h3>
       <p className="muted" style={{ margin: 0 }}>
         {ok ? `From ${cardLabel(card)}. Your balance is now ${N(result.available_kobo)}.`
           : pending ? "Your bank hasn't confirmed yet. We'll add the money as soon as it does, so don't top up again."
@@ -168,7 +169,7 @@ export default function CardReturn() {
       {result?.status === 'success' && (
         <>
           <Kobo mood="celebrate" size={110} />
-          <h1 className="h1" style={{ margin: 0 }}>{N(result.net_kobo)} added 🎉</h1>
+          <h1 className="h1 b-ic" style={{ margin: 0 }}>{N(result.net_kobo)} added<Feature name="celebrate" className="h-ic" /></h1>
           <p className="muted" style={{ margin: 0 }}>Your balance is now {N(result.available_kobo)}.{result.card ? ` ${cardLabel(result.card)} is saved for one-tap top-ups.` : ''}</p>
         </>
       )}

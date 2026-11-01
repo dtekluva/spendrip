@@ -5,6 +5,7 @@ import { N } from '../lib/format';
 import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
 import { useAction } from '../components/ui';
+import { Ic } from '../icons';
 
 export interface BoostState {
   enabled: boolean; month: string; prize_kobo: number; why_not: string | null; story_max: number;
@@ -39,7 +40,7 @@ export default function Boost() {
   const showForm = s.enabled && !s.why_not && (!s.entry || editing);
   return (
     <div className="stack">
-      <div className="close-row"><button className="link" onClick={() => nav(-1)}>← Back</button><span className="eyebrow">Pays it forward</span></div>
+      <div className="close-row"><button className="link b-ic" onClick={() => nav(-1)}><Ic name="arrow-left" />Back</button><span className="eyebrow">Pays it forward</span></div>
       <div><div className="eyebrow">Every month, one story wins</div>
         <h1 className="h1">{N(s.prize_kobo)} for someone you look after</h1></div>
       <div className="cols cols-profile"><div className="col stack">
@@ -64,7 +65,7 @@ export default function Boost() {
               {people.length ? (
                 <div className="opt-list" style={{ marginTop: 8 }}>{people.map((r) => (
                   <button key={r.id} className="opt" aria-pressed={rid === r.id} onClick={() => setRid(r.id)}>
-                    <span>{r.label[0]}</span><span><b>{r.label}</b></span><span className="check">✓</span></button>
+                    <span>{r.label[0]}</span><span><b>{r.label}</b></span><span className="check"><Ic name="check" /></span></button>
                 ))}</div>
               ) : <p className="small muted">Add the person first, from People.</p>}
             </div>
@@ -89,7 +90,7 @@ export default function Boost() {
           <p className="small muted" style={{ margin: 0 }}><b>Free to enter.</b> Any verified SpenDrip user with a plan can enter once a month. You don't need to top up.</p>
           <p className="small muted" style={{ margin: 0 }}><b>One winner a month.</b> We shortlist stories, then pick the winner with a random draw anyone can check.</p>
           <p className="small muted" style={{ margin: 0 }}><b>The prize lands by itself.</b> {N(s.prize_kobo)} is added to the winner's balance for the person they look after.</p>
-          <p className="small muted" style={{ margin: 0 }}>🔒 We will never ask you to pay a fee or share your PIN to claim a prize. Anyone who does isn't SpenDrip.</p>
+          <p className="small muted b-ic" style={{ margin: 0, alignItems: 'flex-start' }}><Ic name="lock" />We will never ask you to pay a fee or share your PIN to claim a prize. Anyone who does isn't SpenDrip.</p>
         </div>
         {s.winners.length > 0 && (
           <div className="card stack" style={{ gap: 8 }}><div className="eyebrow">Past winners</div>

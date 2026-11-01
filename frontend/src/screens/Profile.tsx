@@ -13,11 +13,13 @@ import { useEffect } from 'react';
 import { VerifyCard } from './Verify';
 import { confirmPauseAll, confirmResumeAll } from './pauseConfirm';
 import PaySheet from '../components/PaySheet';
+import Kobo from '../components/Kobo';
+import { Ic, type IconName } from '../icons';
 
-type Row = { icon: string; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
+type Row = { icon: IconName | React.ReactElement; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
   <button className={`set-row ${danger ? 'danger' : ''} ${on !== undefined || !onClick ? 'no-arrow' : ''}`} onClick={onClick} style={!onClick ? { cursor: 'default' } : undefined}>
-    <span className="si">{icon}</span><span style={{ minWidth: 0 }}><b>{title}</b>{sub && <span className="sub">{sub}</span>}</span>
+    <span className="si">{typeof icon === 'string' ? <Ic name={icon} /> : icon}</span><span style={{ minWidth: 0 }}><b>{title}</b>{sub && <span className="sub">{sub}</span>}</span>
     {on !== undefined ? <Switch on={on} label={title} onChange={() => onClick?.()} /> : <span className="val">{val}</span>}
   </button>
 );
@@ -48,7 +50,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
     <p className="small muted" style={{ marginTop: -6 }}>A safety net. If drips would go over this in one day, the extra ones wait and we tell you.</p>
     <div className="opt-list">{[5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000, 200_000_000, null].map((v) => (
       <button key={String(v)} className="opt" aria-pressed={u.daily_cap_kobo === v} onClick={() => { closeSheet(); save({ daily_cap_kobo: v }, v ? `Daily limit set to ${N(v)}` : 'Daily limit removed'); }}>
-        <span>🧢</span><span><b>{v ? `${N(v)} a day` : 'No limit'}</b></span><span className="check">✓</span></button>
+        <span className="opt-ic"><Ic name="daily-limit" /></span><span><b>{v ? `${N(v)} a day` : 'No limit'}</b></span><span className="check"><Ic name="check" /></span></button>
     ))}</div></>);
 
   const peopleSheet = () => openSheet(<PeopleSheet />);
@@ -61,13 +63,13 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
   return (
     <div className="stack">
       {mode === 'profile' ? (<>
-      <div className="close-row"><button className="link" onClick={() => nav('/')}>← Home</button><span className="eyebrow">Profile</span></div>
+      <div className="close-row"><button className="link b-ic" onClick={() => nav('/')}><Ic name="arrow-left" />Home</button><span className="eyebrow">Profile</span></div>
       <div className="cols cols-profile"><div className="col stack">
         <div className="card prof-head">
           <span className="avatar lg">{(u.first_name[0] ?? '') + (u.last_name[0] ?? '')}</span>
           <h1>{u.first_name} {u.last_name}</h1>
           <span className="small muted">{u.email}</span>
-          {u.kyc_status === 'verified' ? <span className="verified-pill">✓ Verified</span> : <span className="pill p-wait">Not verified yet</span>}
+          {u.kyc_status === 'verified' ? <span className="verified-pill"><Ic name="check" />Verified</span> : <span className="pill p-wait">Not verified yet</span>}
         </div>
         <VerifyCard />
         {fa && <div className="acct"><span className="small muted" style={{ fontWeight: 700 }}>Your SpenDrip account</span>
@@ -77,13 +79,13 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
         <div className="group-h">Identity</div>
         <div className="list">
           {u.kyc_status === 'verified' ? (<>
-            <SetRow icon="🪪" title={u.kyc_id_type === 'bvn' ? 'BVN' : 'NIN'} sub={`•••• ••• ${u.nin_last4} · checked`} val={<span className="pill p-send">Verified</span>} />
-            <SetRow icon="📄" title="ID document" sub="Front of your ID" val={<span className="pill p-send">Verified</span>} />
-            <SetRow icon="🤳" title="Selfie" sub="Face matches your ID" val={<span className="pill p-send">Verified</span>} />
+            <SetRow icon="id" title={u.kyc_id_type === 'bvn' ? 'BVN' : 'NIN'} sub={`•••• ••• ${u.nin_last4} · checked`} val={<span className="pill p-send">Verified</span>} />
+            <SetRow icon="document" title="ID document" sub="Front of your ID" val={<span className="pill p-send">Verified</span>} />
+            <SetRow icon="selfie" title="Selfie" sub="Face matches your ID" val={<span className="pill p-send">Verified</span>} />
           </>) : (
-            <SetRow icon="🪪" title="Verify your identity" sub="NIN or BVN, a photo of your ID and a selfie" val={u.kyc_status === 'not_started' ? 'Start' : 'Continue'} onClick={() => nav('/verify')} />
+            <SetRow icon="id" title="Verify your identity" sub="NIN or BVN, a photo of your ID and a selfie" val={u.kyc_status === 'not_started' ? 'Start' : 'Continue'} onClick={() => nav('/verify')} />
           )}
-          <SetRow icon="📊" title="Account limits" sub="Set by your verification level" val="View" onClick={() => openSheet(<>
+          <SetRow icon="limits" title="Account limits" sub="Set by your verification level" val="View" onClick={() => openSheet(<>
             <h3>Account limits</h3>
             {u.limits ? (<>
               <div className="kv"><span className="muted">Each drip</span><b className="num">up to {N(u.limits.max_drip_kobo)}</b></div>
@@ -94,47 +96,47 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
         </div>
         <div className="group-h">Settings</div>
         <div className="list">
-          <SetRow icon="⚙️" title="Settings" sub="Security, money, notifications and app" onClick={() => nav('/settings')} />
+          <SetRow icon="settings" title="Settings" sub="Security, money, notifications and app" onClick={() => nav('/settings')} />
         </div>
       </div></div>
       </>) : (<>
-      <div className="close-row"><button className="link" onClick={() => nav('/')}>← Home</button><span className="eyebrow">Settings</span></div>
+      <div className="close-row"><button className="link b-ic" onClick={() => nav('/')}><Ic name="arrow-left" />Home</button><span className="eyebrow">Settings</span></div>
       <h1 className="h1" style={{ margin: 0 }}>Settings</h1>
       <div className="cols cols-profile"><div className="col stack">
         <div className="group-h">Security</div>
         <div className="list">
-          <SetRow icon="🙂" title="Face ID" sub="Open the app without typing your PIN" on={u.has_face_id} onClick={faceId} />
-          <SetRow icon="🔢" title="Change PIN" onClick={() => openSheet(<ChangePin />)} />
-          <SetRow icon="🔒" title="Lock app now" onClick={async () => { await api.post('/auth/lock'); await refreshMe(); }} />
+          <SetRow icon="face" title="Face ID" sub="Open the app without typing your PIN" on={u.has_face_id} onClick={faceId} />
+          <SetRow icon="pin" title="Change PIN" onClick={() => openSheet(<ChangePin />)} />
+          <SetRow icon="lock" title="Lock app now" onClick={async () => { await api.post('/auth/lock'); await refreshMe(); }} />
         </div>
         <div className="group-h">Money</div>
         <div className="list">
-          <SetRow icon="💼" title="Take-home pay" sub="Used in Finance to compare your month with your pay. Only you see it." val={u.salary_kobo ? N(u.salary_kobo) : 'Add'} onClick={() => openSheet(<PaySheet />)} />
-          <SetRow icon="🧢" title="Daily sending limit" sub="Most SpenDrip can send in one day" val={u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'No limit'} onClick={capSheet} />
-          <SetRow icon="⏸" title="Pause everything" sub={u.paused_all ? 'No drips will go out until you turn this off' : 'Stop all drips at once. Nothing is deleted.'} on={u.paused_all}
+          <SetRow icon="pay" title="Take-home pay" sub="Used in Finance to compare your month with your pay. Only you see it." val={u.salary_kobo ? N(u.salary_kobo) : 'Add'} onClick={() => openSheet(<PaySheet />)} />
+          <SetRow icon="daily-limit" title="Daily sending limit" sub="Most SpenDrip can send in one day" val={u.daily_cap_kobo ? N(u.daily_cap_kobo) : 'No limit'} onClick={capSheet} />
+          <SetRow icon="pause" title="Pause everything" sub={u.paused_all ? 'No drips will go out until you turn this off' : 'Stop all drips at once. Nothing is deleted.'} on={u.paused_all}
             onClick={() => openSheet(u.paused_all ? confirmResumeAll(store) : confirmPauseAll(store))} />
-          <SetRow icon="👥" title="People" sub={people.map((r) => r.label).join(', ') || 'No one yet'} val={String(people.length)} onClick={peopleSheet} />
-          <SetRow icon="⛽" title="Auto-fill" sub="Top up from your card on payday, automatically" onClick={() => nav('/autofill')} />
-          <SetRow icon="💳" title="Saved cards" sub="For one-tap top-ups" onClick={() => openSheet(<CardsSheet />)} />
-          <SetRow icon="🧾" title="Fees per drip" sub="₦50 SpenDrip fee, plus Paystack's transfer fee (₦10–₦50) and ₦50 stamp duty on ₦10,000+. Always included in your totals." />
+          <SetRow icon="people" title="People" sub={people.map((r) => r.label).join(', ') || 'No one yet'} val={String(people.length)} onClick={peopleSheet} />
+          <SetRow icon="autofill" title="Auto-fill" sub="Top up from your card on payday, automatically" onClick={() => nav('/autofill')} />
+          <SetRow icon="card" title="Saved cards" sub="For one-tap top-ups" onClick={() => openSheet(<CardsSheet />)} />
+          <SetRow icon="fees" title="Fees per drip" sub="₦50 SpenDrip fee, plus Paystack's transfer fee (₦10–₦50) and ₦50 stamp duty on ₦10,000+. Always included in your totals." />
         </div>
       </div><div className="col stack">
         <div className="group-h">Notifications</div>
         <div className="list">
-          <SetRow icon="✉️" title="Email me when a drip lands" sub={u.email ? `Sent to ${u.email}` : 'Add an email to get these'} on={u.notify_email} onClick={() => save({ notify_email: !u.notify_email }, 'Saved')} />
-          <SetRow icon="🔔" title="Push notifications" sub="When money is sent or added" on={u.notify_push} onClick={() => save({ notify_push: !u.notify_push }, 'Saved')} />
-          <SetRow icon="💬" title="WhatsApp the people you pay" sub="They get a message when money lands" on={u.notify_whatsapp_recipients} onClick={() => save({ notify_whatsapp_recipients: !u.notify_whatsapp_recipients }, 'Saved')} />
-          <SetRow icon="🌙" title="Tomorrow's drips" sub="A summary at 8 PM" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />
-          <SetRow icon="📊" title="Monthly money report" sub="Your month in money, by email on the 1st" on={u.notify_finance_email ?? true} onClick={() => save({ notify_finance_email: !(u.notify_finance_email ?? true) }, 'Saved')} />
-          <SetRow icon="⚠️" title="Low balance warning" sub="When a drip is about to wait" on={u.notify_low_balance} onClick={() => save({ notify_low_balance: !u.notify_low_balance }, 'Saved')} />
+          <SetRow icon="email" title="Email me when a drip lands" sub={u.email ? `Sent to ${u.email}` : 'Add an email to get these'} on={u.notify_email} onClick={() => save({ notify_email: !u.notify_email }, 'Saved')} />
+          <SetRow icon="bell" title="Push notifications" sub="When money is sent or added" on={u.notify_push} onClick={() => save({ notify_push: !u.notify_push }, 'Saved')} />
+          <SetRow icon="chat" title="WhatsApp the people you pay" sub="They get a message when money lands" on={u.notify_whatsapp_recipients} onClick={() => save({ notify_whatsapp_recipients: !u.notify_whatsapp_recipients }, 'Saved')} />
+          <SetRow icon="night" title="Tomorrow's drips" sub="A summary at 8 PM" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />
+          <SetRow icon="report" title="Monthly money report" sub="Your month in money, by email on the 1st" on={u.notify_finance_email ?? true} onClick={() => save({ notify_finance_email: !(u.notify_finance_email ?? true) }, 'Saved')} />
+          <SetRow icon="alert" title="Low balance warning" sub="When a drip is about to wait" on={u.notify_low_balance} onClick={() => save({ notify_low_balance: !u.notify_low_balance }, 'Saved')} />
         </div>
         <div className="group-h">App</div>
         <div className="list">
-          {me?.boost_enabled && <SetRow icon="💛" title="Pays it forward" sub="Share who you look after. One story a month wins for them." onClick={() => nav('/pays-it-forward')} />}
-          <SetRow icon="💧" title="Meet Kobo" sub="The little drop that keeps you company" onClick={() => nav('/kobo')} />
-          <SetRow icon="🎨" title="Appearance" val={{ themed: 'Themed', light: 'Light', dark: 'Dark', auto: 'Time-aware' }[look]} onClick={() => openAppearance(store)} />
-          <SetRow icon="📜" title="Terms and privacy" sub="How SpenDrip works and how we use your data" onClick={() => window.open('https://spendrip.com/terms/', '_blank', 'noopener')} />
-          <SetRow icon="🚪" title="Sign out" danger onClick={signOut} />
+          {me?.boost_enabled && <SetRow icon="heart" title="Pays it forward" sub="Share who you look after. One story a month wins for them." onClick={() => nav('/pays-it-forward')} />}
+          <SetRow icon={<Kobo mood="happy" size={30} />} title="Meet Kobo" sub="The little drop that keeps you company" onClick={() => nav('/kobo')} />
+          <SetRow icon="palette" title="Appearance" val={{ themed: 'Themed', light: 'Light', dark: 'Dark', auto: 'Time-aware' }[look]} onClick={() => openAppearance(store)} />
+          <SetRow icon="terms" title="Terms and privacy" sub="How SpenDrip works and how we use your data" onClick={() => window.open('https://spendrip.com/terms/', '_blank', 'noopener')} />
+          <SetRow icon="sign-out" title="Sign out" danger onClick={signOut} />
         </div>
         <p className="small muted" style={{ textAlign: 'center', margin: '4px 0 0' }}>SpenDrip 0.2{me?.dev_tools ? ' · test mode' : ''}</p>
       </div></div>
@@ -185,12 +187,12 @@ function PeopleSheet() {
       {err && <div className="error-card" style={{ marginBottom: 10 }}>{err}</div>}
       <div className="list">
         {recipients.filter((r) => !r.label.endsWith('(removed)')).map((r) => (
-          <div key={r.id} className="set-row no-arrow"><span className="si">{r.is_self ? '🙋' : r.label[0]}</span>
+          <div key={r.id} className="set-row no-arrow"><span className="si">{r.is_self ? <Ic name="profile" /> : r.label[0]}</span>
             <span><b>{r.label}</b><span className="sub">{r.verified_account_name} · {r.bank_name} ••{r.account_last4}{r.whatsapp ? ' · WhatsApp on' : ''}</span></span>
             {!r.is_self ? <button className="link small" style={{ color: 'var(--red)' }} onClick={() => remove(r.id)}>Remove</button> : <span />}</div>
         ))}
       </div>
-      <button className="btn btn-soft btn-block" style={{ marginTop: 12 }} onClick={() => setAdding(true)}>＋ Add someone</button>
+      <button className="btn btn-soft btn-block" style={{ marginTop: 12 }} onClick={() => setAdding(true)}><Ic name="plus" />Add someone</button>
     </>
   );
 }
@@ -208,7 +210,7 @@ function CardsSheet() {
         <p className="muted">No saved cards yet. Tick “Save this card” when you top up with a card on Add money.</p>
       ) : (
         <div className="list">{cards.map((c) => (
-          <div key={c.id} className="set-row no-arrow"><span className="si">💳</span>
+          <div key={c.id} className="set-row no-arrow"><span className="si"><Ic name="card" /></span>
             <span><b>{cardLabel(c)}</b><span className="sub">{[c.bank, c.exp && `Expires ${c.exp}`].filter(Boolean).join(' · ')}</span></span>
             <button className="link small" style={{ color: 'var(--red)' }} onClick={() => remove(c)}>Remove</button></div>
         ))}</div>

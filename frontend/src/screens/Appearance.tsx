@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DAY_FROM, NIGHT_FROM, resolveLook } from '../lib/store';
 import type { Look } from '../lib/types';
+import { Ic } from '../icons';
 
 const hour = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 
@@ -25,7 +26,7 @@ function AppearanceSheet({ current, onPick }: { current: Look; onPick: (l: Look)
           <div key={k} className="look-cell">
             <button className="look-opt" aria-pressed={current === k} onClick={() => onPick(k)}>
               <span className="look-prev" data-look={k === 'auto' ? now : k}>
-                {k === 'auto' && <span className="look-badge" aria-hidden="true">{now === 'light' ? '☀️' : '🌙'}</span>}
+                {k === 'auto' && <span className="look-badge" aria-hidden="true"><Ic name={now === 'light' ? 'afternoon' : 'night'} /></span>}
                 <span className="mini-hero"><span className="mini-bar"><i /><i /></span></span>
                 <span className="mini-row" /><span className="mini-row" /><span className="mini-btn2" />
               </span>

@@ -6,6 +6,7 @@ import type { Me } from '../lib/types';
 import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../components/ui';
 import { greeting } from '../lib/format';
 import Kobo from '../components/Kobo';
+import { Feature } from '../icons';
 
 /** Returning on the same device: Face ID, or the PIN. */
 export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => void; onForgot: () => void }) {
@@ -39,7 +40,7 @@ export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => 
     <div className="lock">
       <Wordmark style={{ marginBottom: 6 }} />
       <Kobo mood={error ? 'puddle' : 'peek'} size={64} follow />
-      <h2>{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} {greeting().emoji}</h2>
+      <h2 className="h-celebrate">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} <Feature name={greeting().icon} className="h-ic" /></h2>
       {me?.user?.email_masked && <p className="small muted" style={{ margin: '-6px 0 0' }}>{me.user.email_masked}</p>}
       {mode === 'face' ? (
         <>

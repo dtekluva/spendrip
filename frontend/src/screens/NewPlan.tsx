@@ -12,10 +12,9 @@ import { track } from '../lib/analytics';
 import Kobo from '../components/Kobo';
 import GroupEditor from '../components/GroupEditor';
 import BankPicker from '../components/BankPicker';
+import { Ic, PLAN_LIST, PlanIcon, planFor } from '../icons';
 
 const TINTS: Tint[] = ['cobalt', 'sun', 'hibiscus', 'mint'];
-const EMOJIS = ['🍔', '🍲', '⛽', '💛', '🤝', '🏠', '📱', '🚕', '💡', '🎓', '💪', '🐷'];
-const SUGGEST: [string, string][] = [['⛽', 'Fuel'], ['🍲', 'Upkeep'], ['📱', 'Data'], ['🏠', 'Rent'], ['💡', 'Light bill'], ['🐷', 'Savings']];
 
 const fromPlan = (p: Plan): Draft => ({
   kind: p.kind, lines: (p.lines ?? []).map((l) => ({ recipient_id: l.recipient.id, amount_kobo: l.amount_kobo, next_amount_kobo: l.next_amount_kobo, skip_next: l.skip_next })),
@@ -98,8 +97,8 @@ export default function NewPlan() {
   }, [body, ready, bump]);
 
   const set = (k: string, patch: Partial<Draft>) => { setD((x) => ({ ...x, ...patch })); setPulse(k); closeSheet(); };
-  const chip = (k: string, label: React.ReactNode, on = false) => (
-    <button className={`chip ${on ? 'on' : ''} ${pulse === k ? 'pulse' : ''}`} onClick={() => { markExplored(); openChip(k); }} key={k + String(label)}
+  const chip = (k: string, label: React.ReactNode, on = false, text = String(label)) => (
+    <button className={`chip ${on ? 'on' : ''} ${pulse === k ? 'pulse' : ''}`} onClick={() => { markExplored(); openChip(k); }} key={k + text}
       aria-haspopup="dialog">{label}<span className="chip-caret" aria-hidden="true">▾</span></button>
   );
 
@@ -117,8 +116,8 @@ export default function NewPlan() {
       }} />);
     if (k === 'freq') openSheet(<>
       <h3>How often?</h3>
-      <div className="opt-list">{([['daily', '☀️', 'Every day', 'Like upkeep or lunch money'], ['weekly', '📅', 'Every week', 'Pick a day, like Fuel on Fridays'], ['monthly', '🗓', 'Every month', 'Pick a date, like Mum on the 30th']] as const).map(([v, e, t, s]) => (
-        <button key={v} className="opt" aria-pressed={d.frequency === v} onClick={() => set('freq', { frequency: v })}><span style={{ fontSize: 22 }}>{e}</span><span><b>{t}</b><br /><span className="small muted">{s}</span></span><span className="check">✓</span></button>
+      <div className="opt-list">{([['daily', 'daily', 'Every day', 'Like upkeep or lunch money'], ['weekly', 'weekly', 'Every week', 'Pick a day, like Fuel on Fridays'], ['monthly', 'monthly', 'Every month', 'Pick a date, like Mum on the 30th']] as const).map(([v, e, t, s]) => (
+        <button key={v} className="opt" aria-pressed={d.frequency === v} onClick={() => set('freq', { frequency: v })}><span className="opt-ic"><Ic name={e} /></span><span><b>{t}</b><br /><span className="small muted">{s}</span></span><span className="check"><Ic name="check" /></span></button>
       ))}</div></>);
     if (k === 'day' && d.frequency === 'weekly') openSheet(<>
       <h3>Which day?</h3>
@@ -163,7 +162,7 @@ export default function NewPlan() {
     else if (!preview.runs_this_month) impact = <div className="impact ok">First drip is next month. Nothing extra needed this month.</div>;
     else if (d.priority_rank && preview.priorities_short_after_kobo > 0) impact = <div className="impact warn">Your priorities would be short. Top up {N(preview.priorities_short_after_kobo)} to keep them all safe.</div>;
     else if (preview.draft_waiting) impact = <div className="impact warn">{preview.draft_waiting} of {preview.runs_this_month} drip{preview.runs_this_month > 1 ? 's' : ''} would wait for a top-up. Add {N(Math.max(extra, 0))} to cover this month.</div>;
-    else if (extra <= 0) impact = <div className="impact ok">✅ Fits in your free balance. Nothing to top up.</div>;
+    else if (extra <= 0) impact = <div className="impact ok b-ic"><Ic name="sent" weight="f" />Fits in your free balance. Nothing to top up.</div>;
     else impact = <div className="impact warn">This plan fits, but other plans would need {N(extra)} more this month.</div>;
   }
 
@@ -186,12 +185,12 @@ export default function NewPlan() {
       <div className="cols cols-new"><div className="col stack">
         <p className={`sentence ${explored ? '' : 'tour'}`}>
           {group
-            ? <>Pay {chip('who', d.lines.length ? `👥 ${d.lines.length} people · ${N(groupTotal)}` : '👥 pick people', true)} for {chip('label', `${d.emoji} ${d.label}`)}</>
-            : <>Send {chip('amount', N(d.amount_kobo))} for {chip('label', `${d.emoji} ${d.label}`)} to {chip('who', recipient?.label ?? 'someone')}</>} {when} at {chip('time', fmtTime(d.time_local))},{' '}
+            ? <>Pay {chip('who', <><Ic name="people" />{d.lines.length ? `${d.lines.length} people · ${N(groupTotal)}` : 'pick people'}</>, true, `${d.lines.length}${groupTotal}`)} for {chip('label', <><PlanIcon emoji={d.emoji} size="xs" />{d.label}</>, false, d.emoji + d.label)}</>
+            : <>Send {chip('amount', N(d.amount_kobo))} for {chip('label', <><PlanIcon emoji={d.emoji} size="xs" />{d.label}</>, false, d.emoji + d.label)} to {chip('who', recipient?.label ?? 'someone')}</>} {when} at {chip('time', fmtTime(d.time_local))},{' '}
           {chip('start', startText, d.start_date !== todayISO())} {chip('end', endText, d.end_mode !== 'ongoing')}.{' '}
-          {chip('protect', shownRank ? `🛡 Priority ${shownRank}` : '＋ Protect it', !!shownRank)}
+          {chip('protect', shownRank ? <><Ic name="protected" weight="f" />Priority {shownRank}</> : <><Ic name="plus" />Protect it</>, !!shownRank, String(shownRank))}
         </p>
-        {!showKobo ? <p className="hint">👆 Tap any coloured word to change it.</p> : (
+        {!showKobo ? <p className="hint"><Ic name="tap" />Tap any coloured word to change it.</p> : (
           <div className="chip-hint" role="note">
             <Kobo mood="point" size={56} title="Kobo pointing at the sentence" />
             <span className="bubble">Tap a coloured word to change it 👆<br /><span>Amount, who gets it, the day, when it starts and ends.</span></span>
@@ -204,7 +203,7 @@ export default function NewPlan() {
           {preview?.total_drips != null && (
             <div className="whole">
               <div className="kv"><span className="muted">Whole plan</span><b className="num">{preview.total_drips} drip{preview.total_drips === 1 ? '' : 's'} · {N((preview.total_amount_kobo ?? 0) + (preview.total_fees_kobo ?? 0))}</b></div>
-              <div className="kv sub"><span className="muted">{preview.first_drip_at ? `${dayLabelY(preview.first_drip_at)} → ` : ''}{preview.last_drip_at ? dayLabelY(preview.last_drip_at) : ''}</span><span className="muted num">incl. {N(preview.total_fees_kobo ?? 0)} fees</span></div>
+              <div className="kv sub"><span className="muted">{preview.first_drip_at ? <>{dayLabelY(preview.first_drip_at)} <Ic name="arrow-right" /> </> : ''}{preview.last_drip_at ? dayLabelY(preview.last_drip_at) : ''}</span><span className="muted num">incl. {N(preview.total_fees_kobo ?? 0)} fees</span></div>
             </div>
           )}
           {group && <GroupSummary lines={d.lines} onOpen={() => { markExplored(); openChip('who'); }} />}
@@ -219,7 +218,7 @@ export default function NewPlan() {
           </div>
           {impact}
           {previewErr && <div className="impact warn">{previewErr}</div>}
-          {!group && recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b>On ✓</b></div>}
+          {!group && recipient && !recipient.is_self && recipient.whatsapp && <div className="kv"><span className="muted">WhatsApp to {recipient.label}</span><b className="b-ic">On<Ic name="check" /></b></div>}
         </div>
         {error && <div className="error-card">{error}</div>}
         <div className="cta-bar">
@@ -243,7 +242,7 @@ function AmountSheet({ value, onDone }: { value: number; onDone: (kobo: number) 
       <h3>How much each time?</h3>
       <div className="amt-display num">₦{Number(v || 0).toLocaleString('en-NG')}</div>
       <div className="quick">{quick.map((q) => <button key={q} aria-pressed={+v === q} onClick={() => setV(String(q))}>₦{q.toLocaleString('en-NG')}</button>)}</div>
-      <div className="keypad">{['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', '⌫'].map((k) => <button key={k} aria-label={k === '⌫' ? 'Delete' : k} onClick={() => press(k)}>{k}</button>)}</div>
+      <div className="keypad">{['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', '⌫'].map((k) => <button key={k} aria-label={k === '⌫' ? 'Delete' : k} onClick={() => press(k)}>{k === '⌫' ? <Ic name="backspace" /> : k}</button>)}</div>
       <div className="small muted" style={{ marginBottom: 12 }}>
         Plus <b className="num">{N(total)}</b> per drip: {lines.map((l) => `${N(l.amount_kobo)} ${l.kind === 'service' ? 'SpenDrip fee' : l.label.replace(' (Paystack)', '').toLowerCase()}`).join(' · ')}. Minimum ₦100.
       </div>
@@ -255,13 +254,20 @@ function AmountSheet({ value, onDone }: { value: number; onDone: (kobo: number) 
 function LabelSheet({ emoji, label, onDone }: { emoji: string; label: string; onDone: (e: string, l: string) => void }) {
   const [e, setE] = useState(emoji);
   const [l, setL] = useState(label);
+  // A plan saved with an emoji the picker doesn't have keeps it as the first choice.
+  const own = !planFor(emoji) && emoji ? [emoji] : [];
+  // Picking a tile also names the plan, unless the person has typed their own name.
+  const pick = (x: string, name?: string) => { setE(x); if (name && (!l.trim() || PLAN_LIST.some((p) => p.label === l.trim()))) setL(name); };
+  const current = planFor(e)?.key;
   return (
     <>
       <h3>What's it for?</h3>
-      <div className="emoji-grid">{EMOJIS.map((x) => <button key={x} aria-pressed={e === x} onClick={() => setE(x)}>{x}</button>)}</div>
+      <div className="plan-picker">
+        {own.map((x) => <button key={x} aria-pressed={e === x} onClick={() => pick(x)}><PlanIcon emoji={x} size="sm" /><span>Yours</span></button>)}
+        {PLAN_LIST.map((p) => <button key={p.key} aria-pressed={!own.includes(e) && current === p.key} onClick={() => pick(p.emoji, p.label)}><PlanIcon emoji={p.emoji} size="sm" /><span>{p.label}</span></button>)}
+      </div>
       <div className="field"><label htmlFor="nm">Name</label><input id="nm" value={l} maxLength={40} autoComplete="off" onChange={(x) => setL(x.target.value)} /></div>
-      <div className="quick" style={{ margin: '12px 0 16px' }}>{SUGGEST.map(([se, sl]) => <button key={sl} onClick={() => { setE(se); setL(sl); }}>{se} {sl}</button>)}</div>
-      <button className="btn btn-primary btn-block" disabled={!l.trim()} onClick={() => onDone(e, l.trim())}>Done</button>
+      <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} disabled={!l.trim()} onClick={() => onDone(e, l.trim())}>Done</button>
     </>
   );
 }
@@ -303,15 +309,15 @@ function WhoSheet({ current, onDone, onGroup, allowGroup }: { current: number | 
       <div className="opt-list">
         {recipients.filter((r) => !r.label.endsWith('(removed)')).map((r) => (
           <button key={r.id} className="opt" aria-pressed={current === r.id} onClick={() => onDone(r.id)}>
-            <span className={`tile sm t-${r.is_self ? 'cobalt' : 'hibiscus'}`}>{r.is_self ? '🙋' : r.label[0]}</span>
-            <span><b>{r.label}</b><br /><span className="small muted">{r.bank_name} ••{r.account_last4}{r.whatsapp ? ' · WhatsApp on' : ''}</span></span><span className="check">✓</span>
+            <span className={`tile sm t-${r.is_self ? 'cobalt' : 'hibiscus'}`}>{r.is_self ? <Ic name="profile" /> : r.label[0]}</span>
+            <span><b>{r.label}</b><br /><span className="small muted">{r.bank_name} ••{r.account_last4}{r.whatsapp ? ' · WhatsApp on' : ''}</span></span><span className="check"><Ic name="check" /></span>
           </button>
         ))}
         {!recipients.some((r) => r.is_self) && (
-          <button className="opt" onClick={() => setAdding('self')}><span className="tile sm t-cobalt">🙋</span><span><b>My own account</b><br /><span className="small muted">Add the bank account money for you goes to</span></span><span /></button>
+          <button className="opt" onClick={() => setAdding('self')}><span className="tile sm t-cobalt"><Ic name="profile" /></span><span><b>My own account</b><br /><span className="small muted">Add the bank account money for you goes to</span></span><span /></button>
         )}
-        <button className="opt" onClick={() => setAdding('other')}><span className="tile sm t-mint">＋</span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
-        {allowGroup && <button className="opt" onClick={onGroup}><span className="tile sm t-sun">👥</span><span><b>Several people</b><br /><span className="small muted">Each with their own amount, paid together. Like staff pay or family upkeep.</span></span><span /></button>}
+        <button className="opt" onClick={() => setAdding('other')}><span className="tile sm t-mint"><Ic name="plus" /></span><span><b>Someone new</b><br /><span className="small muted">Add their bank account</span></span><span /></button>
+        {allowGroup && <button className="opt" onClick={onGroup}><span className="tile sm t-sun"><Ic name="people" /></span><span><b>Several people</b><br /><span className="small muted">Each with their own amount, paid together. Like staff pay or family upkeep.</span></span><span /></button>}
       </div>
     </>
   );
@@ -390,7 +396,7 @@ export function AddRecipient({ onSaved, self = false }: { onSaved: (r: Recipient
         <div className="field"><label htmlFor="ra">Account number</label><input id="ra" inputMode="numeric" maxLength={10} placeholder="10 digits" value={acct} onChange={(e) => setAcct(e.target.value.replace(/\D/g, ''))} /></div>
         {acct.length > 0 && acct.length < 10 && <span className="small muted">{10 - acct.length} more digit{10 - acct.length > 1 ? 's' : ''}…</span>}
         {checking && <Spinner label="Checking the account name…" />}
-        {name && <div className="verified">✅ <span>{name}<br /><span className="small muted" style={{ fontWeight: 600 }}>Is this the right person?</span></span></div>}
+        {name && <div className="verified"><Ic name="sent" weight="f" /><span>{name}<br /><span className="small muted" style={{ fontWeight: 600 }}>Is this the right person?</span></span></div>}
         {name && testName && <p className="dev-note">Test mode: Paystack allows 3 real name checks a day and today's are used up, so this is a made-up test name.</p>}
         {error && <div className="error-card">{error}</div>}
         {!self && <div className="field"><label htmlFor="rw">WhatsApp number (optional)</label><input id="rw" inputMode="tel" placeholder="We'll message them when money lands" value={wa} onChange={(e) => setWa(e.target.value)} /></div>}
@@ -414,7 +420,7 @@ function StartSheet({ value, locked, onDone }: { value: string; locked: boolean;
   return (<>
     <h3>When should it start?</h3>
     <div className="opt-list">{opts.map(([iso, label]) => (
-      <button key={iso} className="opt" aria-pressed={value === iso} onClick={() => onDone(iso)}><span>📅</span><span><b>{label}</b></span><span className="check">✓</span></button>
+      <button key={iso} className="opt" aria-pressed={value === iso} onClick={() => onDone(iso)}><span className="opt-ic"><Ic name="calendar" /></span><span><b>{label}</b></span><span className="check"><Ic name="check" /></span></button>
     ))}</div>
     <div className="field" style={{ marginTop: 10 }}><label htmlFor="sd">Or pick a date</label>
       <input id="sd" type="date" min={today} max={addMonthsISO(today, 12)} value={pick} onChange={(e) => setPick(e.target.value)} /></div>
@@ -452,9 +458,9 @@ function EndSheet({ draft, body, onDone }: { draft: Draft; body: Record<string, 
       <div className="stack" style={{ gap: 10, marginTop: 12 }}>
         <div className="quick">{MONTH_PICKS.map((n) => <button key={n} aria-pressed={months === n} onClick={() => setMonths(n)}>{monthsText(n)}</button>)}</div>
         <div className="stepper">
-          <button aria-label="One month fewer" disabled={months <= 1} onClick={() => setMonths(months - 1)}>−</button>
+          <button aria-label="One month fewer" disabled={months <= 1} onClick={() => setMonths(months - 1)}><Ic name="minus" /></button>
           <b className="num">{monthsText(months)}</b>
-          <button aria-label="One month more" disabled={months >= 36} onClick={() => setMonths(months + 1)}>＋</button>
+          <button aria-label="One month more" disabled={months >= 36} onClick={() => setMonths(months + 1)}><Ic name="plus" /></button>
         </div>
       </div>
     )}

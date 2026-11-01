@@ -6,6 +6,7 @@ import { countdown, dayLabel, fmtTime, greeting, lagos, MON, MONL, N, WD, toWhom
 import { useStore } from '../lib/store';
 import { Icon, StatusPill, Wordmark } from '../components/ui';
 import Kobo from '../components/Kobo';
+import { Feature, Ic, PlanIcon } from '../icons';
 import { openAppearance } from './Appearance';
 import { VerifyCard } from './Verify';
 import { confirmResumeAll } from './pauseConfirm';
@@ -68,7 +69,7 @@ export default function Home() {
             <button className="avatar" aria-label="Profile" onClick={() => nav('/profile')}>{initials}</button>
           </span>
         </div>
-        <div className="home-greet"><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} {greeting().emoji}</p><h1 className="h1">{headline}</h1></div>
+        <div className="home-greet"><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} <Feature name={greeting().icon} className="hello-ic" /></p><h1 className="h1">{headline}</h1></div>
       </div>
       <div className="cols cols-home"><div className="col stack">
         <div className="balance">
@@ -87,7 +88,7 @@ export default function Home() {
               <CoverRing value={cover} />
               <span className="ms-main"><span className="ms-k">Monthly drips</span>
                 <b className="num">{N(tm.need_kobo)}<small>/mo</small></b></span>
-              <span className="ms-chev" aria-hidden="true">›</span>
+              <span className="ms-chev" aria-hidden="true"><Ic name="chevron" /></span>
               <span className="ms-note">{summary.paused_all && <span className="ms-tag">Paused</span>}{monthNote}</span>
             </button>
           )}
@@ -97,32 +98,32 @@ export default function Home() {
               <span><b>{summary.committed.pct}%</b> of your {N(summary.committed.salary_kobo)} pay is planned · <b>{summary.committed.free_kobo >= 0 ? `${N(summary.committed.free_kobo)} free to decide` : `${N(-summary.committed.free_kobo)} over your pay`}</b></span>
             </button>
           )}
-          <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}>＋ Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
+          <div className="bal-actions"><button className="btn btn-hero" onClick={() => nav('/fund')}><Ic name="plus" />Add money</button><button className="btn btn-ghost-w" onClick={() => nav('/plans/new')}>New plan</button></div>
         </div>
         {me?.boost_enabled && me.user?.kyc_status === 'verified' && (
           <button className="autofill-card" style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }} onClick={() => nav('/pays-it-forward')}>
             <Kobo mood="celebrate" size={52} />
-            <span style={{ minWidth: 0, flex: 1 }}><b style={{ display: 'block' }}>Pays it forward 💛</b>
+            <span style={{ minWidth: 0, flex: 1 }}><b style={{ display: 'block' }}>Pays it forward</b>
               <span className="small muted">Tell us who you look after. One story this month wins ₦50,000 for them. Free to enter.</span></span>
           </button>
         )}
         <button className="card home-fin" onClick={() => nav('/finance')}>
-          <span style={{ fontSize: 26 }}>📊</span>
+          <span className="feat-tile"><Feature name="finance" /></span>
           <span style={{ minWidth: 0, flex: 1 }}><b style={{ display: 'block' }}>Finance</b><span className="small muted">Where your money goes, your fees, and Kobo's tips</span></span>
-          <span className="muted">›</span>
+          <Ic name="chevron" className="muted" />
         </button>
         <VerifyCard />
         {summary.paused_all ? (
           <div className="paused-banner"><span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Kobo mood="sleep" size={40} />All drips are paused</span><button className="btn btn-primary" style={{ height: 40 }} onClick={resume}>Resume</button></div>
         ) : shorts.length ? (
-          <div className="forecast bad"><span className="kobo-corner"><Kobo mood="worried" size={52} /></span><h3>⚠️ Priorities short by {N(f.priority_shortfall_kobo)}</h3>
+          <div className="forecast bad"><span className="kobo-corner"><Kobo mood="worried" size={52} /></span><h3><Ic name="alert" weight="f" />Priorities short by {N(f.priority_shortfall_kobo)}</h3>
             <p>{prioText} can't all go out in {month}. Other plans are on hold until you top up.</p>
             <button className="btn btn-primary btn-block" onClick={() => nav('/fund')}>Top up {N(f.top_up_kobo)}</button></div>
         ) : waits.length ? (
-          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3>🛡 Priorities are safe for {month}</h3>
+          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3><Ic name="protected" weight="f" />Priorities are safe for {month}</h3>
             <p>These drips will wait so {prioText} always get paid:</p>
             <div className="chips-row">
-              {waits.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip">{p?.emoji} {p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
+              {waits.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip"><PlanIcon emoji={p?.emoji} size="xs" />{p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
               {waits.length > 4 && <span className="mini-chip">+{waits.length - 4} more</span>}
             </div>
             {f.top_up_kobo > 0
@@ -130,22 +131,22 @@ export default function Home() {
               : <p className="small" style={{ margin: 0 }}>They'll go out once earlier drips have settled. Nothing to top up.</p>}
             {capped.length > 0 && <p className="small" style={{ margin: '8px 0 0' }}>{capped.length} more {capped.length === 1 ? 'is' : 'are'} over your daily sending limit. <button className="link small" onClick={() => nav('/profile')}>Raise it</button></p>}</div>
         ) : capped.length ? (
-          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3>🧢 Over your daily sending limit</h3>
+          <div className="forecast warn"><span className="kobo-corner"><Kobo mood="waiting" size={52} /></span><h3><Ic name="daily-limit" />Over your daily sending limit</h3>
             <p>The money is there, but these drips are bigger than what you've allowed SpenDrip to send in a day ({N(store.me?.user?.daily_cap_kobo ?? 0)} a day):</p>
             <div className="chips-row">
-              {capped.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip">{p?.emoji} {p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
+              {capped.slice(0, 4).map((e, i) => { const p = byId.get(e.plan_id); const d = lagos(e.at); return <span key={i} className="mini-chip"><PlanIcon emoji={p?.emoji} size="xs" />{p?.label} · {d.d} {MON[d.m - 1]}</span>; })}
               {capped.length > 4 && <span className="mini-chip">+{capped.length - 4} more</span>}
             </div>
             <button className="btn btn-primary btn-block" onClick={() => nav('/profile')}>Raise my daily limit</button></div>
         ) : plans.length ? (
-          <div className="forecast ok"><span className="kobo-corner"><Kobo mood="happy" size={52} /></span><h3>🎉 All of {month} is covered</h3><p>Every drip this month will go out on time, fees included. Nothing to do.</p></div>
+          <div className="forecast ok"><span className="kobo-corner"><Kobo mood="happy" size={52} /></span><h3><Feature name="celebrate" />All of {month} is covered</h3><p>Every drip this month will go out on time, fees included. Nothing to do.</p></div>
         ) : (
           <div className="forecast ok"><span className="kobo-corner"><Kobo mood="peek" size={52} follow /></span><h3>Start with one plan</h3><p>For example: ₦40,000 for fuel every Friday at 2 PM.</p>
             <button className="btn btn-primary btn-block" onClick={() => nav('/plans/new')}>Create a plan</button></div>
         )}
       </div><div className="col stack">
         {next && nextPlan && (
-          <div className="card next"><div className={`tile t-${nextPlan.tint}`}>{nextPlan.emoji}</div>
+          <div className="card next"><PlanIcon emoji={nextPlan.emoji} />
             <div style={{ minWidth: 0 }}><div className="eyebrow">Next drip</div>
               <div style={{ fontWeight: 800, fontSize: 16 }}>{nextPlan.label} · {N(next.amount_kobo)} <span className="muted" style={{ fontWeight: 600 }}>to {toWhom(nextPlan)}</span></div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}><span className="cd num">{countdown(next.at)}</span><span className="small muted">{dayLabel(next.at)}, {fmtTime(next.at)}</span></div>
@@ -158,7 +159,7 @@ export default function Home() {
             return (
               <button key={i} className={`row ${i >= 6 ? 'extra' : ''}`} onClick={() => nav(`/plans?open=${p.id}`)}>
                 <span className="date"><span className="d1">{dayLabel(e.at) === 'Today' ? 'TODAY' : WD[d.wd]!.slice(0, 3).toUpperCase()}</span><span className="d2 num">{d.d}</span></span>
-                <span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+                <PlanIcon emoji={p.emoji} size="sm" />
                 <span style={{ minWidth: 0 }}><span className="t" style={{ display: 'block' }}>{p.label}</span><span className="s">{fmtTime(e.at)} · to {toWhom(p)}</span></span>
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}><span className="amt num">{N(e.amount_kobo)}</span><StatusPill status={e.status} /></span>
               </button>
@@ -188,7 +189,7 @@ function NormalMonth({ tm, bal, paused, onFund, onCalendar }: { tm: TypicalMonth
       </div>
       <div className="table" style={{ marginTop: 10 }}>
         {tm.plans.map((p) => (
-          <div key={p.plan_id} className="trow"><span className={`tile sm t-${p.tint}`}>{p.emoji}</span>
+          <div key={p.plan_id} className="trow"><PlanIcon emoji={p.emoji} size="sm" />
             <span><b>{p.label}</b>{p.priority_rank ? <span className="small muted"> · priority {p.priority_rank}</span> : null}<br />
               <span className="small muted num">{p.times} × ({N(p.amount_kobo)} + {N(p.fee_kobo)} fees)</span></span>
             <b className="num">{N(p.total_kobo)}</b></div>
@@ -220,7 +221,7 @@ function CoverRing({ value }: { value: number }) {
         <circle cx="18" cy="18" r="15" fill="none" stroke="var(--hero-prot)" strokeWidth="4" strokeLinecap="round"
           strokeDasharray={`${pct * c} ${c}`} transform="rotate(-90 18 18)" style={{ transition: 'stroke-dasharray .6s ease' }} />
       </svg>
-      <span>{pct >= 1 ? '✓' : `${Math.round(pct * 100)}%`}</span>
+      <span>{pct >= 1 ? <Ic name="check" /> : `${Math.round(pct * 100)}%`}</span>
     </span>
   );
 }

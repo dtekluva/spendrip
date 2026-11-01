@@ -6,6 +6,7 @@ import { useStore } from '../lib/store';
 import Kobo from '../components/Kobo';
 import { PinDots, PinPad, Switch, useAction } from '../components/ui';
 import { cardLabel, type SavedCard } from './CardTopUp';
+import { Ic, type IconName } from '../icons';
 
 export interface AutoFillState {
   enabled: boolean; active: boolean; paused_reason: string; card: SavedCard | null;
@@ -38,7 +39,7 @@ export default function AutoFill() {
   const on = s.active;
   return (
     <div className="stack">
-      <div className="close-row"><button className="link" onClick={() => nav(-1)}>← Back</button><span className="eyebrow">Auto-fill</span></div>
+      <div className="close-row"><button className="link b-ic" onClick={() => nav(-1)}><Ic name="arrow-left" />Back</button><span className="eyebrow">Auto-fill</span></div>
       <div><div className="eyebrow">Automatic top-up from your card</div>
         <h1 className="h1">{on ? 'Auto-fill is on' : s.paused_reason ? 'Auto-fill is paused' : 'Never top up by hand again'}</h1></div>
       {!s.enabled && <div className="error-card">Auto-fill is switched off for everyone for now. Your settings are kept.</div>}
@@ -112,10 +113,10 @@ function Status({ s, onChange, onEdit }: { s: AutoFillState; onChange: (a: AutoF
       {error && <p className="err" style={{ margin: 0 }}>{error}</p>}
     </div>
     <div className="list">
-      <div className="set-row no-arrow"><span className="si">💳</span><span><b>{s.card ? cardLabel(s.card) : 'No card'}</b><span className="sub">{s.card?.exp ? `Expires ${s.card.exp}` : ''}</span></span><span /></div>
-      <div className="set-row no-arrow"><span className="si">📅</span><span><b>When</b><span className="sub">{whenText(s)}</span></span><span /></div>
-      <div className="set-row no-arrow"><span className="si">🧢</span><span><b>Limits</b><span className="sub">{N(s.max_per_charge_kobo ?? 0)} per charge · {N(s.max_per_month_kobo ?? 0)} a month · {N(s.used_this_month_kobo)} used this month</span></span><span /></div>
-      <div className="set-row no-arrow"><span className="si">🧾</span><span><b>Card fees</b><span className="sub">{N(s.fees_last_30_days_kobo)} in the last 30 days</span></span><span /></div>
+      <div className="set-row no-arrow"><span className="si"><Ic name="card" /></span><span><b>{s.card ? cardLabel(s.card) : 'No card'}</b><span className="sub">{s.card?.exp ? `Expires ${s.card.exp}` : ''}</span></span><span /></div>
+      <div className="set-row no-arrow"><span className="si"><Ic name="calendar" /></span><span><b>When</b><span className="sub">{whenText(s)}</span></span><span /></div>
+      <div className="set-row no-arrow"><span className="si"><Ic name="daily-limit" /></span><span><b>Limits</b><span className="sub">{N(s.max_per_charge_kobo ?? 0)} per charge · {N(s.max_per_month_kobo ?? 0)} a month · {N(s.used_this_month_kobo)} used this month</span></span><span /></div>
+      <div className="set-row no-arrow"><span className="si"><Ic name="fees" /></span><span><b>Card fees</b><span className="sub">{N(s.fees_last_30_days_kobo)} in the last 30 days</span></span><span /></div>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
       <button className="btn btn-soft" style={{ flex: 1 }} onClick={onEdit}>Change settings</button>
@@ -152,13 +153,13 @@ function Setup({ s, cards, onSaved, onCancel }: { s: AutoFillState; cards: Saved
       <div><b>Card</b>
         <div className="opt-list" style={{ marginTop: 8 }}>{cards.map((c) => (
           <button key={c.id} className="opt" aria-pressed={c.id === cardId} onClick={() => setCardId(c.id)}>
-            <span>💳</span><span><b>{cardLabel(c)}</b><br /><span className="small muted">{[c.bank, c.exp && `Expires ${c.exp}`].filter(Boolean).join(' · ')}</span></span><span className="check">✓</span></button>
+            <span className="opt-ic"><Ic name="card" /></span><span><b>{cardLabel(c)}</b><br /><span className="small muted">{[c.bank, c.exp && `Expires ${c.exp}`].filter(Boolean).join(' · ')}</span></span><span className="check"><Ic name="check" /></span></button>
         ))}</div></div>
       <div><b>When</b>
         <div className="list" style={{ marginTop: 8 }}>
-          <Row icon="🌙" title="End of month" sub="The last 5 days, when most salaries land" on={end} set={() => setEnd(!end)} />
-          <Row icon="🌅" title="Start of month" sub="The 1st to the 5th" on={start} set={() => setStart(!start)} />
-          <Row icon="⚡" title="Before a drip if I'm short" sub="Adds just what's missing, a day ahead. One try." on={jit} set={() => setJit(!jit)} />
+          <Row icon="night" title="End of month" sub="The last 5 days, when most salaries land" on={end} set={() => setEnd(!end)} />
+          <Row icon="morning" title="Start of month" sub="The 1st to the 5th" on={start} set={() => setStart(!start)} />
+          <Row icon="instant" title="Before a drip if I'm short" sub="Adds just what's missing, a day ahead. One try." on={jit} set={() => setJit(!jit)} />
         </div></div>
       <div><b>Limits</b>
         <p className="small muted" style={{ margin: '4px 0 8px' }}>Your drips need about {N(s.suggested.month_need_kobo)} a month right now, fees included.</p>
@@ -175,8 +176,8 @@ function Setup({ s, cards, onSaved, onCancel }: { s: AutoFillState; cards: Saved
   );
 }
 
-const Row = ({ icon, title, sub, on, set }: { icon: string; title: string; sub: string; on: boolean; set: () => void }) => (
-  <button className="set-row no-arrow" onClick={set}><span className="si">{icon}</span><span style={{ minWidth: 0 }}><b>{title}</b><span className="sub">{sub}</span></span><Switch on={on} label={title} onChange={set} /></button>
+const Row = ({ icon, title, sub, on, set }: { icon: IconName; title: string; sub: string; on: boolean; set: () => void }) => (
+  <button className="set-row no-arrow" onClick={set}><span className="si"><Ic name={icon} /></span><span style={{ minWidth: 0 }}><b>{title}</b><span className="sub">{sub}</span></span><Switch on={on} label={title} onChange={set} /></button>
 );
 
 function ConfirmPin({ body, onSaved }: { body: Record<string, unknown>; onSaved: (a: AutoFillState) => void }) {
