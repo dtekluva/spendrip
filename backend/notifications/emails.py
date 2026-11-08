@@ -8,6 +8,13 @@ from django.core.mail import EmailMultiAlternatives
 log = logging.getLogger(__name__)
 
 
+def wordmark(height: int = 29) -> str:
+    """The SpenDrip wordmark (white, the drop over the i) for the navy email header. A PNG, since email clients don't do
+    SVG or web fonts; drawn by design/icons/email/assets.py. The alt text keeps the name when images are off."""
+    return (f'<img src="{settings.EMAIL_ASSET_BASE}/wordmark.png" width="{round(height * 429 / 120)}" height="{height}" alt="spendrip" '
+            'style="display:block;border:0;color:#ffffff;font-size:22px;font-weight:800">')
+
+
 def _html(heading: str, paragraphs: list[str], button: tuple[str, str] | None = None) -> str:
     body = "".join(
         f'<p style="margin:6px 0 20px;font-size:34px;font-weight:800;letter-spacing:8px;color:#0B1040;font-family:Menlo,Consolas,monospace">{p}</p>'
@@ -18,10 +25,10 @@ def _html(heading: str, paragraphs: list[str], button: tuple[str, str] | None = 
         label, url = button
         cta = (f'<p style="margin:22px 0 6px"><a href="{escape(url)}" style="display:inline-block;background:#0B1040;color:#FFD23F;'
                f'font-weight:800;font-size:16px;text-decoration:none;padding:14px 26px;border-radius:14px">{escape(label)}</a></p>')
-    return f"""<!doctype html><html><body style="margin:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+    return f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:32px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:24px;overflow:hidden">
-<tr><td style="background:#0B1040;padding:22px 28px;font-size:24px;font-weight:800;letter-spacing:-.5px;color:#ffffff">spendrip<span style="color:#FFD23F">.</span></td></tr>
+<tr><td style="background:#0B1040;padding:22px 28px">{wordmark()}</td></tr>
 <tr><td style="padding:30px 28px 26px">
 <h1 style="margin:0 0 16px;font-size:24px;line-height:1.2;color:#0E1233">{escape(heading)}</h1>{body}{cta}
 </td></tr>
@@ -157,7 +164,7 @@ def render_delivered(c: dict) -> tuple[str, str, str]:
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 12px 40px -18px rgba(14,18,51,.35)">
  <tr><td style="background:#0B1040;padding:20px 28px">
    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-    <td style="font-size:24px;font-weight:800;letter-spacing:-.6px;color:#ffffff">spendrip<span style="color:#FFD23F">.</span></td>
+    <td style="vertical-align:middle">{wordmark()}</td>
     <td align="right"><span style="display:inline-block;background:#12B283;color:#ffffff;font-size:12px;font-weight:800;letter-spacing:.06em;padding:6px 12px;border-radius:999px">✓ DELIVERED</span></td>
    </tr></table>
  </td></tr>
@@ -274,7 +281,7 @@ def render_group(c: dict) -> tuple[str, str, str]:
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 12px 40px -18px rgba(14,18,51,.35)">
  <tr><td style="background:#0B1040;padding:20px 28px">
    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-    <td style="font-size:24px;font-weight:800;letter-spacing:-.6px;color:#ffffff">spendrip<span style="color:#FFD23F">.</span></td>
+    <td style="vertical-align:middle">{wordmark()}</td>
     <td align="right"><span style="display:inline-block;background:{'#12B283' if everyone else '#F79009'};color:#ffffff;font-size:12px;font-weight:800;letter-spacing:.06em;padding:6px 12px;border-radius:999px">{'✓ ALL PAID' if everyone else f'{paid} OF {n} PAID'}</span></td>
    </tr></table>
  </td></tr>

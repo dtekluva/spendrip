@@ -14,6 +14,8 @@ from html import escape
 
 import requests
 
+from notifications.emails import wordmark
+
 COUNTRY = "nga"           # Search Console's code for Nigeria
 SITEMAP = "https://spendrip.com/sitemap.xml"
 
@@ -175,8 +177,8 @@ def render(d: Data) -> tuple[str, str, str]:
     html = f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:24px 8px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#ffffff;border-radius:20px;overflow:hidden">
-<tr><td style="background:#0B1040;padding:18px 24px;font-size:22px;font-weight:800;color:#ffffff">spendrip<span style="color:#FFD23F">.</span>
-<span style="font-size:14px;font-weight:600;color:#c9cdf0"> · Google search, {escape(month)}</span></td></tr>
+<tr><td style="background:#0B1040;padding:18px 24px">{wordmark(26)}
+<div style="font-size:14px;font-weight:600;color:#c9cdf0;margin-top:8px">Google search, {escape(month)}</div></td></tr>
 <tr><td style="padding:22px 24px">
 <p style="margin:0 0 12px;font-size:13px;color:#8a8fb5">Nigeria, {d.start:%-d %b} to {d.end:%-d %b}, against the month before.</p>
 <table width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate"><tr>{tiles}</tr></table>

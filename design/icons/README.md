@@ -46,6 +46,12 @@ everything else. Finance charts use the same colour per category (`chart` overri
 `landing/build_pages.py` turns plan emoji in `content.py` copy ("⛽ Fuel", "🧑🏾‍🍳 Musa") into the same plan tiles, using
 this manifest, then runs `build.py` to inline the symbols. Write content with emoji as usual; unknown emoji stay as typed.
 
+## Emails
+
+Email clients can't show inline SVG, so `email/assets.py` draws PNGs into `landing/email/` (served from
+spendrip.com/email): the white wordmark, Kobo, and a plan tile for each Finance category. The monthly Finance email
+(`backend/finance/monthly.py`) uses them. Run it again after changing a plan icon, a hue or Kobo.
+
 ## Adding an icon
 
 Add it to `ui` (or `plans`) in `manifest.json` with its Phosphor name and the weights it needs (`r`, `f`, `d`), run

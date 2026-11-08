@@ -14,6 +14,7 @@ from django.utils import timezone
 from accounts.models import User
 from drips.models import Run
 from notifications.models import OutboxMessage
+from notifications.emails import wordmark
 from notifications.services import notify
 
 from . import ai as fin_ai
@@ -88,42 +89,73 @@ def render(user, f: report.Facts, last: dict, before: dict, take: dict) -> tuple
     text += ["", "Kobo's take:", take["summary"], *[f"- {t['title']}: {t['body']}" for t in take["suggestions"][:3]],
              "", f"Open Finance: {app}/finance", "", "General information, not financial advice. Turn this email off in Settings → Notifications."]
 
-    # html
-    def cell(content, align="left", muted=False):
-        return f'<td style="padding:7px 0;border-bottom:1px solid #ECEEF7;font-size:14px;text-align:{align};color:{"#8a8fb5" if muted else "#3b4070"}">{content}</td>'
-    bar = "".join(f'<td style="height:10px;background:{COLOURS.get(c["key"], "#B8BECC")};width:{max(round(v * 100 / total), 1)}%"></td>' for c, v in rows)
-    rows_html = "".join(f"<tr>{cell(escape(c['emoji'] + ' ' + c['label']))}{cell(N(v), 'right')}{cell(str(round(v * 100 / total)) + '%', 'right', True)}</tr>" for c, v in rows)
-    tips = "".join(f'<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3b4070"><b style="color:#0E1233">{escape(t["title"])}.</b> {escape(t["body"])}</p>'
-                   for t in take["suggestions"][:3])
-    salary = (f'<p style="margin:18px 0 0;font-size:14px;color:#3b4070">Against your take-home pay of <b>{N(f.salary)}</b>, a normal month plans '
+    # html: table layout and inline styles so Gmail and Outlook keep the look. Icons are the app's, as PNGs (see
+    # design/icons/email/assets.py), served from EMAIL_ASSET_BASE.
+    A = settings.EMAIL_ASSET_BASE
+    INK, BODY, MUTED, LINE = "#0E1233", "#3b4070", "#8a8fb5", "#ECEEF7"
+    DISPLAY = "Unbounded,'Arial Black',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+    pct = lambda v: round(v * 100 / total)
+    bar = "".join(f'<td style="height:12px;background:{COLOURS.get(c["key"], "#B8BECC")};width:{max(pct(v), 1)}%;'
+                  f'{"border-left:2px solid #ffffff;" if i else ""}"></td>' for i, (c, v) in enumerate(rows))
+    rows_html = "".join(
+        f'<tr><td style="padding:10px 12px 10px 0;border-bottom:1px solid {LINE};width:32px">'
+        f'<img src="{A}/cat-{c["key"]}.png" width="32" height="32" alt="" style="display:block;border:0"></td>'
+        f'<td style="padding:10px 0;border-bottom:1px solid {LINE};font-size:15px;font-weight:600;color:{INK}">{escape(c["label"])}</td>'
+        f'<td style="padding:10px 0;border-bottom:1px solid {LINE};font-size:15px;font-weight:800;color:{INK};text-align:right;white-space:nowrap">{N(v)}</td>'
+        f'<td style="padding:10px 0 10px 12px;border-bottom:1px solid {LINE};font-size:13px;color:{MUTED};text-align:right;width:40px">{pct(v)}%</td></tr>'
+        for c, v in rows)
+    tips = "".join(
+        f'<tr><td style="padding:16px 12px 0 0;width:26px;vertical-align:top">'
+        f'<div style="width:26px;height:26px;line-height:26px;border-radius:13px;background:#2436F2;color:#ffffff;font-size:13px;font-weight:800;text-align:center">{i}</div></td>'
+        f'<td style="padding:16px 0 0;vertical-align:top"><div style="font-size:15px;font-weight:800;color:{INK};margin:2px 0 3px">{escape(t["title"])}</div>'
+        f'<div style="font-size:14px;line-height:1.5;color:{BODY}">{escape(t["body"])}</div></td></tr>'
+        for i, t in enumerate(take["suggestions"][:3], 1))
+    salary = (f'<p style="margin:16px 0 0;font-size:14px;color:{BODY}">Against your take-home pay of <b>{N(f.salary)}</b>, a normal month plans '
               f'<b>{round(f.normal_total * 100 / f.salary)}%</b> of it.</p>') if f.salary else ""
-    tiles = "".join(
-        f'<td style="padding:12px;background:#F4F5FB;border-radius:12px;width:33%"><div style="font-size:12px;color:#8a8fb5">{k}</div>'
-        f'<div style="font-size:19px;font-weight:800;color:#0E1233">{v}</div><div style="font-size:12px;color:#3b4070">{s}</div></td>'
-        for k, v, s in (("Sent", N(last["sent_kobo"]), escape(change_txt) or f"{last['drips']} drips"),
-                        ("Fees", N(last["fees_kobo"]), "all fees in"), ("Added", N(last["topups_kobo"]), "top-ups")))
-    html = f"""<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 10px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:22px;overflow:hidden">
-<tr><td style="background:#0B1040;padding:20px 26px;font-size:22px;font-weight:800;color:#ffffff">spendrip<span style="color:#FFD23F">.</span>
-<span style="font-size:14px;font-weight:600;color:#c9cdf0"> · Your {month} in money</span></td></tr>
-<tr><td style="padding:26px">
-<p style="margin:0 0 14px;font-size:16px;color:#3b4070">Hi {escape(first)}, here's where your money went in {month}.</p>
-<table width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate;margin:0 -6px"><tr>{tiles}</tr></table>
-<h2 style="margin:22px 0 8px;font-size:16px;color:#0E1233">Where it went</h2>
-<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:6px;overflow:hidden"><tr>{bar}</tr></table>
-<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:8px">{rows_html}</table>
-{salary}
-<h2 style="margin:22px 0 8px;font-size:16px;color:#0E1233">💧 Kobo's take</h2>
-<p style="margin:0 0 12px;font-size:15px;line-height:1.55;color:#0E1233">{escape(take["summary"])}</p>
-{tips}
-<p style="margin:22px 0 4px"><a href="{app}/finance" style="display:inline-block;background:#0B1040;color:#FFD23F;font-weight:800;font-size:15px;text-decoration:none;padding:13px 24px;border-radius:14px">Open Finance</a></p>
+    side = lambda k, v, sub: (f'<div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{MUTED}">{k}</div>'
+                              f'<div style="font-size:18px;font-weight:800;color:{INK};margin-top:2px">{v}</div>'
+                              f'<div style="font-size:12px;color:{BODY}">{sub}</div>')
+    sent_sub = escape(change_txt) or f"{last['drips']} drips"
+    stats = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF0FF;border-radius:18px"><tr>'
+             f'<td style="padding:18px 20px;vertical-align:top">'
+             f'<div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#2436F2">Sent</div>'
+             f'<div style="font-family:{DISPLAY};font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.15;color:{INK};margin-top:4px">{N(last["sent_kobo"])}</div>'
+             f'<div style="font-size:13px;color:{BODY};margin-top:2px">{sent_sub}</div></td>'
+             f'<td style="padding:18px 20px;vertical-align:top;width:38%;border-left:1px solid #D9DDFB">'
+             f'{side("Fees", N(last["fees_kobo"]), "all fees in")}<div style="height:12px"></div>{side("Added", N(last["topups_kobo"]), "top-ups")}</td>'
+             f'</tr></table>')
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"></head>
+<body style="margin:0;padding:0;background:#F4F5FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5FB;padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 12px 40px -18px rgba(14,18,51,.35)">
+<tr><td style="background:#0B1040;padding:22px 28px 26px">
+{wordmark()}
+<div style="font-family:{DISPLAY};font-size:26px;font-weight:800;letter-spacing:-.6px;line-height:1.2;color:#ffffff;margin-top:22px">Your {month} in money</div>
 </td></tr>
-<tr><td style="padding:0 26px 24px;font-size:12px;line-height:1.5;color:#8a8fb5">General information, not financial advice{". Kobo's take is written by AI from your numbers" if take.get("source") == "ai" else ""}.
+<tr><td style="padding:24px 28px 8px">
+<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:{BODY}">Hi {escape(first)}, here's where your money went in {month}.</p>
+{stats}
+<div style="font-family:{DISPLAY};font-size:17px;font-weight:800;letter-spacing:-.3px;color:{INK};margin:28px 0 12px">Where it went</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-radius:6px;overflow:hidden"><tr>{bar}</tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:6px">{rows_html}</table>
+{salary}
+</td></tr>
+<tr><td style="padding:20px 28px 0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFF8E1;border-radius:22px"><tr><td style="padding:20px 22px 22px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="padding-right:12px;vertical-align:middle"><img src="{A}/kobo-happy.png" width="40" height="47" alt="" style="display:block;border:0"></td>
+<td style="vertical-align:middle;font-family:{DISPLAY};font-size:17px;font-weight:800;letter-spacing:-.3px;color:{INK}">Kobo's take</td></tr></table>
+<p style="margin:14px 0 4px;font-size:15px;line-height:1.55;color:{INK}">{escape(take["summary"])}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">{tips}</table>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:24px 28px 26px"><a href="{app}/finance" style="display:inline-block;background:#0B1040;color:#FFD23F;font-weight:800;font-size:15px;text-decoration:none;padding:14px 26px;border-radius:14px">Open Finance</a></td></tr>
+<tr><td style="padding:0 28px 26px;font-size:12px;line-height:1.5;color:{MUTED}">General information, not financial advice{". Kobo's take is written by AI from your numbers" if take.get("source") == "ai" else ""}.
 Don't want this email? Turn off <i>Monthly money report</i> in Settings → Notifications.</td></tr>
 </table></td></tr></table></body></html>"""
     return subject, "\n".join(text), html
 
 
-COLOURS = {"housing": "#2F44F5", "food": "#12B283", "transport": "#FFB938", "bills": "#7C5CFF", "education": "#00A3C4", "health": "#FF6B6B",
-           "staff": "#C27C00", "family": "#FF4F8B", "giving": "#B5651D", "savings": "#0FA376", "personal": "#8A93A6", "other": "#B8BECC"}
+# Each category's colour, as in the app's Finance charts (design/icons/manifest.json: the category's plan, its chart or hue).
+COLOURS = {"housing": "#7650F2", "food": "#FFC81F", "transport": "#2F44F5", "bills": "#0C93B0", "education": "#FF8A3D", "health": "#E5484D",
+           "staff": "#C2620F", "family": "#F2427E", "giving": "#B8336A", "savings": "#0E9F70", "personal": "#5F6576", "other": "#5F6576"}
