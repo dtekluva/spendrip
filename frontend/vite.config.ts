@@ -37,8 +37,9 @@ export default defineConfig({
           { src: '/screenshots/welcome.png', sizes: '780x1688', type: 'image/png', form_factor: 'narrow', label: 'Top up once. Relax all month.' },
         ],
       },
+      // push-sw.js (public/) shows notifications and opens the right screen when one is tapped.
       // Never cache API responses: balances must always be live. Do precache Kobo (kobo.riv + the Rive engine) for offline use.
-      workbox: { clientsClaim: true, cleanupOutdatedCaches: true, navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [], globPatterns: ['**/*.{js,css,html,svg,png,riv,wasm}'], globIgnores: ['screenshots/**'], maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 },
+      workbox: { importScripts: ['push-sw.js'], clientsClaim: true, cleanupOutdatedCaches: true, navigateFallbackDenylist: [/^\/api\//, /^\/admin\//], runtimeCaching: [], globPatterns: ['**/*.{js,css,html,svg,png,riv,wasm}'], globIgnores: ['screenshots/**'], maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 },
     }),
   ],
   server: { port: 5173, proxy: { '/api': { target, changeOrigin: false }, '/admin': { target, changeOrigin: false }, '/static': { target, changeOrigin: false } } },

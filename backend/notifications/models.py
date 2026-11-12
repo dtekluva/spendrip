@@ -17,6 +17,7 @@ class OutboxMessage(models.Model):
         SENT = "sent"
         MOCKED = "mocked"
         FAILED = "failed"
+        SKIPPED = "skipped"  # nowhere to send it: push is off, or no phone or computer has it turned on
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="messages")
     channel = models.CharField(max_length=10, choices=Channel.choices)
@@ -30,3 +31,22 @@ class OutboxMessage(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class PushDevice(models.Model):
+    """A phone or computer that turned on notifications (a browser push subscription). One person can have several."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_devices")
+    endpoint = models.URLField(max_length=1000, unique=True)  # the push service's address for this device (Google, Apple, Mozilla…)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    user_agent = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    failures = models.PositiveSmallIntegerField(default=0)  # in a row; the device is dropped after a few
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} · {self.endpoint.split('/')[2]}"

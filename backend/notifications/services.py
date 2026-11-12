@@ -22,9 +22,22 @@ def notify(user, *, key: str, channel: str, template: str, body: str, to: str = 
               send(to, e.get("subject", body[:80]), e.get("heading", body[:80]), e.get("paragraphs", [body]), e.get("button")))
         status = OutboxMessage.Status.SENT if ok else OutboxMessage.Status.FAILED
     elif channel == OutboxMessage.Channel.PUSH:
-        status = OutboxMessage.Status.MOCKED  # web push arrives with the PWA (Phase 2)
+        from . import push
+        if not push.configured():
+            status = OutboxMessage.Status.MOCKED  # no VAPID keys (local development): recorded, not sent
+        elif not user.notify_push:
+            status = OutboxMessage.Status.SKIPPED
+        else:
+            status = OutboxMessage.Status.SENT if push.send(user, template=template, body=body, tag=key.rsplit(":", 1)[0]) \
+                else OutboxMessage.Status.SKIPPED
     else:
         status = OutboxMessage.Status.SENT  # in-app: the row itself is the message
     msg.status = status
     msg.save(update_fields=["status"])
     return msg
+
+
+def notify_app(user, *, key: str, template: str, body: str, run=None) -> None:
+    """The usual pair: a message in the app's activity, and a push to the person's phone if they turned it on."""
+    for channel in (OutboxMessage.Channel.IN_APP, OutboxMessage.Channel.PUSH):
+        notify(user, key=f"{key}:{channel}", channel=channel, template=template, body=body, run=run)

@@ -14,8 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.services import FlowError
-from notifications.models import OutboxMessage
-from notifications.services import notify
+from notifications.services import notify_app
 from providers import get_card_gateway
 from providers import messages as copy
 from providers.paystack import card_fee_kobo, gross_for_net
@@ -117,7 +116,7 @@ def complete(reference: str, result: dict | None = None) -> CardCharge:
             SavedCard.objects.filter(pk=charge.card_id).update(last_used_at=timezone.now())
         charge.status, charge.inflow, charge.completed_at, charge.message = CardCharge.Status.SUCCESS, inflow, timezone.now(), ""
         charge.save(update_fields=["status", "inflow", "card", "completed_at", "message"])
-    notify(charge.user, key=f"card:{reference}:in_app", channel=OutboxMessage.Channel.IN_APP, template="self_topped_up",
+    notify_app(charge.user, key=f"card:{reference}", template="self_topped_up",
            body=copy.self_topped_up(amount_kobo=charge.net_kobo))
     return charge
 

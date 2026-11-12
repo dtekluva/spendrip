@@ -12,6 +12,7 @@ import { VerifyCard } from './Verify';
 import { confirmResumeAll } from './pauseConfirm';
 import type { TypicalMonth } from '../lib/types';
 import { InstallCard } from '../components/Install';
+import { PushCard } from '../components/Push';
 
 export default function Home() {
   const [showAll, setShowAll] = useState(false);  // Coming up: 6 by default, the rest on request
@@ -73,6 +74,7 @@ export default function Home() {
         <div className="home-greet"><p className="hello">{greeting().text}{me?.user?.first_name ? `, ${me.user.first_name}` : ''} <Feature name={greeting().icon} className="hello-ic" /></p><h1 className="h1">{headline}</h1></div>
       </div>
       <InstallCard />
+      <PushCard />
       <div className="cols cols-home"><div className="col stack">
         <div className="balance">
           <div className="eyebrow">Your balance</div>

@@ -20,7 +20,7 @@ function CopyLink() {
 }
 
 const STEPS: Record<Exclude<InstallWay, 'prompt'>, { lead: string; steps: ReactNode[]; copy?: boolean }> = {
-  ios: { lead: 'On iPhone, apps like SpenDrip are added from the Share menu. It takes a few seconds.', steps: [
+  ios: { lead: 'On iPhone, apps like SpenDrip are added from the Share menu. It takes a few seconds, and lets SpenDrip send you notifications.', steps: [
     <>Tap <b className="b-ic">Share <Ic name="share-ios" /></b> at the bottom of the screen (at the top on iPad).</>,
     <>Scroll down and tap <b className="b-ic">Add to Home Screen <Ic name="add-home" /></b>.</>,
     <>Tap <b>Add</b>. SpenDrip appears on your home screen like any other app.</>] },

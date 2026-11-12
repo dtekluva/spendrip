@@ -43,7 +43,7 @@ def me_json(request) -> dict:
     fa = u.funding_accounts.first()
     return {
         "signed_in": True,
-        "dev_tools": dev, "boost_enabled": settings.BOOST_ENABLED,
+        "dev_tools": dev, "boost_enabled": settings.BOOST_ENABLED, "push_key": settings.WEB_PUSH["PUBLIC_KEY"],
         "locked": not acc.is_unlocked(request),
         "user": {
             "first_name": u.first_name.title(), "last_name": u.last_name.title(), "email": u.email or "",
@@ -55,7 +55,7 @@ def me_json(request) -> dict:
             "salary_kobo": getattr(getattr(u, "finance", None), "salary_kobo", None),
             "notify_push": u.notify_push, "notify_whatsapp_recipients": u.notify_whatsapp_recipients,
             "notify_daily_summary": u.notify_daily_summary, "notify_low_balance": u.notify_low_balance, "notify_email": u.notify_email,
-            "notify_finance_email": u.notify_finance_email,
+            "notify_finance_email": u.notify_finance_email, "push_devices": u.push_devices.count(),
             "funding_account": {"account_number": fa.account_number, "bank_name": fa.bank_name, "account_name": fa.account_name} if fa else None,
         },
     }

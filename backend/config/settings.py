@@ -246,6 +246,15 @@ SEARCH_CONSOLE = {
 
 EMAIL_ASSET_BASE = env("EMAIL_ASSET_BASE", "https://spendrip.com/email").rstrip("/")
 
+# ---- Web push (notifications on phones and computers, through the installed app or the browser) ----
+# One key pair for the whole app: `python manage.py vapid_keys` makes it. The public key is sent to the app; the private
+# key signs every push and stays on the server. Without keys, push messages are recorded but not sent.
+WEB_PUSH = {
+    "PUBLIC_KEY": env("VAPID_PUBLIC_KEY", ""),
+    "PRIVATE_KEY": env("VAPID_PRIVATE_KEY", ""),
+    "SUBJECT": env("VAPID_SUBJECT", "mailto:hello@spendrip.com"),
+}
+
 
 # ---- Claude (reads ID photos and checks selfies are clear when KYC_PROVIDER=live) ----
 ANTHROPIC = {

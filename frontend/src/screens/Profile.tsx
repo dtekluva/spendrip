@@ -17,6 +17,8 @@ import Kobo from '../components/Kobo';
 import { Ic, type IconName } from '../icons';
 import { useOpenInstall } from '../components/Install';
 import { useInstall } from '../lib/install';
+import { usePushSetting } from '../components/Push';
+import { disablePush } from '../lib/push';
 
 type Row = { icon: IconName | React.ReactElement; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
@@ -33,6 +35,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
   const nav = useNavigate();
   const { installed } = useInstall();
   const openInstall = useOpenInstall();
+  const push = usePushSetting();
   const u = me?.user;
   if (!u) return null;
   const save = async (patch: Record<string, unknown>, msg: string) => { setMe(await api.patch<Me>('/me/settings', patch)); await reload(); toast(msg); };
@@ -62,7 +65,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
     <h3>Sign out?</h3>
     <p className="muted" style={{ marginTop: -6 }}>Your plans keep running. To get back in on this device you'll need a code from your email and your PIN.</p>
     <div style={{ display: 'flex', gap: 8 }}><button className="btn btn-soft" style={{ flex: 1 }} onClick={closeSheet}>Stay signed in</button>
-      <button className="btn btn-danger" style={{ flex: 1 }} onClick={async () => { closeSheet(); await api.post('/auth/signout'); await refreshMe(); nav('/'); }}>Sign out</button></div></>);
+      <button className="btn btn-danger" style={{ flex: 1 }} onClick={async () => { closeSheet(); await disablePush().catch(() => {}); await api.post('/auth/signout'); await refreshMe(); nav('/'); }}>Sign out</button></div></>);
 
   return (
     <div className="stack">
@@ -128,7 +131,8 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
         <div className="group-h">Notifications</div>
         <div className="list">
           <SetRow icon="email" title="Email me when a drip lands" sub={u.email ? `Sent to ${u.email}` : 'Add an email to get these'} on={u.notify_email} onClick={() => save({ notify_email: !u.notify_email }, 'Saved')} />
-          <SetRow icon="bell" title="Push notifications" sub="When money is sent or added" on={u.notify_push} onClick={() => save({ notify_push: !u.notify_push }, 'Saved')} />
+          <SetRow icon="bell" title="Push notifications" sub={push.sub} on={push.on} onClick={push.toggle} />
+          {push.on && <SetRow icon="phone" title="Send a test notification" sub="Check it arrives on this device" onClick={push.test} />}
           <SetRow icon="chat" title="WhatsApp the people you pay" sub="They get a message when money lands" on={u.notify_whatsapp_recipients} onClick={() => save({ notify_whatsapp_recipients: !u.notify_whatsapp_recipients }, 'Saved')} />
           <SetRow icon="night" title="Tomorrow's drips" sub="A summary at 8 PM" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />
           <SetRow icon="report" title="Monthly money report" sub="Your month in money, by email on the 1st" on={u.notify_finance_email ?? true} onClick={() => save({ notify_finance_email: !(u.notify_finance_email ?? true) }, 'Saved')} />

@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import app_views as app
 from . import auth_views as auth
+from . import push_views
 from . import system_views as system
 from seasons.views import CurrentSeason
 
@@ -18,6 +19,8 @@ urlpatterns = [
     # who am I
     path("me", auth.Me.as_view()),
     path("me/settings", auth.MeUpdate.as_view()),
+    path("push/devices", push_views.PushDevices.as_view()),
+    path("push/test", push_views.PushTest.as_view()),
     # sign-up: email → code → name → PIN → Face ID
     path("signup/start", auth.SignupStart.as_view()),
     path("signup/otp/resend", auth.SignupResendOtp.as_view()),

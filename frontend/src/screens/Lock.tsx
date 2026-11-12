@@ -7,11 +7,12 @@ import { Icon, PinDots, PinPad, Spinner, Wordmark, useAction } from '../componen
 import { greeting } from '../lib/format';
 import Kobo from '../components/Kobo';
 import { Feature } from '../icons';
+import { disablePush } from '../lib/push';
 
 /** Returning on the same device: Face ID, or the PIN. */
 export default function Lock({ onUnlocked, onForgot }: { onUnlocked: (m: Me) => void; onForgot: () => void }) {
   const { me, refreshMe } = useStore();
-  const signOut = async () => { await api.post('/auth/signout'); await refreshMe(); };
+  const signOut = async () => { await disablePush().catch(() => {}); await api.post('/auth/signout'); await refreshMe(); };
   const canFace = !!me?.user?.has_face_id && passkeysSupported();
   const [mode, setMode] = useState<'face' | 'pin'>(canFace ? 'face' : 'pin');
   const [pin, setPin] = useState('');

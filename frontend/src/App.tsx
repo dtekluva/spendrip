@@ -25,6 +25,7 @@ import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
 import Verify from './screens/Verify';
 import { InstallSheet } from './components/Install';
+import { onNotificationOpen, syncPush } from './lib/push';
 
 const SEEN = 'sd-seen-splash';
 const seenBefore = () => { try { return localStorage.getItem(SEEN) === '1'; } catch { return false; } };
@@ -43,6 +44,9 @@ export default function App() {
 
   const ready = !!me?.signed_in && !me.locked && !!me.user?.has_pin && !!me.user?.has_name && !inSignup;
   useEffect(() => { if (ready) reload().catch(() => {}); }, [ready, reload]);
+  // Notifications: keep this device's subscription fresh, and open the screen a tapped notification points to.
+  useEffect(() => { if (ready) syncPush(me?.push_key, !!me?.user?.notify_push, me?.user?.push_devices ?? 0).catch(() => {}); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => onNotificationOpen((path) => { nav(path); reload().catch(() => {}); }), [nav, reload]);
   useEffect(() => { if (me?.signup?.step) { setFlow('signup'); setInSignup(true); } }, [me?.signup?.step]);
   // Signed in but no name or PIN yet (e.g. the app was reopened mid sign-up): finish those before entering the app.
   useEffect(() => { if (me?.signed_in && me.user && (!me.user.has_pin || !me.user.has_name)) setInSignup(true); }, [me?.signed_in, me?.user?.has_pin, me?.user?.has_name]); // eslint-disable-line react-hooks/exhaustive-deps

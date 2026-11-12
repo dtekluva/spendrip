@@ -15,8 +15,7 @@ from drips.worker import Worker
 from engine import naira
 from ledger import services as ledger
 from ledger.models import FundingAccount, Inflow
-from notifications.models import OutboxMessage
-from notifications.services import notify
+from notifications.services import notify_app
 from providers import get_payment_provider
 from providers import messages as copy
 
@@ -84,7 +83,7 @@ class LibertyWebhook(APIView):
             return Response({"ok": True, "credited": False}, status=202)
         credited = ledger.credit_inflow(inflow)
         if credited:
-            notify(fa.user, key=f"inflow:{inflow.pk}:in_app", channel=OutboxMessage.Channel.IN_APP, template="self_topped_up",
+            notify_app(fa.user, key=f"inflow:{inflow.pk}", template="self_topped_up",
                    body=copy.self_topped_up(amount_kobo=inflow.amount_kobo))
         return Response({"ok": True, "credited": credited})
 
@@ -105,7 +104,7 @@ class DevTopUp(APIView):
         inflow = Inflow.objects.create(provider="mock", reference=f"dev-{uuid.uuid4()}", user=request.user, amount_kobo=amount,
                                        sender_name="DEV TOP-UP", raw={"dev": True})
         ledger.credit_inflow(inflow)
-        notify(request.user, key=f"inflow:{inflow.pk}:in_app", channel=OutboxMessage.Channel.IN_APP, template="self_topped_up",
+        notify_app(request.user, key=f"inflow:{inflow.pk}", template="self_topped_up",
                body=copy.self_topped_up(amount_kobo=amount))
         return Response({"credited_kobo": amount, "available_kobo": ledger.balance(request.user).available_kobo}, status=201)
 

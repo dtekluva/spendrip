@@ -21,6 +21,7 @@ def offline_providers(settings):
     settings.SPENDRIP = {**settings.SPENDRIP, "PAYMENT_PROVIDER": "mock", "PAYOUT_PROVIDER": "",
                          "STAMP_DUTY_KOBO": 0, "PASS_THROUGH_TRANSFER_FEES": False}
     settings.PAYSTACK = {**settings.PAYSTACK, "SECRET_KEY": "", "PUBLIC_KEY": "", "NAME_CHECK_SECRET_KEY": ""}
+    settings.WEB_PUSH = {**settings.WEB_PUSH, "PUBLIC_KEY": "", "PRIVATE_KEY": ""}  # no real notifications either
     for f in (registry.get_payment_provider, registry.get_payout_provider, registry.get_card_gateway):
         f.cache_clear()
     yield
