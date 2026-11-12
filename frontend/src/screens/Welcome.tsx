@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Wordmark } from '../components/ui';
 import Kobo, { type KoboMood } from '../components/Kobo';
 import { Feature, Ic, PlanIcon } from '../icons';
+import { useOpenInstall } from '../components/Install';
+import { useInstall } from '../lib/install';
 
 type Slide = { h: string; p: string; v: React.ReactNode; kobo: KoboMood };
 
@@ -23,6 +25,8 @@ const SLIDES: Slide[] = [
 
 export default function Welcome({ onCreate, onSignIn }: { onCreate: () => void; onSignIn: () => void }) {
   const [i, setI] = useState(0);
+  const { installed } = useInstall();
+  const openInstall = useOpenInstall();
   const s = SLIDES[i]!;
   const last = i === SLIDES.length - 1;
   return (
@@ -36,6 +40,7 @@ export default function Welcome({ onCreate, onSignIn }: { onCreate: () => void; 
             <div className="ob-ctrl" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button className="btn btn-primary btn-block" style={{ height: 56 }} onClick={onCreate}>Create my account</button>
               <button className="btn btn-soft btn-block" onClick={onSignIn}>I already have an account</button>
+              {!installed && <button className="link small b-ic ob-install" onClick={() => openInstall('welcome')}><Ic name="install" />Add SpenDrip to your home screen</button>}
             </div>
           ) : (
             <div className="ob-ctrl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>

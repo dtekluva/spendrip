@@ -49,6 +49,12 @@
     "weekly":      { "src": "calendar-blank",          "w": "r" },
     "monthly":     { "src": "calendar-dots",           "w": "r" },
     "received":    { "src": "arrow-down",              "w": "r" },
+    "install":     { "src": "download-simple",         "w": "r" },
+    "phone":       { "src": "device-mobile",           "w": "rd" },
+    "share-ios":   { "src": "export",                  "w": "r" },
+    "add-home":    { "src": "plus-square",             "w": "r" },
+    "menu-dots":   { "src": "dots-three-vertical",     "w": "r" },
+    "copy":        { "src": "copy",                    "w": "r" },
 
     "id":          { "src": "identification-card",     "w": "rd" },
     "document":    { "src": "file-text",               "w": "r" },

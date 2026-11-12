@@ -15,6 +15,8 @@ import { confirmPauseAll, confirmResumeAll } from './pauseConfirm';
 import PaySheet from '../components/PaySheet';
 import Kobo from '../components/Kobo';
 import { Ic, type IconName } from '../icons';
+import { useOpenInstall } from '../components/Install';
+import { useInstall } from '../lib/install';
 
 type Row = { icon: IconName | React.ReactElement; title: string; sub?: string; val?: React.ReactNode; on?: boolean; onClick?: () => void; danger?: boolean };
 const SetRow = ({ icon, title, sub, val, on, onClick, danger }: Row) => (
@@ -29,6 +31,8 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
   const store = useStore();
   const { me, recipients, setMe, refreshMe, reload, toast, openSheet, closeSheet, look } = store;
   const nav = useNavigate();
+  const { installed } = useInstall();
+  const openInstall = useOpenInstall();
   const u = me?.user;
   if (!u) return null;
   const save = async (patch: Record<string, unknown>, msg: string) => { setMe(await api.patch<Me>('/me/settings', patch)); await reload(); toast(msg); };
@@ -133,6 +137,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
         <div className="group-h">App</div>
         <div className="list">
           {me?.boost_enabled && <SetRow icon="heart" title="Pays it forward" sub="Share who you look after. One story a month wins for them." onClick={() => nav('/pays-it-forward')} />}
+          {!installed && <SetRow icon="install" title="Install the app" sub="Add SpenDrip to your home screen" onClick={() => openInstall('settings')} />}
           <SetRow icon={<Kobo mood="happy" size={30} />} title="Meet Kobo" sub="The little drop that keeps you company" onClick={() => nav('/kobo')} />
           <SetRow icon="palette" title="Appearance" val={{ themed: 'Themed', light: 'Light', dark: 'Dark', auto: 'Time-aware' }[look]} onClick={() => openAppearance(store)} />
           <SetRow icon="terms" title="Terms and privacy" sub="How SpenDrip works and how we use your data" onClick={() => window.open('https://spendrip.com/terms/', '_blank', 'noopener')} />

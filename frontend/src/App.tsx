@@ -24,12 +24,13 @@ import NotFound from './screens/NotFound';
 import KoboGallery from './screens/KoboGallery';
 import CardReturn from './screens/CardTopUp';
 import Verify from './screens/Verify';
+import { InstallSheet } from './components/Install';
 
 const SEEN = 'sd-seen-splash';
 const seenBefore = () => { try { return localStorage.getItem(SEEN) === '1'; } catch { return false; } };
 
 export default function App() {
-  const { me, refreshMe, setMe, reload } = useStore();
+  const { me, refreshMe, setMe, reload, openSheet } = useStore();
   const nav = useNavigate();
   const [splash, setSplash] = useState(true);
   const quick = useRef(seenBefore());
@@ -49,6 +50,15 @@ export default function App() {
   const endSplash = useCallback(() => { setSplash(false); try { localStorage.setItem(SEEN, '1'); } catch { /* ignore */ } }, []);
   // Signing in always lands in the app (or the lock screen), never back in sign-up.
   const signedIn = (m: Me) => { setInSignup(false); setMe(m); setFlow('welcome'); nav('/'); };
+
+  // spendrip.com's "Get the app" links here with ?install=1: show the install steps once the app is on screen.
+  const wantsInstall = useRef(new URLSearchParams(location.search).has('install'));
+  useEffect(() => {
+    if (splash || !me || !wantsInstall.current) return;
+    wantsInstall.current = false;
+    history.replaceState(null, '', location.pathname);
+    openSheet(<InstallSheet />);
+  }, [splash, me, openSheet]);
 
   if (splash) return <Splash quick={quick.current} onDone={endSplash} />;
   if (!me) return <div className="boot">{bootError ? <span>{bootError} <button className="link" onClick={boot}>Try again</button></span> : 'Loading…'}</div>;
