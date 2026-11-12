@@ -134,7 +134,7 @@ export default function Profile({ mode = 'profile' }: { mode?: 'profile' | 'sett
           <SetRow icon="bell" title="Push notifications" sub={push.sub} on={push.on} onClick={push.toggle} />
           {push.on && <SetRow icon="phone" title="Send a test notification" sub="Check it arrives on this device" onClick={push.test} />}
           <SetRow icon="chat" title="WhatsApp the people you pay" sub="They get a message when money lands" on={u.notify_whatsapp_recipients} onClick={() => save({ notify_whatsapp_recipients: !u.notify_whatsapp_recipients }, 'Saved')} />
-          <SetRow icon="night" title="Tomorrow's drips" sub="A summary at 8 PM" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />
+          <SetRow icon="night" title="Tomorrow's drips" sub="A notification at 8 PM when drips go out the next day" on={u.notify_daily_summary} onClick={() => save({ notify_daily_summary: !u.notify_daily_summary }, 'Saved')} />
           <SetRow icon="report" title="Monthly money report" sub="Your month in money, by email on the 1st" on={u.notify_finance_email ?? true} onClick={() => save({ notify_finance_email: !(u.notify_finance_email ?? true) }, 'Saved')} />
           <SetRow icon="alert" title="Low balance warning" sub="When a drip is about to wait" on={u.notify_low_balance} onClick={() => save({ notify_low_balance: !u.notify_low_balance }, 'Saved')} />
         </div>

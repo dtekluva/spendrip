@@ -28,6 +28,9 @@ SCREENS = {
     "group_skipped": ("A group payout didn't go out", "/activity"),
     "low_balance_ahead": ("Top up before tomorrow", "/fund"),
     "boost_won": ("You won Pays it forward", "/"),
+    "daily_summary": ("Tomorrow's drips", "/calendar"),
+    "daily_summary_short": ("Tomorrow's drips", "/fund"),
+    "daily_summary_cap": ("Tomorrow's drips", "/settings"),
     "push_test": ("Notifications are on", "/settings"),
 }
 AUTOFILL = ("Auto-fill", "/autofill")

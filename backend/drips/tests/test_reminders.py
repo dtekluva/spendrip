@@ -1,10 +1,10 @@
-"""Money reminders: the month outlook, the day-ahead warning and the on-the-spot email."""
+"""Money reminders: the month outlook, the day-ahead warning, the on-the-spot email and the 8 PM summary."""
 from datetime import timedelta
 
 import pytest
 
 from conftest import lagos
-from drips.reminders import day_ahead, month_outlook, send_reminders
+from drips.reminders import day_ahead, month_outlook, send_reminders, tomorrow_summary
 from drips.worker import Worker
 from engine import naira
 from notifications.models import OutboxMessage
@@ -115,3 +115,80 @@ def test_typical_month_counts_active_plans_even_when_everything_is_paused(user, 
     # November: Mum once (₦30,050) + 4 Fridays of fuel (4 × ₦10,050)
     assert t["month"] == "2026-11" and t["need_kobo"] == naira(30_050 + 4 * 10_050)
     assert [r["label"] for r in t["plans"]] == ["Fuel", "Mum"] and t["paused_plans"] == 1
+
+
+def test_day_ahead_sees_a_drip_on_the_1st_from_the_last_day_of_the_month(user, top_up, recipients, make_plan, mailbox):
+    top_up(5_000)
+    make_plan("Rent", 30_000, recipients["mum"], frequency="monthly", month_day=1, time_local="09:00")
+    assert day_ahead(user, lagos("2026-11-30T10:00")) == 1
+    assert "Add ₦25,050 before then" in mailbox.outbox[-1].body
+
+
+def summary():
+    return OutboxMessage.objects.filter(template__startswith="daily_summary", channel="in_app").order_by("-created_at").first()
+
+
+def test_tomorrow_summary_at_8pm_once_when_covered(user, top_up, recipients, make_plan, mailbox):
+    top_up(100_000)
+    make_plan("Mum", 20_000, recipients["mum"], frequency="monthly", month_day=10)
+    make_plan("Fuel", 5_000, recipients["me"], frequency="daily")
+    assert tomorrow_summary(user, lagos("2026-11-09T19:59")) == 0  # not yet
+    assert tomorrow_summary(user, lagos("2026-11-09T20:00")) == 1
+    assert tomorrow_summary(user, lagos("2026-11-09T22:00")) == 0  # once a night
+    m = summary()
+    assert m.template == "daily_summary"
+    assert m.body.startswith("2 drips tomorrow, ₦25,100 with fees:") and "Mum ₦20,000" in m.body and "Fuel ₦5,000" in m.body
+    assert m.body.endswith("Your balance covers them all.")
+    assert OutboxMessage.objects.filter(template="daily_summary", channel="push").count() == 1
+    assert not mailbox.outbox  # no email: it's a phone thing
+
+
+def test_tomorrow_summary_says_what_to_add_tonight(user, top_up, recipients, make_plan):
+    top_up(10_000)
+    make_plan("Mum", 20_000, recipients["mum"], frequency="monthly", month_day=10)
+    tomorrow_summary(user, lagos("2026-11-09T20:30"))
+    m = summary()
+    assert m.template == "daily_summary_short" and "Add ₦10,100 tonight so it goes out on time." in m.body  # ₦20,050 − ₦10,000, up to ₦100
+
+
+def test_tomorrow_summary_counts_priorities_later_in_the_month(user, top_up, recipients, make_plan):
+    top_up(30_000)
+    make_plan("Rent", 25_000, recipients["mum"], priority=1, frequency="monthly", month_day=25)
+    make_plan("Treat", 10_000, recipients["me"], frequency="monthly", month_day=10)
+    tomorrow_summary(user, lagos("2026-11-09T20:30"))
+    # ₦30,000 must keep ₦25,050 for rent, so the ₦10,050 treat needs ₦5,100 more (rounded up to ₦100)
+    assert "Add ₦5,100 tonight" in summary().body
+
+
+def test_tomorrow_summary_daily_limit(user, top_up, recipients, make_plan):
+    top_up(100_000)
+    user.daily_cap_kobo = naira(5_000)
+    user.save(update_fields=["daily_cap_kobo"])
+    make_plan("Mum", 20_000, recipients["mum"], frequency="monthly", month_day=10)
+    tomorrow_summary(user, lagos("2026-11-09T20:30"))
+    m = summary()
+    assert m.template == "daily_summary_cap" and "would go over your daily sending limit" in m.body
+
+
+def test_tomorrow_summary_quiet_days_and_switch(user, top_up, recipients, make_plan):
+    top_up(100_000)
+    make_plan("Mum", 20_000, recipients["mum"], frequency="monthly", month_day=10)
+    assert tomorrow_summary(user, lagos("2026-11-10T20:30")) == 0  # nothing on the 11th
+    user.notify_daily_summary = False
+    user.save(update_fields=["notify_daily_summary"])
+    assert tomorrow_summary(user, lagos("2026-11-09T20:30")) == 0
+
+
+def test_tomorrow_summary_on_the_last_night_of_the_month(user, top_up, recipients, make_plan):
+    top_up(100_000)
+    make_plan("Rent", 30_000, recipients["mum"], frequency="monthly", month_day=1)
+    assert tomorrow_summary(user, lagos("2026-11-30T20:00")) == 1
+    assert "Rent ₦30,000" in summary().body
+
+
+def test_tomorrow_summary_lists_three_then_more(user, top_up, recipients, make_plan):
+    top_up(500_000)
+    for i in range(5):
+        make_plan(f"P{i}", 1_000, recipients["me"], frequency="monthly", month_day=10)
+    tomorrow_summary(user, lagos("2026-11-09T20:30"))
+    assert "and 2 more." in summary().body

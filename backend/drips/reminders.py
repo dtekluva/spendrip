@@ -4,6 +4,7 @@ Money reminders, sent by the worker:
 1. Month outlook (1st of the month, morning): everything due this month, what's in the balance, what to add.
 2. A day ahead: a drip (or group payout) due in the next 24 hours that the balance can't cover as things stand.
 3. On the spot: a drip that just couldn't go out for lack of money (sent from the worker when it happens).
+4. Tomorrow's drips (8 PM): what goes out tomorrow, and what to add tonight if the balance won't cover it. App and push only.
 
 Each one is sent at most once per person per subject (OutboxMessage dedupe keys), so a worker restart never repeats them.
 """
@@ -19,15 +20,16 @@ from accounts.models import User
 from engine import format_naira as N
 from ledger import services as ledger
 from notifications.models import OutboxMessage
-from notifications.services import notify
+from notifications.services import notify, notify_app
 
 from .autofill import declined_note
 from .models import Plan
-from .services import user_forecast
+from .services import upcoming, user_forecast
 
 OUTLOOK_FROM_HOUR = 7  # local time on the 1st; if the worker was down, it still goes out within the first 3 days
 LOOKAHEAD = timedelta(hours=24)
 WAITING = ("wait", "short", "cap")
+SUMMARY_FROM_HOUR = 20  # 8 PM local; if the worker was down then, it still goes out before midnight
 
 
 def _app(path: str = "") -> str:
@@ -44,10 +46,11 @@ def _people() -> list[User]:
 
 
 def send_reminders(now: datetime) -> dict:
-    sent = {"outlook": 0, "ahead": 0}
+    sent = {"outlook": 0, "ahead": 0, "tomorrow": 0}
     for user in _people():
         sent["outlook"] += month_outlook(user, now)
         sent["ahead"] += day_ahead(user, now)
+        sent["tomorrow"] += tomorrow_summary(user, now)
     return sent
 
 
@@ -105,7 +108,7 @@ def day_ahead(user: User, now: datetime) -> int:
     if not user.notify_low_balance:
         return 0
     f = user_forecast(user, now)
-    soon = [e for e in f.events if e.status in WAITING and now <= e.at <= now + LOOKAHEAD]
+    soon = [e for e in upcoming(user, now, now + LOOKAHEAD) if e.status in WAITING]  # crosses into next month too
     if not soon:
         return 0
     tz = ZoneInfo(user.tz or "Africa/Lagos")
@@ -164,3 +167,63 @@ def spot_email(user: User, *, key: str, emoji: str, label: str, who: str, amount
     notify(user, key=key, channel=OutboxMessage.Channel.EMAIL, template="low_balance_now", to=user.email, body=heading,
            email={"subject": f"⚠️ {heading}", "heading": heading, "paragraphs": paragraphs,
                   "button": ("Add money", _app("/fund")) if reason != "daily_cap" else ("Open Profile", _app("/profile"))})
+
+
+# ---------------------------------------------------------------- 4. tomorrow's drips
+
+def _names(events, plans) -> str:
+    names = [f"{plans[e.plan_id].emoji} {plans[e.plan_id].label} {N(e.amount_kobo)}" for e in events]
+    return ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+
+
+def _top_up_for(user, now: datetime, start: datetime, end: datetime) -> int | None:
+    """The least to add now (rounded up to ₦100) so none of tomorrow's drips waits for money. None if adding can't fix it."""
+    def held(units: int) -> bool:  # in ₦100 steps
+        return any(e.status in ("wait", "short") for e in upcoming(user, now, end, extra_kobo=units * 10_000) if e.at >= start)
+    hi = 10
+    while held(hi):
+        hi *= 2
+        if hi > 1_000_000:  # ₦100m: something else is holding them
+            return None
+    lo = 0  # held(lo) is true (that's why we're here), held(hi) is false
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        lo, hi = (mid, hi) if held(mid) else (lo, mid)
+    return hi * 10_000
+
+
+def tomorrow_summary(user: User, now: datetime) -> int:
+    """At 8 PM, if anything goes out tomorrow: one line listing it, and what to add tonight if the balance won't cover it."""
+    if not user.notify_daily_summary or user.paused_all:
+        return 0
+    tz = ZoneInfo(user.tz or "Africa/Lagos")
+    local = now.astimezone(tz)
+    if local.hour < SUMMARY_FROM_HOUR:
+        return 0
+    start = (local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1) - timedelta(microseconds=1)
+    key = f"tomorrow:{user.pk}:{start:%Y-%m-%d}"
+    if OutboxMessage.objects.filter(dedupe_key__startswith=key).exists():
+        return 0
+    plans = {str(p.pk): p for p in Plan.objects.filter(user=user)}
+    events = [e for e in upcoming(user, now, end) if e.at >= start and e.plan_id in plans]
+    if not events:
+        return 0
+    n, total = len(events), sum(e.cost_kobo for e in events)
+    head = f"{n} drip{'s' if n > 1 else ''} tomorrow, {N(total)} with fees: {_names(events, plans)}."
+    short = [e for e in events if e.status in ("wait", "short")]
+    capped = [e for e in events if e.status == "cap"]
+    need = _top_up_for(user, now, start, end) if short else 0
+    if short and need:
+        everything = "it goes out" if n == 1 else "they all go out"
+        template, body = "daily_summary_short", f"{head} Add {N(need)} tonight so {everything} on time."
+    elif capped:
+        it = "it" if len(capped) == 1 else "they"
+        template, body = "daily_summary_cap", (f"{head} {_names(capped, plans)} would go over your daily sending limit, "
+                                               f"so {it} will wait unless you raise it.")
+    elif short:
+        template, body = "daily_summary_short", f"{head} Some may wait unless you add money tonight."
+    else:
+        template, body = "daily_summary", f"{head} Your balance covers {'it' if n == 1 else 'them all'}."
+    notify_app(user, key=key, template=template, body=body)
+    return 1

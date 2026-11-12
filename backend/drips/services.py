@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from engine import FeeSchedule, forecast, occurrences
+from engine.protection import GOES_OUT
 from ledger import services as ledger
 
 from .models import Plan, PlanLine, Run, RunBatch
@@ -66,6 +67,22 @@ def user_forecast(user, now: datetime | None = None):
         f.total_needed_kobo += owed
         f.top_up_kobo = max(0, f.total_needed_kobo - bal.available_kobo)
     return f
+
+
+def upcoming(user, now: datetime, end: datetime, *, extra_kobo: int = 0) -> list:
+    """
+    Forecast runs from now until `end`, as the worker will see them, even past the end of the month (the engine's
+    forecast stops there). `extra_kobo` asks "what if they added this much now?".
+    """
+    plans, bal = engine_plans(user), ledger.balance(user).available_kobo + extra_kobo
+    kw = {"fee_kobo": fee_schedule(), "tz": user.tz, "daily_cap_kobo": user.daily_cap_kobo}
+    f = forecast(plans, bal, now, sent_today_kobo=sent_today_kobo(user, now), **kw)
+    events = [e for e in f.events if e.at <= end]
+    if end > f.window_end:  # into next month: start again from the 1st, with what this month's runs leave behind
+        nxt = f.window_end + timedelta(microseconds=1)
+        left = bal - sum(e.cost_kobo for e in f.events if e.status in GOES_OUT)
+        events += [e for e in forecast(plans, left, nxt, sent_today_kobo=sent_today_kobo(user, nxt), **kw).events if e.at <= end]
+    return events
 
 
 def materialise_runs(now: datetime, *, days: int | None = None, plans=None) -> int:
